@@ -1,0 +1,12 @@
+{
+  "set": "sections",
+  "description": "Tab strip captions, taken from the real NovuTrade section switcher.",
+  "values": [
+    "Summary",
+    "Positions",
+    "Orders",
+    "History",
+    "Advanced",
+    "Settings"
+  ]
+}

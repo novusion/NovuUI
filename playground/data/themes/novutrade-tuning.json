@@ -1,0 +1,26 @@
+{
+  "id": "novutrade-tuning",
+  "displayName": "NovuTrade — tuning (dev overlay, live)",
+  "base": "novutrade",
+
+  "_comment": [
+    "Scratch profile for tuning NovuTrade colours without a rebuild.",
+    "Save this file and the running gallery re-registers it through",
+    "ThemeManager::registerProfile(), which repaints every widget in the",
+    "preview scope. No compilation, no restart.",
+    "",
+    "Colours accept #RRGGBB and #AARRGGBB, so a token can be a translucent",
+    "overlay: #2E94a3b8 is slate-400 at 18%, which is what the real",
+    "novutrade profile uses.",
+    "",
+    "This is a scratch pad. Once a value is right it belongs in",
+    "novuTradeProfile() in src/ThemeProfile.cpp - which is a C++ change and",
+    "therefore a Rebuild & reload."
+  ],
+
+  "colors": {
+    "border": "#1E293B",
+    "borderSubtle": "#172033",
+    "borderHover": "#2A3A52"
+  }
+}

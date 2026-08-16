@@ -1,0 +1,19 @@
+{
+  "id": "novutrade-rounded-xl",
+  "displayName": "NovuTrade — extra rounded (dev overlay)",
+  "base": "novutrade",
+  "radii": {
+    "small": 8,
+    "medium": 14,
+    "large": 20,
+    "xl": 26
+  },
+  "spacing": {
+    "md": 14,
+    "lg": 20
+  },
+  "controls": {
+    "height": 36,
+    "heightSmall": 28
+  }
+}

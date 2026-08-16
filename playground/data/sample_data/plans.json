@@ -1,0 +1,10 @@
+{
+  "set": "plans",
+  "description": "Combo box options.",
+  "values": [
+    "Free",
+    "Pro",
+    "Team",
+    "Enterprise"
+  ]
+}

@@ -62,4 +62,9 @@ void setTheme(const ThemeColors& colors);
 
 QString rgba(const QColor& color, double alpha);
 
+// The same tint as a colour rather than as a string, for the components that
+// hand it to a painter instead of to a style sheet. Without it every caller
+// writes the same three-line copy-and-set-alpha dance.
+QColor withAlpha(const QColor& color, double alpha);
+
 } // namespace novu::ui

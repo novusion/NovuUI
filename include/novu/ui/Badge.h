@@ -40,6 +40,7 @@ public:
     QSize minimumSizeHint() const override { return sizeHint(); }
 
 protected:
+    bool event(QEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
 
 private:

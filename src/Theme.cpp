@@ -25,4 +25,11 @@ QString rgba(const QColor& color, double alpha)
         .arg(alpha, 0, 'f', 3);
 }
 
+QColor withAlpha(const QColor& color, double alpha)
+{
+    QColor out = color;
+    out.setAlphaF(static_cast<float>(alpha));
+    return out;
+}
+
 } // namespace novu::ui

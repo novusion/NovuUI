@@ -43,8 +43,36 @@ truth per component.
 | `Button` | Variants: `Primary`, `Secondary`, `Ghost`, `Danger`. Same geometry across variants. Helpers: `primaryButton()`, `secondaryButton()`, `ghostButton()`, `dangerButton()`. |
 | `Badge` | Tones: `Neutral`, `Success`, `Warning`, `Danger`, `Info`. Covers status / tag / plan / release / price badges. |
 | `TableView` | Owns column layout. Pages declare column *roles*, never widths. |
+| `Card` | The one surface primitive: background, border, themed radius. Self-painted. Padding lives on its own layout — there is no inner "body" widget. |
+| `section()` | Styled heading added to an existing layout. Creates no container. |
+| `toolbar()` | A row of controls with the profile's gap. Returns a layout. |
+| `pageLayout()` | A page's outer layout with page padding and card gap. Returns a layout. |
+| `splitHeader()` | Title/subtitle on the left, actions on the right. Returns the actions layout. |
+| `scrollPage()` | Scrollable page. Creates the one widget a QScrollArea requires. |
 
-Phase 1 is intentionally these four only. Quality over surface area.
+Still to come — see `docs/ROADMAP.md`: `EmptyState`, `InfoBanner`,
+`BusyOverlay`, `StatusIndicator`, `ConfirmationBar`, `StatCard`, `TablePanel`,
+`FormRow`, `PropertyRow`, `SearchBar`.
+
+## Theming
+
+The library supports several products in one process. `ThemeManager` holds
+profiles, `ThemeScope` marks a widget subtree as belonging to one, and
+`themeFor(widget)` resolves it by walking up the parents:
+
+```cpp
+ThemeScope::apply(novuTradeWorkspace, "novutrade");
+```
+
+Components read **roles**, never numbers — `radius(SurfaceRole::Card)`,
+`text(TypeRole::CardTitle)`, `space(SpacingRole::CardPadding)`. Profiles decide
+the values, so the same component is near-flat graphite in NovuSpace and
+rounded emerald in NovuTrade with no conditional anywhere.
+
+Theme changes propagate live: `registerProfile()` sends a `ThemeChangeEvent` to
+every affected widget, no restart and no component registry.
+
+Full description: `docs/DESIGN_SYSTEM.md`.
 
 ### TableView
 
@@ -88,6 +116,26 @@ Layout algorithm, run on data change and on resize:
 add_subdirectory(../NovuUI NovuUI)   # or FetchContent / submodule
 target_link_libraries(MyApp PRIVATE Novu::UI)
 ```
+
+That gives you exactly one target, `NovuUI`. The component gallery and the
+tests are guarded by `NOVUUI_BUILD_PLAYGROUND` / `NOVUUI_BUILD_TESTS`, which
+default to "NovuUI is the project being built", so a consumer never
+configures them.
+
+## The component gallery
+
+`playground/` is a standalone development executable that renders the real
+components — the same classes an application links — with their variants,
+states and layout-stress scenarios, under any registered theme profile. It is
+the visual test surface: edit a component, press **Rebuild & reload**, see the
+result. Editing sample data or a theme overlay needs no rebuild at all.
+
+```bash
+cmake -S . -B build && cmake --build build --config Release
+build/playground/Release/NovuUIPlayground
+```
+
+Full description, and how to add a component to it: `playground/README.md`.
 
 ## Status
 

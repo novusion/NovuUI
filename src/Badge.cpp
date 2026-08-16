@@ -1,6 +1,9 @@
 #include "novu/ui/Badge.h"
-#include "novu/ui/Theme.h"
 
+#include "novu/ui/StyleSheet.h"
+#include "novu/ui/ThemeManager.h"
+
+#include <QEvent>
 #include <QFontMetrics>
 #include <QPainter>
 #include <QPainterPath>
@@ -10,35 +13,35 @@ namespace novu::ui {
 namespace {
 
 // Owned by the component, not by any page.
-constexpr int kPaddingH = 10;
-constexpr int kPaddingV = 4;
+constexpr int kPaddingH = 9;
+constexpr int kPaddingV = 3;
+// A badge in a card header would otherwise stretch to the height of the whole
+// header row and stop reading as a pill.
+constexpr int kMinHeight = 22;
 
 struct ToneColors { QColor fg; QColor bg; };
 
-ToneColors colorsFor(Badge::Tone tone)
+ToneColors colorsFor(Badge::Tone tone, const ThemeProfile& profile)
 {
-    const ThemeColors& t = theme();
-    auto blend = [](const QColor& c, double alpha) {
-        QColor out = c;
-        out.setAlphaF(alpha);
-        return out;
-    };
+    const ThemeColors& t = profile.colors;
 
     switch (tone) {
-    case Badge::Tone::Success: return {t.success, blend(t.success, 0.16)};
-    case Badge::Tone::Warning: return {t.warning, blend(t.warning, 0.16)};
-    case Badge::Tone::Danger:  return {t.danger,  blend(t.danger, 0.16)};
-    case Badge::Tone::Info:    return {t.accentLight, blend(t.accentLight, 0.16)};
+    case Badge::Tone::Success: return {t.success, withAlpha(t.success, 0.16)};
+    case Badge::Tone::Warning: return {t.warning, withAlpha(t.warning, 0.16)};
+    case Badge::Tone::Danger:  return {t.danger,  withAlpha(t.danger, 0.16)};
+    case Badge::Tone::Info:    return {t.accentLight, withAlpha(t.accentLight, 0.16)};
     case Badge::Tone::Neutral:
-    default:                   return {t.textSecondary, blend(t.textSecondary, 0.12)};
+    // 0.16 like every other tone. Neutral was tinted at 0.12 and read as a
+    // bare word next to a row of filled pills.
+    default:                   return {t.textSecondary, withAlpha(t.textSecondary, 0.16)};
     }
 }
 
 QFont badgeFont(const QWidget* widget)
 {
     QFont font = widget->font();
-    font.setPixelSize(metrics::fontSizeSmall);
-    font.setWeight(QFont::DemiBold);
+    font.setPixelSize(themeFor(widget).type.xs);
+    font.setWeight(QFont::Bold);
     return font;
 }
 
@@ -83,18 +86,32 @@ QSize Badge::sizeHint() const
 {
     const QFontMetrics fm(badgeFont(this));
     return QSize(fm.horizontalAdvance(m_text) + 2 * kPaddingH,
-                 fm.height() + 2 * kPaddingV);
+                 qMax(kMinHeight, fm.height() + 2 * kPaddingV));
+}
+
+bool Badge::event(QEvent* event)
+{
+    // The scope that decides the palette may be installed after the badge is
+    // constructed, so the tokens are re-read rather than captured once.
+    if (event->type() == ThemeChangeEvent::type()
+        || event->type() == QEvent::ParentChange) {
+        updateGeometry();
+        update();
+    }
+    return QWidget::event(event);
 }
 
 void Badge::paintEvent(QPaintEvent*)
 {
-    const ToneColors colors = colorsFor(m_tone);
+    const ThemeProfile& profile = themeFor(this);
+    const ToneColors colors = colorsFor(m_tone, profile);
 
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
     const QRectF pill = rect().adjusted(0, 0, -1, -1);
-    const double radius = pill.height() / 2.0;
+    const double radius = resolveRadius(profile.radius(SurfaceRole::Badge),
+                                        static_cast<int>(pill.height()));
 
     painter.setPen(Qt::NoPen);
     painter.setBrush(colors.bg);

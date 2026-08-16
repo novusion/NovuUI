@@ -1,0 +1,15 @@
+{
+  "set": "trades",
+  "description": "Closed and open positions. Development data only — never a source for a real account.",
+  "optional": ["note", "closed"],
+  "rows": [
+    { "symbol": "BTCUSDT", "side": "long", "qty": 0.42, "price": 71240.5, "pnl": 1284.5, "status": "filled", "note": "trend continuation", "closed": "2026-08-11" },
+    { "symbol": "ETHUSDT", "side": "short", "qty": 6.1, "price": 3820.25, "pnl": -312.75, "status": "filled", "note": "range fade", "closed": "2026-08-12" },
+    { "symbol": "SOLUSDT", "side": "long", "qty": 120.0, "price": 184.9, "pnl": 640.0, "status": "active", "note": "breakout" },
+    { "symbol": "ADAUSDT", "side": "long", "qty": 8400.0, "price": 0.6412, "pnl": -88.2, "status": "active" },
+    { "symbol": "XRPUSDT", "side": "short", "qty": 2500.0, "price": 2.114, "pnl": 402.6, "status": "filled", "closed": "2026-08-09" },
+    { "symbol": "AVAXUSDT", "side": "long", "qty": 90.0, "price": 41.77, "pnl": 0.0, "status": "pending" },
+    { "symbol": "LINKUSDT", "side": "long", "qty": 310.0, "price": 22.48, "pnl": 1120.4, "status": "filled", "note": "swing", "closed": "2026-08-05" },
+    { "symbol": "DOGEUSDT", "side": "short", "qty": 45000.0, "price": 0.2188, "pnl": -204.0, "status": "cancelled" }
+  ]
+}

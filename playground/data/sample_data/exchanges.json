@@ -1,0 +1,15 @@
+{
+  "set": "exchanges",
+  "description": "Tile chooser rows. A non-empty badge means the tile is unavailable.",
+  "optional": ["badge"],
+  "rows": [
+    { "name": "Binance", "markets": "Spot and futures" },
+    { "name": "Bybit", "markets": "Perpetuals" },
+    { "name": "OKX", "markets": "Spot, futures, options" },
+    { "name": "Kraken", "markets": "Spot", "badge": "Soon" },
+    { "name": "Coinbase", "markets": "Spot", "badge": "Soon" },
+    { "name": "Deribit", "markets": "Options" },
+    { "name": "Bitfinex", "markets": "Spot and margin", "badge": "Soon" },
+    { "name": "KuCoin", "markets": "Spot and futures" }
+  ]
+}

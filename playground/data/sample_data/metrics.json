@@ -1,0 +1,15 @@
+{
+  "set": "metrics",
+  "description": "Caption/value pairs for StatCard and statGrid(). Development data only.",
+  "optional": ["tone"],
+  "rows": [
+    { "caption": "Open positions", "value": "14", "tone": "default" },
+    { "caption": "Realised P&L", "value": "+8 421.60", "tone": "success" },
+    { "caption": "Unrealised", "value": "-312.75", "tone": "danger" },
+    { "caption": "Win rate", "value": "61.4%", "tone": "accent" },
+    { "caption": "Pending orders", "value": "3", "tone": "warning" },
+    { "caption": "Exchanges", "value": "4", "tone": "info" },
+    { "caption": "Uptime", "value": "99.982%", "tone": "muted" },
+    { "caption": "Latency p95", "value": "42 ms", "tone": "default" }
+  ]
+}

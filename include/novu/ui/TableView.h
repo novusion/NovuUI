@@ -68,6 +68,7 @@ protected:
 
 private:
     int measureColumn(int column) const;
+    Qt::Alignment alignmentFor(int column) const;
 
     QVector<ColumnRole> m_roles;
     bool m_inRelayout = false;

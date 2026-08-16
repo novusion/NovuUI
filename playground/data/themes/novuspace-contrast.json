@@ -1,0 +1,16 @@
+{
+  "id": "novuspace-contrast",
+  "displayName": "NovuSpace — high contrast (dev overlay)",
+  "base": "novuspace",
+  "colors": {
+    "textPrimary": "#FFFFFF",
+    "textSecondary": "#C9D3E4",
+    "textDisabled": "#8B97AB",
+    "border": "#3A424E",
+    "borderHover": "#4A5462",
+    "accent": "#3DA9FC"
+  },
+  "type": {
+    "md": 13
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "set": "files",
+  "description": "File rows for a browser-style table. Development data only.",
+  "optional": ["owner", "modified"],
+  "rows": [
+    { "name": "quarterly-report.xlsx", "path": "/Documents/Finance", "size": "2.4 MB", "kind": "Spreadsheet", "owner": "Ana Ferreira", "modified": "2026-08-14" },
+    { "name": "novuui-design-system.md", "path": "/Docs", "size": "38 KB", "kind": "Markdown", "owner": "Wei Zhang", "modified": "2026-08-15" },
+    { "name": "backtest-2026-07.parquet", "path": "/Data/Backtests", "size": "914 MB", "kind": "Dataset", "owner": "Mert Demir", "modified": "2026-07-31" },
+    { "name": "logo-mark.svg", "path": "/Brand", "size": "12 KB", "kind": "Vector", "modified": "2025-11-20" },
+    { "name": "session-2026-08-16T09-14-22.log", "path": "/Logs", "size": "6.1 MB", "kind": "Log", "owner": "Operations" },
+    { "name": "keys.enc", "path": "/Vault", "size": "4 KB", "kind": "Encrypted", "owner": "Operations", "modified": "2026-06-02" },
+    { "name": "render-farm-config.yaml", "path": "/Infra", "size": "9 KB", "kind": "Config", "owner": "Devika Singh", "modified": "2026-05-18" }
+  ]
+}

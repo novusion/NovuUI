@@ -1,0 +1,15 @@
+{
+  "set": "columns",
+  "description": "Flat string lists used by chips, tabs and combo boxes.",
+  "values": [
+    "Symbol",
+    "Side",
+    "Quantity",
+    "Entry Price",
+    "Current Price",
+    "P&L",
+    "Status",
+    "Opened",
+    "Strategy"
+  ]
+}

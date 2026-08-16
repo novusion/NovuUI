@@ -1,0 +1,15 @@
+{
+  "set": "tasks",
+  "description": "Work items with a status and an optional assignee. Development data only.",
+  "optional": ["assignee", "due"],
+  "rows": [
+    { "title": "Migrate Summary page to NovuUI", "status": "in-progress", "priority": "high", "assignee": "Ana Ferreira", "due": "2026-08-22" },
+    { "title": "Retire AdminUiKit.h", "status": "pending", "priority": "high", "assignee": "Wei Zhang", "due": "2026-09-01" },
+    { "title": "Badge tone audit across NovuTrade", "status": "done", "priority": "medium", "assignee": "Léa Moreau", "due": "2026-08-04" },
+    { "title": "TableView column roles for Orders", "status": "in-progress", "priority": "medium", "assignee": "Mert Demir" },
+    { "title": "Reduce QWidget containers in Trade Manager", "status": "pending", "priority": "low" },
+    { "title": "Theme overlay for reduced motion", "status": "pending", "priority": "low", "assignee": "Devika Singh", "due": "2026-10-15" },
+    { "title": "Document scrollPage() viewport rule", "status": "done", "priority": "low", "assignee": "Operations" },
+    { "title": "Fix pill radius clamping on tall banners", "status": "failed", "priority": "high", "assignee": "Rodrigo Aguilar", "due": "2026-08-16" }
+  ]
+}

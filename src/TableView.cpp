@@ -1,5 +1,6 @@
 #include "novu/ui/TableView.h"
-#include "novu/ui/Theme.h"
+
+#include "novu/ui/ThemeManager.h"
 
 #include <QApplication>
 #include <QFontMetrics>
@@ -13,21 +14,21 @@ namespace novu::ui {
 namespace {
 
 constexpr int kColumnPadding = 16;
-constexpr int kRowHeight = 34;
-constexpr int kHeaderHeight = 32;
 
 } // namespace
 
 TableView::TableView(QWidget* parent)
     : QTableWidget(parent)
 {
-    const ThemeColors& t = theme();
+    const ThemeProfile& profile = themeFor(this);
+    const ThemeColors& t = profile.colors;
+    const int rowHeight = profile.table.rowHeight;
 
     verticalHeader()->setVisible(false);
-    verticalHeader()->setDefaultSectionSize(kRowHeight);
-    verticalHeader()->setMinimumSectionSize(kRowHeight);
+    verticalHeader()->setDefaultSectionSize(rowHeight);
+    verticalHeader()->setMinimumSectionSize(rowHeight);
 
-    horizontalHeader()->setMinimumHeight(kHeaderHeight);
+    horizontalHeader()->setMinimumHeight(profile.table.headerHeight);
     horizontalHeader()->setHighlightSections(false);
     horizontalHeader()->setStretchLastSection(false);
     // Every width is assigned by relayoutColumns(); the automatic modes would
@@ -75,10 +76,18 @@ void TableView::setColumns(const QVector<QPair<QString, ColumnRole>>& columns)
     QStringList captions;
     captions.reserve(columns.size());
     for (const auto& column : columns) {
-        captions << column.first;
+        captions << column.first.toUpper();
         m_roles.append(column.second);
     }
     setHorizontalHeaderLabels(captions);
+
+    // Content columns hold values - prices, counts, timestamps - and read
+    // right-aligned against each other; text columns stay left.
+    for (int i = 0; i < m_roles.size(); ++i) {
+        if (auto* header = horizontalHeaderItem(i)) {
+            header->setTextAlignment(alignmentFor(i) | Qt::AlignVCenter);
+        }
+    }
 }
 
 void TableView::setWidget(int row, int column, QWidget* widget)
@@ -120,7 +129,17 @@ void TableView::setText(int row, int column, const QString& text, const QString&
     if (!tip.isEmpty()) {
         item->setToolTip(tip);
     }
+    item->setTextAlignment(alignmentFor(column) | Qt::AlignVCenter);
     setItem(row, column, item);
+}
+
+// A column's alignment follows from its role, so a page never states it and
+// two tables cannot disagree about how a price is aligned.
+Qt::Alignment TableView::alignmentFor(int column) const
+{
+    const bool numeric = column >= 0 && column < m_roles.size()
+        && m_roles.at(column) == ColumnRole::Content;
+    return numeric ? Qt::AlignRight : Qt::AlignLeft;
 }
 
 int TableView::measureColumn(int column) const

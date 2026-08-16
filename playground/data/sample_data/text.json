@@ -1,0 +1,12 @@
+{
+  "set": "text",
+  "description": "The strings the LongText and LongIdentifier scenarios substitute in.",
+  "strings": {
+    "short": "Active",
+    "long_text": "A description long enough that a column which assumed a short value has to decide what it does about the rest of it, which is exactly the decision this scenario exists to make visible before a page ships.",
+    "long_identifier": "7f3c1e9ab84d2f60c5a17e93b0d46f28ac59e17b3d820f4e6c91a5d7b8e30246",
+    "long_path": "C:/Users/developer/AppData/Local/Novusion/NovuSpace/modules/novutrade/cache/backtests/2026-07/BTCUSDT-1m-consolidated.parquet",
+    "paragraph": "Components read roles, never numbers. The profile decides the values, so the same component is near-flat graphite in NovuSpace and rounded emerald in NovuTrade with no conditional anywhere.",
+    "unicode": "Ünïcödé — 中文 — العربية — эмодзи 🌗 — ligatures ﬁ ﬂ"
+  }
+}
