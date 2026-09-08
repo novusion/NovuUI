@@ -118,6 +118,78 @@ QWidget* build(const PreviewContext& ctx)
         column->addWidget(card);
     }
 
+    // ── semantic palette ─────────────────────────────────────────────────
+    //
+    // The card that answers "what is shared and what is this application's".
+    // Switch the profile above it and the four status rows must not move.
+    {
+        const SemanticHues& shared = sharedSemanticHues();
+        const bool overridden = profile.colors.success != shared.success
+                             || profile.colors.warning != shared.warning
+                             || profile.colors.danger != shared.danger
+                             || profile.colors.info != shared.info;
+
+        Card* card = exampleCard(page, QStringLiteral("Semantic palette"),
+                                 QStringLiteral("Status is shared across every Novusion "
+                                                "application. Accent is not."));
+        QVBoxLayout* body = card->body();
+
+        auto* row = new QHBoxLayout();
+        row->setSpacing(profile.space(SpacingRole::ToolbarGap));
+        row->addWidget(new Badge(QStringLiteral("Neutral"), Badge::Tone::Neutral, card));
+        row->addWidget(new Badge(QStringLiteral("Success"), Badge::Tone::Success, card));
+        row->addWidget(new Badge(QStringLiteral("Warning"), Badge::Tone::Warning, card));
+        row->addWidget(new Badge(QStringLiteral("Danger"), Badge::Tone::Danger, card));
+        row->addWidget(new Badge(QStringLiteral("Info"), Badge::Tone::Info, card));
+        row->addStretch(1);
+        body->addLayout(row);
+
+        auto* grid = new QGridLayout();
+        grid->setHorizontalSpacing(profile.space(SpacingRole::ToolbarGap));
+        grid->setVerticalSpacing(4);
+        const QString status = overridden ? QStringLiteral("override")
+                                          : QStringLiteral("shared");
+        int r = 0;
+        const struct { const char* name; SemanticRole role; } roles[] = {
+            {"success", SemanticRole::Success}, {"warning", SemanticRole::Warning},
+            {"danger", SemanticRole::Danger},   {"info", SemanticRole::Info},
+        };
+        for (const auto& entry : roles) {
+            colourRow(grid, r, card, QString::fromLatin1(entry.name),
+                      profile.semantic.role(entry.role).text);
+            grid->addWidget(label(status, card, TypeRole::Caption,
+                                  overridden ? Ink::Warning : Ink::Success), r, 3);
+            ++r;
+        }
+        // Neutral is the absence of a status, so it follows the surface rather
+        // than being shared - that is a different answer, and it is labelled as
+        // one.
+        colourRow(grid, r, card, QStringLiteral("neutral"),
+                  profile.semantic.role(SemanticRole::Neutral).text);
+        grid->addWidget(label(QStringLiteral("per surface"), card, TypeRole::Caption,
+                              Ink::Muted), r, 3);
+        ++r;
+        // The accent sits in the same table on purpose: it is the layer a
+        // product does own, and seeing it move while the four above it stay put
+        // is the whole point of this card.
+        colourRow(grid, r, card, QStringLiteral("accent"), profile.colors.accent);
+        grid->addWidget(label(QStringLiteral("application"), card, TypeRole::Caption,
+                              Ink::Accent), r, 3);
+        grid->setColumnStretch(3, 1);
+        body->addLayout(grid);
+
+        note(body, card,
+             overridden
+                 ? QStringLiteral("This profile overrides the shared status hues. The only "
+                                  "reason that is allowed is surface polarity: on a light "
+                                  "panel the shared hues fall to about 2.5:1 and stop being "
+                                  "readable.")
+                 : QStringLiteral("This profile takes the shared hues unchanged. Switch to "
+                                  "another application profile — the four status rows do not "
+                                  "move, the accent row does."));
+        column->addWidget(card);
+    }
+
     // ── colours ──────────────────────────────────────────────────────────
     {
         Card* card = exampleCard(page, QStringLiteral("Colours"),
@@ -280,6 +352,12 @@ ComponentSpec themeRolesComponent()
         "two products.");
     spec.headerPath = QStringLiteral("include/novu/ui/ThemeProfile.h");
     spec.sourcePath = QStringLiteral("src/ThemeProfile.cpp");
+    spec.usedBy = {QStringLiteral("novuspace"),
+                   QStringLiteral("novuai"),
+                   QStringLiteral("novuexplorer"),
+                   QStringLiteral("novuhub"),
+                   QStringLiteral("novuvoice"),
+                   QStringLiteral("novutrade")};
     spec.variants = {QStringLiteral("Colours"), QStringLiteral("SurfaceRole"),
                      QStringLiteral("SpacingRole"), QStringLiteral("BorderRole"),
                      QStringLiteral("ControlSize"), QStringLiteral("Chart"),

@@ -83,6 +83,30 @@ struct ComponentSpec
     QString headerPath;
     QString sourcePath;
 
+    // Which Novusion applications use this component, by theme profile id:
+    // "novuspace", "novuai", "novuvoice", "novutrade". Empty means membership
+    // has not been recorded yet, which is not the same as "nobody uses it".
+    //
+    // Declared here rather than derived, because most applications do not link
+    // NovuUI yet - there is nothing to measure until they do. The list is
+    // seeded from docs/ECOSYSTEM_AUDIT.md and becomes fact as each application
+    // migrates. One place per component, which is what keeps it maintainable:
+    // the gallery's filter reads this and holds no membership rules of its own.
+    //
+    // NovuExplorer and NovuHub have no profile of their own - they wear
+    // "novuspace" - so their usage is recorded under that id.
+    QStringList usedBy;
+
+    // True when nothing consumes this component yet.
+    //
+    // The design system asks for a generic component to be created here *before*
+    // the page that needs it, so "no application uses it" is a legitimate state
+    // rather than a defect - but it is indistinguishable from a spec whose
+    // author forgot to record membership, and that one is a defect. Saying it
+    // out loud keeps the two apart, and keeps the test that catches the second
+    // one from having to allow the first.
+    bool awaitingAdoption = false;
+
     QStringList variants;     // "Primary", "Secondary", ...
     QStringList states;       // "Normal", "Hover", "Disabled", ...
     QStringList keywords;     // extra search terms not in the name
@@ -100,6 +124,11 @@ struct ComponentSpec
     // Name, id, category, keywords, variants and states, matched
     // case-insensitively on substrings.
     bool matches(const QString& query) const;
+
+    // Membership, for the gallery's application filter. A component with no
+    // recorded membership belongs to no application yet, so a filtered view
+    // hides it rather than guessing.
+    bool isUsedBy(const QString& applicationId) const;
 };
 
 } // namespace novu::playground

@@ -108,6 +108,8 @@ ComponentSpec flowLayoutComponent()
         "its own size. Qt ships no equivalent.");
     spec.headerPath = QStringLiteral("include/novu/ui/FlowLayout.h");
     spec.sourcePath = QStringLiteral("src/FlowLayout.cpp");
+    spec.usedBy = {QStringLiteral("novuspace"),
+                   QStringLiteral("novutrade")};
     spec.variants = {QStringLiteral("Uniform items"), QStringLiteral("Mixed heights")};
     spec.states = {QStringLiteral("One line"), QStringLiteral("Wrapped"), QStringLiteral("Empty")};
     spec.keywords = {QStringLiteral("flow"), QStringLiteral("wrap"), QStringLiteral("layout"),

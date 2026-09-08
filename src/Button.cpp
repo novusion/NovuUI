@@ -102,16 +102,23 @@ void Button::applyVariant()
         foreground = t.textOnAccent;
         borderColor = t.accent;
         break;
-    case Variant::Danger:
-        background = withAlpha(t.danger, 0.14);
-        foreground = t.danger;
-        borderColor = withAlpha(t.danger, 0.40);
+    // Through the shared palette rather than re-deriving the tint. The 0.14
+    // fill here against Badge's 0.16 was the whole difference between a Danger
+    // button and a Danger badge sitting next to each other.
+    case Variant::Danger: {
+        const SemanticColor& danger = profile.semantic.danger;
+        background = danger.fill;
+        foreground = danger.text;
+        borderColor = danger.border;
         break;
-    case Variant::Success:
-        background = withAlpha(t.success, 0.14);
-        foreground = t.success;
-        borderColor = withAlpha(t.success, 0.40);
+    }
+    case Variant::Success: {
+        const SemanticColor& success = profile.semantic.success;
+        background = success.fill;
+        foreground = success.text;
+        borderColor = success.border;
         break;
+    }
     case Variant::Ghost:
         background = Qt::transparent;
         foreground = t.textSecondary;

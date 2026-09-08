@@ -29,6 +29,24 @@ Status as of 2026-08-14.
 - `ThemeChangeEvent` broadcast via `QApplication::allWidgets()`, no registry
 - `themeFor(widget)` resolves by walking parents, no caching
 
+### Phase 8 — shared window chrome ✅
+
+`TitleBar.h/.cpp`, `WindowShell.h/.cpp`, `WindowTokens`, `SurfaceRole::Window`,
+`TypeRole::WindowTitle`.
+
+- `WindowShell` composed onto a top-level widget, not inherited — a dialog has
+  to stay a `QDialog`
+- `AppWindow`, `ToolWindow`, `Dialog`; `Dialog::confirm/inform/reportError`
+- `WindowControlButton`: one class, one bounding box, drawn glyphs, Close
+  neutral until hovered
+- Native frame kept alive under the chrome on Windows (`WS_THICKFRAME`,
+  `WM_NCCALCSIZE`, `WM_NCHITTEST`, DWM radius and border); `startSystemResize()`
+  fallback elsewhere
+- Reference window, tool window and dialog in the gallery under Foundation →
+  WindowShell
+- 24 tests in `tests/tst_window_chrome.cpp`
+- Specification and migration list: `WINDOW_CHROME.md`
+
 ### Phase 1a — structural components ✅
 
 | component | widget cost | note |
@@ -88,6 +106,20 @@ Delete `NovuTradeUiKit.h` and every page-local styling helper.
 ### Phase 7 — audit and report
 Migrated components, removed helpers, removed layouts, removed stylesheets,
 remaining debt, recommendations for the Designer.
+
+### Phase 9 — window chrome migration
+
+The library side is done; the applications are not. Full table, per file, in
+`WINDOW_CHROME.md` §9. Summary:
+
+| step | scope | risk |
+|---|---|---|
+| 1 | NovuExplorer main window + `NovuPopupWindow` | highest payoff — deletes three copies of the native recipe |
+| 2 | NovuHub `HubWindow` | removes the last hardcoded chrome palette |
+| 3 | NovuSpace `AppWindow` | hosts the modules; migrate it alone |
+| 4 | `QMessageBox` sweeps, one application at a time | mechanical, ~658 sites total |
+| 5 | NovuCrawler PySide6 port | mirrors `WINDOW_CHROME.md` §7, no redesign |
+| 6 | the Novu file/folder picker | unblocks the `QFileDialog` sweep |
 
 ### Then — the other applications
 `NovuAdmin` (retire `AdminUiKit.h`), `NovuExplorer`, `NovuMail`. Until

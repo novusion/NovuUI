@@ -119,6 +119,12 @@ ComponentSpec tabStripComponent()
         "item is current and leaves the layout to the page.");
     spec.headerPath = QStringLiteral("include/novu/ui/TabStrip.h");
     spec.sourcePath = QStringLiteral("src/TabStrip.cpp");
+    spec.usedBy = {QStringLiteral("novuspace"),
+                   QStringLiteral("novuai"),
+                   QStringLiteral("novuexplorer"),
+                   QStringLiteral("novuhub"),
+                   QStringLiteral("novuvoice"),
+                   QStringLiteral("novutrade")};
     spec.variants = {QStringLiteral("Pill"), QStringLiteral("Segment"),
                      QStringLiteral("Accent"), QStringLiteral("Warning")};
     spec.states = {QStringLiteral("Active"), QStringLiteral("Inactive"), QStringLiteral("Hover"),

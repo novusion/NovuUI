@@ -19,22 +19,27 @@ constexpr int kPaddingV = 3;
 // header row and stop reading as a pill.
 constexpr int kMinHeight = 22;
 
-struct ToneColors { QColor fg; QColor bg; };
-
-ToneColors colorsFor(Badge::Tone tone, const ThemeProfile& profile)
+// A badge tone is a semantic role. The mapping is the whole of it: the ink and
+// the plate come from the shared palette, so a Success badge is the same green
+// in every Novusion application and a theme switch does not move it.
+//
+// Info used to resolve to accentLight - the application accent - which made it
+// sky blue in NovuTrade, gold in Warm Gray and violet in Dark Purple. It is a
+// status now, like the other three.
+//
+// Neutral stays the profile's own secondary ink, tinted the same 0.16 as every
+// other tone: it is the absence of a status, and at 0.12 it read as a bare word
+// next to a row of filled pills.
+SemanticRole roleFor(Badge::Tone tone)
 {
-    const ThemeColors& t = profile.colors;
-
     switch (tone) {
-    case Badge::Tone::Success: return {t.success, withAlpha(t.success, 0.16)};
-    case Badge::Tone::Warning: return {t.warning, withAlpha(t.warning, 0.16)};
-    case Badge::Tone::Danger:  return {t.danger,  withAlpha(t.danger, 0.16)};
-    case Badge::Tone::Info:    return {t.accentLight, withAlpha(t.accentLight, 0.16)};
-    case Badge::Tone::Neutral:
-    // 0.16 like every other tone. Neutral was tinted at 0.12 and read as a
-    // bare word next to a row of filled pills.
-    default:                   return {t.textSecondary, withAlpha(t.textSecondary, 0.16)};
+    case Badge::Tone::Success: return SemanticRole::Success;
+    case Badge::Tone::Warning: return SemanticRole::Warning;
+    case Badge::Tone::Danger:  return SemanticRole::Danger;
+    case Badge::Tone::Info:    return SemanticRole::Info;
+    case Badge::Tone::Neutral: break;
     }
+    return SemanticRole::Neutral;
 }
 
 QFont badgeFont(const QWidget* widget)
@@ -104,7 +109,7 @@ bool Badge::event(QEvent* event)
 void Badge::paintEvent(QPaintEvent*)
 {
     const ThemeProfile& profile = themeFor(this);
-    const ToneColors colors = colorsFor(m_tone, profile);
+    const SemanticColor& colors = profile.semantic.role(roleFor(m_tone));
 
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
@@ -114,11 +119,11 @@ void Badge::paintEvent(QPaintEvent*)
                                         static_cast<int>(pill.height()));
 
     painter.setPen(Qt::NoPen);
-    painter.setBrush(colors.bg);
+    painter.setBrush(colors.fill);
     painter.drawRoundedRect(pill, radius, radius);
 
     painter.setFont(badgeFont(this));
-    painter.setPen(colors.fg);
+    painter.setPen(colors.text);
     painter.drawText(rect(), Qt::AlignCenter, m_text);
 }
 

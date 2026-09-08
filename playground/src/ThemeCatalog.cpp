@@ -74,7 +74,11 @@ QStringList ThemeCatalog::builtinProfileIds()
     // Asked of the library rather than listed here. A profile NovuUI adds
     // appears in the gallery with no change to this file, and — more
     // importantly — an overlay can never be mistaken for one.
-    return {novu::ui::novuSpaceProfile().id, novu::ui::novuTradeProfile().id};
+    QStringList ids;
+    for (const novu::ui::ThemeProfile& profile : novu::ui::builtinProfiles()) {
+        ids.append(profile.id);
+    }
+    return ids;
 }
 
 bool ThemeCatalog::reload()

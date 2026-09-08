@@ -4,6 +4,8 @@
 #include "novu/playground/ComponentSpec.h"
 #include "novu/playground/Scenario.h"
 
+#include "novu/ui/Fields.h"
+
 #include <QMainWindow>
 #include <QString>
 
@@ -64,6 +66,7 @@ public:
 private slots:
     void onSearchChanged(const QString& query);
     void onScenarioChanged(int index);
+    void onApplicationFilterToggled(bool on);
     void onProfileChanged(int index);
     void onOpenSource();
     void onRebuild();
@@ -74,6 +77,11 @@ private slots:
 private:
     void buildChrome();
     void rebuildNavigation();
+    // The application the selected Theme stands for, or empty when the Theme is
+    // a selectable appearance rather than a product. Empty means the filter has
+    // nothing to filter by.
+    QString filterApplicationId() const;
+    void refreshApplicationFilter();
     void selectComponent(const QString& id);
     void repopulatePreview();
     void refreshScenarioSelector(const ComponentSpec& spec);
@@ -94,6 +102,10 @@ private:
     QScrollArea* m_navScroll = nullptr;
     QComboBox* m_scenarioBox = nullptr;
     QComboBox* m_profileBox = nullptr;
+    // One control, not a second application dropdown: the selected Theme
+    // already says which application is in view, so the filter only has to be
+    // on or off.
+    novu::ui::CheckBox* m_appFilter = nullptr;
     novu::ui::Badge* m_status = nullptr;
     novu::ui::Button* m_rebuildButton = nullptr;
     novu::ui::Button* m_sourceButton = nullptr;

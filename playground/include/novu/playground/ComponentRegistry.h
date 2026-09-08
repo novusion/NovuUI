@@ -45,7 +45,13 @@ public:
 
     // Empty query returns everything, in the same order as all(). Matches on
     // id, name, category, keywords, variants and states.
-    QVector<ComponentSpec> search(const QString& query) const;
+    //
+    // `applicationId` narrows the result to the components that application
+    // uses; empty means no narrowing. The filter lives here rather than in the
+    // gallery so that "which components does NovuAI use" has one answer, asked
+    // the same way by the navigation, by a test and by anything added later.
+    QVector<ComponentSpec> search(const QString& query,
+                                  const QString& applicationId = QString()) const;
 
 private:
     QHash<QString, ComponentSpec> m_specs;

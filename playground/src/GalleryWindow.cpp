@@ -67,6 +67,9 @@ GalleryWindow::GalleryWindow(ComponentRegistry& registry, SampleData& data,
     m_profileId = m_chromeProfileId;
 
     buildChrome();
+    // Labelled for whichever Theme the gallery opens on, before anything is
+    // shown.
+    refreshApplicationFilter();
     rebuildNavigation();
 
     const QVector<ComponentSpec> specs = m_registry.all();
@@ -178,6 +181,13 @@ void GalleryWindow::buildChrome()
             &GalleryWindow::onProfileChanged);
     actions->addWidget(m_profileBox);
 
+    // Visibility only, and no second dropdown: the Theme above already names
+    // the application, so this is the whole control.
+    m_appFilter = checkBox(QStringLiteral("Used by this app only"), header);
+    connect(m_appFilter, &QCheckBox::toggled, this,
+            &GalleryWindow::onApplicationFilterToggled);
+    actions->addWidget(m_appFilter);
+
     actions->addStretch(1);
 
     m_status = new Badge(QStringLiteral("Ready"), Badge::Tone::Success, header);
@@ -252,11 +262,20 @@ void GalleryWindow::rebuildNavigation()
     }
 
     const QString query = m_search ? m_search->text() : QString();
-    const QVector<ComponentSpec> specs = m_registry.search(query);
+    // The registry does the filtering; the gallery only says which application
+    // is in view. No membership rule lives in this file.
+    const QString application = filterApplicationId();
+    const QVector<ComponentSpec> specs = m_registry.search(query, application);
 
     if (specs.isEmpty()) {
-        m_navLayout->addWidget(label(QStringLiteral("No component matches \"%1\".").arg(query),
-                                     m_navHost, TypeRole::Caption, Ink::Muted));
+        const QString message =
+            application.isEmpty()
+                ? QStringLiteral("No component matches \"%1\".").arg(query)
+                : QStringLiteral("No component recorded for %1%2.")
+                      .arg(ThemeCatalog::displayNameFor(application),
+                           query.isEmpty() ? QString()
+                                           : QStringLiteral(" matching \"%1\"").arg(query));
+        m_navLayout->addWidget(label(message, m_navHost, TypeRole::Caption, Ink::Muted));
         m_navLayout->addStretch(1);
         return;
     }
@@ -420,11 +439,64 @@ void GalleryWindow::onProfileChanged(int index)
     // agree with the self-painted ones. applyStyleSheet() does both.
     applyStyleSheet(m_surface, m_profileId);
 
+    // The filter's context is the Theme, so changing the Theme changes what the
+    // navigation shows - immediately, without touching the filter itself.
+    refreshApplicationFilter();
+    if (m_appFilter && m_appFilter->isChecked()) {
+        rebuildNavigation();
+    }
+
     // Rebuilt as well as repainted. A ThemeChangeEvent is enough for a
     // self-painted component, but NovuUI components also read geometry tokens
     // at construction — control heights, paddings, fonts — and a repaint
     // would leave those at the old profile's values.
     repopulatePreview();
+}
+
+QString GalleryWindow::filterApplicationId() const
+{
+    if (!m_appFilter || !m_appFilter->isChecked()) {
+        return QString();
+    }
+    // Only a profile that names a product can narrow anything. Midnight Blue is
+    // an appearance a user picks, not an application, so with it selected the
+    // filter has nothing to filter by and the gallery stays whole.
+    return novu::ui::isApplicationProfile(m_profileId) ? m_profileId : QString();
+}
+
+void GalleryWindow::refreshApplicationFilter()
+{
+    if (!m_appFilter) {
+        return;
+    }
+    const bool isApplication = novu::ui::isApplicationProfile(m_profileId);
+    m_appFilter->setEnabled(isApplication);
+    m_appFilter->setText(isApplication
+                             ? QStringLiteral("Used by %1 only")
+                                   .arg(ThemeCatalog::displayNameFor(m_profileId))
+                             : QStringLiteral("Used by this app only"));
+    m_appFilter->setToolTip(
+        isApplication
+            ? QStringLiteral("Show only the components %1 uses. Membership is declared per "
+                             "component and seeded from docs/ECOSYSTEM_AUDIT.md; it becomes "
+                             "fact as each application migrates onto NovuUI.")
+                  .arg(ThemeCatalog::displayNameFor(m_profileId))
+            : QStringLiteral("%1 is a selectable theme, not an application, so there is "
+                             "nothing to filter by.")
+                  .arg(ThemeCatalog::displayNameFor(m_profileId)));
+}
+
+void GalleryWindow::onApplicationFilterToggled(bool on)
+{
+    Q_UNUSED(on);
+    if (m_updatingSelectors) {
+        return;
+    }
+    // Visibility only: the navigation is rebuilt and nothing else. The selected
+    // component keeps its scenario and its profile, and if the filter hides it
+    // the preview is left alone rather than jumping to another component -
+    // hiding an entry is not the same as choosing a different one.
+    rebuildNavigation();
 }
 
 void GalleryWindow::onOpenSource()

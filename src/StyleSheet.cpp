@@ -1,5 +1,7 @@
 #include "novu/ui/StyleSheet.h"
 
+#include "novu/ui/Style.h"
+
 #include "novu/ui/ThemeManager.h"
 #include "novu/ui/ThemeScope.h"
 
@@ -78,15 +80,19 @@ QString styleSheetFor(const ThemeProfile& p)
                .arg(radiusButton)
                .arg(kButtonPaddingH);
 
+    // Hover lightens the button; it does not repaint it in another colour.
+    // Primary used accentLight, which is a different hue entirely - a green
+    // button turned blue under the pointer, which reads as a state change
+    // rather than as "you are over this".
     qss += buttonVariant(QStringLiteral("primary"), css(c.accent),
                          css(c.textOnAccent), QString(),
-                         css(c.accentLight));
+                         css(c.accent.lighter(115)));
     qss += buttonVariant(QStringLiteral("secondary"), rgba(c.textPrimary, 0.05),
                          css(c.textPrimary), css(c.border),
-                         rgba(c.accent, 0.16));
+                         rgba(c.textPrimary, 0.10));
     qss += buttonVariant(QStringLiteral("ghost"), QStringLiteral("transparent"),
                          css(c.textSecondary), css(c.border),
-                         rgba(c.accent, 0.16));
+                         rgba(c.textPrimary, 0.08));
     qss += buttonVariant(QStringLiteral("danger"), rgba(c.danger, 0.14),
                          css(c.danger), rgba(c.danger, 0.40),
                          rgba(c.danger, 0.22));
@@ -150,16 +156,27 @@ QString styleSheetFor(const ThemeProfile& p)
                     css(c.textSecondary), rgba(c.textDisabled, 0.16));
 
     // -- badges ---------------------------------------------------------------
-    const struct { const char* key; QColor color; } tones[] = {
-        {"neutral", c.textSecondary}, {"primary", c.accent},
-        {"success", c.success},       {"warning", c.warning},
-        {"danger", c.danger},         {"info", c.accentLight},
+    // The same five roles Badge paints, resolved through the same palette, so a
+    // tone written as a property and a tone painted by a component cannot come
+    // out different. "primary" is the odd one and stays: it is the application
+    // accent, deliberately, and it is the only entry here that is allowed to
+    // change identity between products.
+    //
+    // The tint was re-derived here as `the hue at 0.16` - the third copy of
+    // that recipe. It comes from the palette now.
+    const struct { const char* key; SemanticColor color; } tones[] = {
+        {"neutral", p.semantic.neutral},
+        {"primary", semanticColorFrom(c.accent)},
+        {"success", p.semantic.success},
+        {"warning", p.semantic.warning},
+        {"danger", p.semantic.danger},
+        {"info", p.semantic.info},
     };
     for (const auto& t : tones) {
         qss += QStringLiteral("QLabel[%1=\"%2\"] { color: %3; background: %4;"
                               " border-radius: %5px; border: none; }")
                    .arg(QLatin1String(prop::tone), QLatin1String(t.key),
-                        css(t.color), rgba(t.color, 0.16))
+                        css(t.color.text), css(t.color.fill))
                    .arg(p.radii.medium);
     }
 
@@ -167,10 +184,39 @@ QString styleSheetFor(const ThemeProfile& p)
     qss += QStringLiteral("QLineEdit { background: %1; color: %2; border: 1px solid %3;"
                           " border-radius: %4px; padding: 0 10px; }"
                           "QLineEdit:focus { border-color: %5; }"
-                          "QLineEdit:disabled { color: %6; }")
+                          "QLineEdit:disabled { color: %6; }"
+                          // The multi-line half of the same control. Left
+                          // unstyled it arrives with the light system palette -
+                          // white paper on a dark form - and it is not reached
+                          // by the QLineEdit rule above, because a plain text
+                          // edit is a scroll area with a viewport rather than a
+                          // line edit that grew.
+                          "QPlainTextEdit { background: %1; color: %2;"
+                          " border: 1px solid %3; border-radius: %4px;"
+                          " padding: 6px 8px; }"
+                          "QPlainTextEdit:focus { border-color: %5; }"
+                          "QPlainTextEdit:disabled { color: %6; }")
                .arg(css(c.panelBgAlt), css(c.textPrimary), css(c.border))
                .arg(radiusInput)
                .arg(css(c.accent), css(c.textDisabled));
+
+    // QDateEdit is a spin box, not a line edit, so none of the rules above reach
+    // it. Without this a date field arrives with the light system palette beside
+    // inputs that carry the profile.
+    qss += QStringLiteral("QDateEdit, QDateTimeEdit { background: %1; color: %2;"
+                          " border: 1px solid %3; border-radius: %4px;"
+                          " padding: 0 6px 0 10px; }"
+                          "QDateEdit:focus, QDateTimeEdit:focus { border-color: %5; }"
+                          // Wide enough to aim at. The mark DateEdit paints
+                          // sits inside this strip.
+                          "QDateEdit::drop-down, QDateTimeEdit::drop-down {"
+                          " border: none; width: 30px; }"
+                          "QDateEdit::up-button, QDateEdit::down-button,"
+                          " QDateTimeEdit::up-button, QDateTimeEdit::down-button {"
+                          " width: 0; height: 0; border: none; }")
+               .arg(css(c.panelBgAlt), css(c.textPrimary), css(c.border))
+               .arg(radiusInput)
+               .arg(css(c.accent));
 
     qss += QStringLiteral("QComboBox { background: %1; color: %2; border: 1px solid %3;"
                           " border-radius: %4px; padding: 0 10px; }"
@@ -181,26 +227,45 @@ QString styleSheetFor(const ThemeProfile& p)
                           // exactly like a line edit.
                           "QComboBox::down-arrow { image: none; width: 0; height: 0; }"
                           "QComboBox QAbstractItemView { background: %1; color: %2;"
-                          " border: 1px solid %3; selection-background-color: %5; }")
+                          " border: 1px solid %3; outline: none; padding: 2px; }"
+                          "QComboBox QAbstractItemView::item { min-height: 24px;"
+                          " padding: 2px 8px; border: none; }"
+                          // A popup list moves its selection with the pointer,
+                          // so :selected *is* the hover state. It was the accent
+                          // at 22% alpha, which on this panel is a shade nobody
+                          // can see - the row under the pointer has to be
+                          // unmistakable or the list reads as inert.
+                          "QComboBox QAbstractItemView::item:selected,"
+                          " QComboBox QAbstractItemView::item:hover {"
+                          " background: %5; color: %6; }"
+                          // The completer's popup is a separate top-level view
+                          // and is not a child of the combo, so the rules above
+                          // do not reach it.
+                          "QCompleter QAbstractItemView { background: %1; color: %2;"
+                          " border: 1px solid %3; outline: none; }"
+                          "QCompleter QAbstractItemView::item { min-height: 24px;"
+                          " padding: 2px 8px; }"
+                          "QCompleter QAbstractItemView::item:selected,"
+                          " QCompleter QAbstractItemView::item:hover {"
+                          " background: %5; color: %6; }")
                .arg(css(c.panelBgAlt), css(c.textPrimary), css(c.border))
                .arg(radiusInput)
-               .arg(rgba(c.accent, 0.22));
+               .arg(css(c.surfaceActive.lighter(145)), css(c.textPrimary));
 
-    // Light indicator, never black: an unstyled QCheckBox inherits the light
-    // system palette and turns into a black box on a dark surface.
+    // The label only. The indicator is deliberately *not* styled here.
     //
-    // The resting outline is a neutral grey derived from the muted ink, not
-    // borderHover. borderHover is the *hover* colour and in NovuTrade it is
-    // green, so every unchecked box was drawing itself as though the pointer
-    // were already on it. Hover and checked are the accent; resting is not.
-    qss += QStringLiteral("QCheckBox { color: %1; background: transparent; spacing: 8px; }"
-                          "QCheckBox::indicator { width: 15px; height: 15px;"
-                          " border-radius: %2px; border: 1px solid %3; background: %4; }"
-                          "QCheckBox::indicator:hover { border-color: %5; }"
-                          "QCheckBox::indicator:checked { background: %5; border-color: %5; }")
-               .arg(css(c.textSecondary))
-               .arg(p.radii.xs)
-               .arg(rgba(c.textDisabled, 0.60), css(c.panelBgAlt), css(c.accent));
+    // A stylesheet can colour a check indicator and size it, but it cannot draw
+    // a shape inside it, so the only state it can express is "flood the box
+    // with the accent" - a solid square that reads as a colour swatch rather
+    // than as something the user ticked. And a sheet reaches no indicator at
+    // all inside a table cell, a tree item or a menu.
+    //
+    // NovuStyle draws all of them instead, from the same tokens. The moment a
+    // ::indicator rule appears here the sheet takes the drawing back and the
+    // filled square returns, so this rule stays about text and nothing else.
+    qss += QStringLiteral("QCheckBox { color: %1; background: transparent; }"
+                          "QCheckBox:disabled { color: %2; }")
+               .arg(css(c.textSecondary), css(c.textDisabled));
 
     // -- table ----------------------------------------------------------------
     qss += QStringLiteral("QTableWidget#%1, QTableView#%1 { background: transparent;"
@@ -281,6 +346,14 @@ void applyStyleSheet(QWidget* root, const QString& profileId)
     // the sheet was composed from. Doing only one of the two is how a subtree
     // ends up styled by one profile and measured by another.
     ThemeScope::apply(root, profileId);
+    // Qt does not propagate a style down a subtree, so the parts only a QStyle
+    // can draw - a check indicator in a table cell, a tree item, a checkable
+    // group box - have to come from the application style. Installed here
+    // rather than left to each application's main(), because "every Novu
+    // checkbox looks the same" cannot depend on twelve applications each
+    // remembering a line. Idempotent, and it wraps whatever style is already
+    // there.
+    installNovuStyle();
     root->setStyleSheet(styleSheetFor(ThemeManager::instance().profileRef(profileId)));
 }
 

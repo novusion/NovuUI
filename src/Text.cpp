@@ -9,15 +9,21 @@ namespace novu::ui {
 
 QColor inkColor(const QWidget* context, Ink ink)
 {
-    const ThemeColors& c = themeFor(context).colors;
+    const ThemeProfile& profile = themeFor(context);
+    const ThemeColors& c = profile.colors;
+    const SemanticPalette& s = profile.semantic;
     switch (ink) {
     case Ink::Secondary: return c.textSecondary;
     case Ink::Muted:     return c.textDisabled;
     case Ink::Accent:    return c.accent;
-    case Ink::Success:   return c.success;
-    case Ink::Warning:   return c.warning;
-    case Ink::Danger:    return c.danger;
-    case Ink::Info:      return c.accentLight;
+    // Through the semantic palette, not the raw hues: status text and a status
+    // badge are the same statement, so they resolve through the same table.
+    // Info was accentLight here as well - the application accent standing in
+    // for a status.
+    case Ink::Success:   return s.success.text;
+    case Ink::Warning:   return s.warning.text;
+    case Ink::Danger:    return s.danger.text;
+    case Ink::Info:      return s.info.text;
     case Ink::Default:
     default:             return c.textPrimary;
     }
@@ -89,6 +95,24 @@ void setInk(QLabel* lb, const QColor& color)
     QPalette pal = lb->palette();
     pal.setColor(QPalette::WindowText, color);
     lb->setPalette(pal);
+
+    // The palette alone is not enough. The scope sheet carries
+    // `QLabel { color: ... }` so that a label with no ink of its own is not
+    // left with the light system palette on a dark surface - and a stylesheet
+    // colour outranks a palette one. Every ink set inside a themed subtree was
+    // therefore being dropped: a loss printed in exactly the same colour as a
+    // profit, and an inactive window title stayed at full strength.
+    //
+    // A widget's own sheet outranks its ancestors', so one declaration on the
+    // label restores the role. It is a single property and no selector, so
+    // nothing else about the label - background, border, tone rules - changes.
+    const QString sheet = QStringLiteral("color: %1;")
+        .arg(color.alpha() == 255 ? color.name() : rgba(color, color.alphaF()));
+    // Guarded: setInk() is called again on every polish and every theme change,
+    // and re-setting an identical sheet re-polishes the widget for nothing.
+    if (lb->styleSheet() != sheet) {
+        lb->setStyleSheet(sheet);
+    }
 }
 
 } // namespace novu::ui

@@ -97,13 +97,21 @@ const ComponentSpec* ComponentRegistry::find(const QString& id) const
     return it == m_specs.constEnd() ? nullptr : &it.value();
 }
 
-QVector<ComponentSpec> ComponentRegistry::search(const QString& query) const
+QVector<ComponentSpec> ComponentRegistry::search(const QString& query,
+                                                 const QString& applicationId) const
 {
     QVector<ComponentSpec> result;
     for (const ComponentSpec& spec : all()) {
-        if (spec.matches(query)) {
-            result.append(spec);
+        if (!spec.matches(query)) {
+            continue;
         }
+        // Visibility only. The filter never touches how a component is built,
+        // which scenario it gets or which profile it resolves against - a
+        // filtered gallery and an unfiltered one render the same widget.
+        if (!applicationId.isEmpty() && !spec.isUsedBy(applicationId)) {
+            continue;
+        }
+        result.append(spec);
     }
     return result;
 }

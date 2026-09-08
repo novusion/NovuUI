@@ -40,10 +40,12 @@ add_library(NovuUIPlaygroundLib STATIC
     src/pages/ButtonPage.cpp
     src/pages/CardPage.cpp
     src/pages/ChipPage.cpp
+    src/pages/FeedbackFormPage.cpp
     src/pages/FeedbackPage.cpp
     src/pages/FieldsPage.cpp
     src/pages/FlowLayoutPage.cpp
     src/pages/FormPage.cpp
+    src/pages/HelpOverlayPage.cpp
     src/pages/LayoutPage.cpp
     src/pages/Pages.h
     src/pages/StatCardPage.cpp
@@ -52,6 +54,7 @@ add_library(NovuUIPlaygroundLib STATIC
     src/pages/ThemeRolesPage.cpp
     src/pages/TilePage.cpp
     src/pages/TypographyPage.cpp
+    src/pages/WindowShellPage.cpp
 )
 
 target_include_directories(NovuUIPlaygroundLib PUBLIC

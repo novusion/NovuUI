@@ -166,6 +166,12 @@ ComponentSpec badgeComponent()
         "sizeHint() is correct from construction rather than after polish.");
     spec.headerPath = QStringLiteral("include/novu/ui/Badge.h");
     spec.sourcePath = QStringLiteral("src/Badge.cpp");
+    spec.usedBy = {QStringLiteral("novuspace"),
+                   QStringLiteral("novuai"),
+                   QStringLiteral("novuexplorer"),
+                   QStringLiteral("novuhub"),
+                   QStringLiteral("novuvoice"),
+                   QStringLiteral("novutrade")};
     spec.variants = {QStringLiteral("Neutral"), QStringLiteral("Success"),
                      QStringLiteral("Warning"), QStringLiteral("Danger"), QStringLiteral("Info")};
     spec.states = {QStringLiteral("Normal")};

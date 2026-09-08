@@ -18,6 +18,7 @@ void registerBuiltinComponents(ComponentRegistry& registry)
         &pages::themeRolesComponent,
         &pages::layoutComponent,
         &pages::flowLayoutComponent,
+        &pages::windowShellComponent,
         // Input
         &pages::buttonComponent,
         &pages::fieldsComponent,
@@ -37,6 +38,8 @@ void registerBuiltinComponents(ComponentRegistry& registry)
         &pages::emptyStateComponent,
         &pages::infoBannerComponent,
         &pages::progressBarComponent,
+        &pages::helpOverlayComponent,
+        &pages::feedbackFormComponent,
     };
 
     for (const auto factory : factories) {

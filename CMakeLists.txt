@@ -24,6 +24,7 @@ add_library(NovuUI STATIC
     include/novu/ui/Badge.h
     include/novu/ui/Button.h
     include/novu/ui/TableView.h
+    include/novu/ui/Style.h
     include/novu/ui/StyleSheet.h
     include/novu/ui/Text.h
     include/novu/ui/FlowLayout.h
@@ -33,9 +34,14 @@ add_library(NovuUI STATIC
     include/novu/ui/Form.h
     include/novu/ui/StatCard.h
     include/novu/ui/Feedback.h
+    include/novu/ui/FeedbackForm.h
+    include/novu/ui/HelpOverlay.h
     include/novu/ui/Tile.h
+    include/novu/ui/TitleBar.h
+    include/novu/ui/WindowShell.h
     src/Theme.cpp
     src/ThemeProfile.cpp
+    src/AppProfiles.cpp
     src/ThemeManager.cpp
     src/ThemeScope.cpp
     src/Card.cpp
@@ -43,6 +49,7 @@ add_library(NovuUI STATIC
     src/Badge.cpp
     src/Button.cpp
     src/TableView.cpp
+    src/Style.cpp
     src/StyleSheet.cpp
     src/Text.cpp
     src/FlowLayout.cpp
@@ -52,7 +59,11 @@ add_library(NovuUI STATIC
     src/Form.cpp
     src/StatCard.cpp
     src/Feedback.cpp
+    src/FeedbackForm.cpp
+    src/HelpOverlay.cpp
     src/Tile.cpp
+    src/TitleBar.cpp
+    src/WindowShell.cpp
 )
 
 add_library(Novu::UI ALIAS NovuUI)
@@ -63,6 +74,14 @@ target_include_directories(NovuUI PUBLIC
 )
 
 target_link_libraries(NovuUI PUBLIC Qt6::Widgets)
+
+# The window shell keeps the native frame alive under its own chrome: DWM owns
+# the drop shadow, the corner radius and the border colour, so the frame stays
+# a real Windows window while nothing native is drawn. PRIVATE - nothing in the
+# public headers exposes a Windows type.
+if(WIN32)
+    target_link_libraries(NovuUI PRIVATE dwmapi)
+endif()
 
 # ── Development-only targets ────────────────────────────────────────────────
 #

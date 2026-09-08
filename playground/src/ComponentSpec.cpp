@@ -55,6 +55,11 @@ bool ComponentSpec::supports(Scenario scenario) const
     return supportedScenarios().contains(scenario);
 }
 
+bool ComponentSpec::isUsedBy(const QString& applicationId) const
+{
+    return !applicationId.isEmpty() && usedBy.contains(applicationId);
+}
+
 bool ComponentSpec::matches(const QString& query) const
 {
     const QString needle = query.trimmed();

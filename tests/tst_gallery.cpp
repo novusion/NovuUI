@@ -21,6 +21,10 @@
 
 #include "novu/ui/Theme.h"
 
+#include "novu/ui/Button.h"
+#include "novu/ui/FeedbackForm.h"
+#include "novu/ui/Fields.h"
+#include "novu/ui/HelpOverlay.h"
 #include "novu/ui/Layout.h"
 #include "novu/ui/StyleSheet.h"
 #include "novu/ui/ThemeManager.h"
@@ -28,7 +32,11 @@
 
 #include <QDir>
 #include <QFile>
+#include <QImage>
+#include <QLineEdit>
+#include <QPlainTextEdit>
 #include <QJsonArray>
+#include <QPainter>
 #include <QJsonObject>
 #include <QScrollArea>
 #include <QSignalSpy>
@@ -36,6 +44,8 @@
 #include <QVBoxLayout>
 #include <QTest>
 #include <QWidget>
+
+#include <cmath>
 
 using namespace novu::playground;
 using namespace novu::ui;
@@ -71,6 +81,9 @@ private slots:
     void searchFindsComponents_data();
     void searchFindsComponents();
     void emptySearchReturnsEverything();
+    void everyComponentDeclaresItsApplications();
+    void theApplicationFilterNarrowsAndNothingElse();
+    void filteringByANonApplicationReturnsNothing();
     void searchThatMatchesNothingReturnsNothing();
 
     // scenarios
@@ -84,8 +97,28 @@ private slots:
     void malformedSampleDataFailsGracefully();
     void unknownSetReturnsNothing();
 
+    // feedback
+    void feedbackRefusesAnIncompleteReport();
+    void feedbackSendsOnceAndOnlyOnce();
+    void feedbackFailureLetsTheUserRetry();
+    void feedbackAttachesNothingTheUserDidNotAgreeTo();
+    void feedbackDisablesLogsWhenTheHostHasNone();
+    void feedbackIgnoresAnAnswerItIsNotWaitingFor();
+
+    // help overlay
+    void helpOverlayLetsTheApplicationThrough();
+    void helpOverlayFollowsItsHost();
+    void helpOverlayDropsNotesWhoseTargetIsGone();
+    void helpOverlayTonesComeFromTheSharedPalette();
+
     // theme
     void novuTradeMatchesTheApprovedMockupTokens();
+    void applicationProfilesShareOnePalette();
+    void everyProfileSharesTheSemanticPalette();
+    void theOnlyStatusOverrideIsTheLightProfile();
+    void semanticColoursReadAgainstTheirOwnSurface();
+    void infoIsAStatusAndNotTheApplicationAccent();
+    void badgeTonesResolveThroughTheSharedPalette();
     void translucentTokensKeepTheirAlphaInTheSheet();
     void scrollBarsFollowTheMockup();
     void scrollAreasAreNeverLeftUnstyled();
@@ -284,6 +317,73 @@ void GalleryTest::searchFindsComponents()
                             .arg(query, ids.join(QStringLiteral(", ")), expectedId)));
 }
 
+void GalleryTest::everyComponentDeclaresItsApplications()
+{
+    // Membership is the filter's whole source of truth, so a spec that forgets
+    // it disappears from every filtered view without anyone noticing. Better to
+    // fail here than to have a component quietly belong to nobody.
+    for (const ComponentSpec& spec : m_registry.all()) {
+        // Either it records who uses it, or it says outright that nobody does
+        // yet. Silence is the case this catches.
+        QVERIFY2(!spec.usedBy.isEmpty() || spec.awaitingAdoption, qPrintable(spec.id));
+        QVERIFY2(!(spec.awaitingAdoption && !spec.usedBy.isEmpty()),
+                 qPrintable(QStringLiteral("%1 claims both adoption and none").arg(spec.id)));
+        for (const QString& application : spec.usedBy) {
+            QVERIFY2(novu::ui::isApplicationProfile(application),
+                     qPrintable(QStringLiteral("%1 claims %2, which is not an application")
+                                    .arg(spec.id, application)));
+        }
+    }
+}
+
+void GalleryTest::theApplicationFilterNarrowsAndNothingElse()
+{
+    const QVector<ComponentSpec> everything = m_registry.search(QString());
+    const QVector<ComponentSpec> forAi =
+        m_registry.search(QString(), QStringLiteral("novuai"));
+
+    QVERIFY(!forAi.isEmpty());
+    QVERIFY(forAi.size() <= everything.size());
+
+    // A subset, in the same order, with every entry unchanged. The filter
+    // controls visibility and must not touch what a component *is* - a
+    // filtered spec that differed from an unfiltered one would mean the
+    // gallery stopped showing the same component the applications use.
+    int index = 0;
+    for (const ComponentSpec& spec : everything) {
+        if (index < forAi.size() && forAi.at(index).id == spec.id) {
+            QCOMPARE(forAi.at(index).name, spec.name);
+            QCOMPARE(forAi.at(index).category, spec.category);
+            QCOMPARE(forAi.at(index).variants, spec.variants);
+            QVERIFY(forAi.at(index).build != nullptr);
+            ++index;
+        } else {
+            QVERIFY2(!spec.isUsedBy(QStringLiteral("novuai")), qPrintable(spec.id));
+        }
+    }
+    QCOMPARE(index, forAi.size());
+
+    // Search and the filter compose rather than override one another.
+    const QVector<ComponentSpec> searched =
+        m_registry.search(QStringLiteral("badge"), QStringLiteral("novuai"));
+    for (const ComponentSpec& spec : searched) {
+        QVERIFY(spec.matches(QStringLiteral("badge")));
+        QVERIFY(spec.isUsedBy(QStringLiteral("novuai")));
+    }
+}
+
+void GalleryTest::filteringByANonApplicationReturnsNothing()
+{
+    // Midnight Blue is an appearance a user picks, not a product. Asked to
+    // filter by it the registry finds no member - which is why the gallery
+    // never asks, and disables the control instead.
+    QVERIFY(!novu::ui::isApplicationProfile(QStringLiteral("midnight-blue")));
+    QVERIFY(m_registry.search(QString(), QStringLiteral("midnight-blue")).isEmpty());
+
+    // An empty application means "no narrowing", not "narrow to nobody".
+    QCOMPARE(m_registry.search(QString(), QString()).size(), m_registry.all().size());
+}
+
 void GalleryTest::emptySearchReturnsEverything()
 {
     QCOMPARE(m_registry.search(QString()).size(), m_registry.count());
@@ -439,6 +539,450 @@ void GalleryTest::unknownSetReturnsNothing()
 
 // ── theme ─────────────────────────────────────────────────────────────────
 
+namespace {
+
+// WCAG relative luminance, so a claim about legibility is measured rather than
+// asserted. The semantic palette exists to be read at a glance; a profile that
+// quietly drops one of its statuses under 4.5:1 has broken it just as surely as
+// one that changes the hue.
+double luminance(const QColor& c)
+{
+    const auto channel = [](double v) {
+        v /= 255.0;
+        return v <= 0.03928 ? v / 12.92 : std::pow((v + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * channel(c.red()) + 0.7152 * channel(c.green())
+         + 0.0722 * channel(c.blue());
+}
+
+double contrast(const QColor& a, const QColor& b)
+{
+    const double la = luminance(a);
+    const double lb = luminance(b);
+    return (std::max(la, lb) + 0.05) / (std::min(la, lb) + 0.05);
+}
+
+// The profiles allowed to state their own status colours, and why. Anything
+// else that overrides them is drift, and the test below says so by name.
+bool mayOverrideStatus(const QString& profileId)
+{
+    // Surface polarity, not product identity: the shared hues are tuned for
+    // dark panels and fall to 2.5:1 against white.
+    return profileId == QLatin1String("novu-light");
+}
+
+} // namespace
+
+void GalleryTest::applicationProfilesShareOnePalette()
+{
+    // One palette, every application. Not "similar" - identical, entry by
+    // entry, so that a component cannot look like a different product depending
+    // on which window it is in.
+    //
+    // NovuTrade is the exception and the only one. Its slate surfaces and
+    // emerald accent are the product rather than drift, so it is skipped here
+    // and asserted separately by novuTradeMatchesTheApprovedMockupTokens().
+    const ThemeColors& shared = ThemeManager::instance()
+                                    .profile(QStringLiteral("novuspace")).colors;
+
+    const auto same = [](const QColor& a, const QColor& b) { return a.rgba() == b.rgba(); };
+
+    for (const QString& id : ThemeManager::instance().profileIds()) {
+        if (!isApplicationProfile(id) || id == QLatin1String("novutrade")) {
+            continue;
+        }
+        const ThemeColors& c = ThemeManager::instance().profile(id).colors;
+        const struct { const char* name; QColor mine; QColor theirs; } entries[] = {
+            {"windowBg", c.windowBg, shared.windowBg},
+            {"panelBg", c.panelBg, shared.panelBg},
+            {"panelBgAlt", c.panelBgAlt, shared.panelBgAlt},
+            {"headerBg", c.headerBg, shared.headerBg},
+            {"surfaceHover", c.surfaceHover, shared.surfaceHover},
+            {"surfaceActive", c.surfaceActive, shared.surfaceActive},
+            {"border", c.border, shared.border},
+            {"borderSubtle", c.borderSubtle, shared.borderSubtle},
+            {"borderHover", c.borderHover, shared.borderHover},
+            {"textPrimary", c.textPrimary, shared.textPrimary},
+            {"textSecondary", c.textSecondary, shared.textSecondary},
+            {"textDisabled", c.textDisabled, shared.textDisabled},
+            {"textOnAccent", c.textOnAccent, shared.textOnAccent},
+            {"accent", c.accent, shared.accent},
+            {"accentLight", c.accentLight, shared.accentLight},
+            {"success", c.success, shared.success},
+            {"warning", c.warning, shared.warning},
+            {"danger", c.danger, shared.danger},
+            {"info", c.info, shared.info},
+        };
+        for (const auto& e : entries) {
+            QVERIFY2(same(e.mine, e.theirs),
+                     qPrintable(QStringLiteral("%1 forked %2: %3 against %4")
+                                    .arg(id, QLatin1String(e.name),
+                                         e.mine.name(), e.theirs.name())));
+        }
+    }
+}
+
+void GalleryTest::everyProfileSharesTheSemanticPalette()
+{
+    const SemanticHues& shared = sharedSemanticHues();
+    for (const QString& id : ThemeManager::instance().profileIds()) {
+        const ThemeProfile p = ThemeManager::instance().profile(id);
+        if (mayOverrideStatus(id) || id.contains(QLatin1String("contrast"))) {
+            continue;
+        }
+        // An application owns its surfaces and its accent. It does not own what
+        // "failed" looks like - that is the same statement in every Novu
+        // window, so it is the same colour.
+        QCOMPARE(p.colors.success.name(), shared.success.name());
+        QCOMPARE(p.colors.warning.name(), shared.warning.name());
+        QCOMPARE(p.colors.danger.name(), shared.danger.name());
+        QCOMPARE(p.colors.info.name(), shared.info.name());
+    }
+}
+
+void GalleryTest::theOnlyStatusOverrideIsTheLightProfile()
+{
+    // Stated as a test so that adding a second exception is a deliberate act
+    // with a reason attached, not a line in a palette nobody re-reads.
+    const SemanticHues& shared = sharedSemanticHues();
+    QStringList overriding;
+    for (const QString& id : ThemeManager::instance().profileIds()) {
+        if (id.contains(QLatin1String("contrast"))) {
+            continue;   // a development overlay, not a product
+        }
+        const ThemeProfile p = ThemeManager::instance().profile(id);
+        if (p.colors.success != shared.success || p.colors.warning != shared.warning
+            || p.colors.danger != shared.danger || p.colors.info != shared.info) {
+            overriding.append(id);
+        }
+    }
+    QCOMPARE(overriding, QStringList{QStringLiteral("novu-light")});
+}
+
+void GalleryTest::semanticColoursReadAgainstTheirOwnSurface()
+{
+    // The point of a shared palette is that it is legible everywhere it is
+    // shared. Checked against panelBg, which is what a badge, a banner and a
+    // status line actually sit on.
+    for (const QString& id : ThemeManager::instance().profileIds()) {
+        const ThemeProfile p = ThemeManager::instance().profile(id);
+        const SemanticPalette& s = p.semantic;
+        for (const SemanticColor* c : {&s.neutral, &s.success, &s.warning,
+                                       &s.danger, &s.info}) {
+            const double ratio = contrast(c->text, p.colors.panelBg);
+            QVERIFY2(ratio >= 4.5,
+                     qPrintable(QStringLiteral("%1: %2 on %3 is %4:1")
+                                    .arg(id, c->text.name(), p.colors.panelBg.name())
+                                    .arg(ratio, 0, 'f', 2)));
+        }
+    }
+}
+
+void GalleryTest::infoIsAStatusAndNotTheApplicationAccent()
+{
+    // Info used to resolve to accentLight in Badge, in InfoBanner, in Ink and
+    // in the scope sheet, so the same status was sky blue in NovuTrade, gold in
+    // Warm Gray and violet in Dark Purple. This is the regression guard.
+    for (const QString& id : ThemeManager::instance().profileIds()) {
+        const ThemeProfile p = ThemeManager::instance().profile(id);
+        if (id == QLatin1String("midnight-blue")) {
+            // The one profile whose accentLight legitimately is the shared info
+            // blue - both are GitHub's - so it cannot distinguish the two.
+            continue;
+        }
+        QVERIFY2(p.semantic.info.text != p.colors.accentLight, qPrintable(id));
+    }
+}
+
+void GalleryTest::badgeTonesResolveThroughTheSharedPalette()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    const ThemeProfile& p = themeFor(surface);
+
+    // A Badge tone is a semantic role, and the role table is the one place the
+    // mapping lives. Asserting the palette rather than the pixels: what must
+    // not drift is which colour a tone resolves to.
+    QCOMPARE(p.semantic.role(SemanticRole::Success).text.name(), p.colors.success.name());
+    QCOMPARE(p.semantic.role(SemanticRole::Warning).text.name(), p.colors.warning.name());
+    QCOMPARE(p.semantic.role(SemanticRole::Danger).text.name(), p.colors.danger.name());
+    QCOMPARE(p.semantic.role(SemanticRole::Info).text.name(), p.colors.info.name());
+    // Neutral is the absence of a status, so it follows the surface.
+    QCOMPARE(p.semantic.role(SemanticRole::Neutral).text.name(),
+             p.colors.textSecondary.name());
+
+    // One recipe for the plate, shared by Badge, Button and the scope sheet.
+    for (const SemanticColor* c : {&p.semantic.success, &p.semantic.danger}) {
+        QVERIFY(qAbs(c->fill.alphaF() - 0.16) < 0.01);
+        QVERIFY(qAbs(c->border.alphaF() - 0.40) < 0.01);
+        QCOMPARE(c->fill.rgb() & 0xFFFFFF, c->text.rgb() & 0xFFFFFF);
+    }
+}
+
+namespace {
+
+// Fills a form the way a user would, so the tests exercise the widgets rather
+// than a back door into the state machine.
+void typeReport(FeedbackForm* form)
+{
+    auto* title = form->findChild<QLineEdit*>();
+    auto* description = form->findChild<QPlainTextEdit*>();
+    QVERIFY(title);
+    QVERIFY(description);
+    title->setText(QStringLiteral("Preview window opens behind the main window"));
+    description->setPlainText(QStringLiteral("Open a preview from the file list. It appears "
+                                             "behind the window it was opened from."));
+}
+
+Button* buttonNamed(QWidget* root, const QString& text)
+{
+    for (Button* button : root->findChildren<Button*>()) {
+        if (button->text() == text) {
+            return button;
+        }
+    }
+    return nullptr;
+}
+
+FeedbackContext contextWithLogs(bool withLogs)
+{
+    FeedbackContext context;
+    context.application = QStringLiteral("NovuAI");
+    context.version = QStringLiteral("0.89.067");
+    context.workspace = QStringLiteral("Integration");
+    if (withLogs) {
+        context.diagnostics = [] { return QStringLiteral("line one line two"); };
+    }
+    return context;
+}
+
+} // namespace
+
+void GalleryTest::feedbackRefusesAnIncompleteReport()
+{
+    FeedbackForm form;
+    form.setContext(contextWithLogs(true));
+    QSignalSpy submitted(&form, &FeedbackForm::submitted);
+
+    Button* send = buttonNamed(&form, QStringLiteral("Send feedback"));
+    QVERIFY(send);
+    send->click();
+
+    // Nothing left the form, and it said why rather than doing nothing.
+    QCOMPARE(submitted.count(), 0);
+    QCOMPARE(form.state(), FeedbackForm::State::Invalid);
+
+    // Typing clears the complaint: leaving it up while the user fixes the thing
+    // it complains about makes the form feel broken.
+    typeReport(&form);
+    QCOMPARE(form.state(), FeedbackForm::State::Editing);
+}
+
+void GalleryTest::feedbackSendsOnceAndOnlyOnce()
+{
+    FeedbackForm form;
+    form.setContext(contextWithLogs(true));
+    typeReport(&form);
+
+    QSignalSpy submitted(&form, &FeedbackForm::submitted);
+    Button* send = buttonNamed(&form, QStringLiteral("Send feedback"));
+
+    send->click();
+    QCOMPARE(submitted.count(), 1);
+    QCOMPARE(form.state(), FeedbackForm::State::Sending);
+
+    // The guard that matters. A second click, a return key or a shortcut all
+    // arrive here, and only one of them may become a request - the disabled
+    // button alone would not stop an event already in the queue.
+    send->click();
+    send->click();
+    QCOMPARE(submitted.count(), 1);
+
+    const auto request = submitted.first().first().value<FeedbackRequest>();
+    QCOMPARE(request.title, QStringLiteral("Preview window opens behind the main window"));
+    QCOMPARE(request.type, FeedbackType::Bug);
+    QCOMPARE(request.application, QStringLiteral("NovuAI"));
+    // Filled in for the consumer rather than demanded from it.
+    QVERIFY(!request.platform.isEmpty());
+
+    form.reportSuccess();
+    QCOMPARE(form.state(), FeedbackForm::State::Sent);
+    // Nothing further can be sent from a form that has already gone.
+    send->click();
+    QCOMPARE(submitted.count(), 1);
+}
+
+void GalleryTest::feedbackFailureLetsTheUserRetry()
+{
+    FeedbackForm form;
+    form.setContext(contextWithLogs(true));
+    typeReport(&form);
+    QSignalSpy submitted(&form, &FeedbackForm::submitted);
+    Button* send = buttonNamed(&form, QStringLiteral("Send feedback"));
+
+    send->click();
+    form.reportFailure(QStringLiteral("The service did not respond."));
+    QCOMPARE(form.state(), FeedbackForm::State::Failed);
+
+    // A failed send leaves the report intact and the button live: losing what
+    // the user typed because the network was down is the worst thing this form
+    // could do.
+    QVERIFY(send->isEnabled());
+    send->click();
+    QCOMPARE(submitted.count(), 2);
+}
+
+void GalleryTest::feedbackAttachesNothingTheUserDidNotAgreeTo()
+{
+    FeedbackForm form;
+    form.setContext(contextWithLogs(true));
+    typeReport(&form);
+
+    const auto boxes = form.findChildren<CheckBox*>();
+    QCOMPARE(boxes.size(), 2);
+    CheckBox* info = boxes.at(0);
+    CheckBox* logs = boxes.at(1);
+
+    // Application info is on by default and the values are listed in the form;
+    // logs are off by default and are not read at all until asked for.
+    QVERIFY(info->isChecked());
+    QVERIFY(!logs->isChecked());
+    FeedbackRequest request = form.request();
+    QVERIFY(request.includeApplicationInfo);
+    QVERIFY(!request.includeLogs);
+    QVERIFY(request.diagnosticData.isEmpty());
+
+    logs->setChecked(true);
+    request = form.request();
+    QVERIFY(request.includeLogs);
+    QCOMPARE(request.diagnosticData, QStringLiteral("line one line two"));
+
+    // Turning the box off removes the data, rather than sending it with a flag
+    // saying not to look.
+    info->setChecked(false);
+    request = form.request();
+    QVERIFY(!request.includeApplicationInfo);
+    QVERIFY(request.application.isEmpty());
+    QVERIFY(request.version.isEmpty());
+    QVERIFY(request.workspace.isEmpty());
+}
+
+void GalleryTest::feedbackDisablesLogsWhenTheHostHasNone()
+{
+    FeedbackForm form;
+    form.setContext(contextWithLogs(false));
+
+    const auto boxes = form.findChildren<CheckBox*>();
+    QCOMPARE(boxes.size(), 2);
+    // Disabled and explained, not silently absent: the user learns the option
+    // exists and that this application does not offer it.
+    QVERIFY(!boxes.at(1)->isEnabled());
+    QVERIFY(!boxes.at(1)->isChecked());
+
+    typeReport(&form);
+    QVERIFY(!form.request().includeLogs);
+}
+
+void GalleryTest::feedbackIgnoresAnAnswerItIsNotWaitingFor()
+{
+    FeedbackForm form;
+    form.setContext(contextWithLogs(true));
+    typeReport(&form);
+
+    // A reply arriving after the user gave up must not put the form into a
+    // state it never asked for.
+    form.reportSuccess();
+    QCOMPARE(form.state(), FeedbackForm::State::Editing);
+    form.reportFailure(QStringLiteral("late"));
+    QCOMPARE(form.state(), FeedbackForm::State::Editing);
+}
+
+void GalleryTest::helpOverlayLetsTheApplicationThrough()
+{
+    // The one property the whole component is built around: a user reads the
+    // note about the toolbar and then uses the toolbar. If this attribute is
+    // ever cleared the overlay silently becomes a modal tour.
+    QWidget host;
+    host.resize(400, 300);
+    auto* overlay = HelpOverlay::attach(&host);
+    QVERIFY(overlay);
+    QVERIFY(overlay->testAttribute(Qt::WA_TransparentForMouseEvents));
+    QCOMPARE(overlay->parentWidget(), &host);
+    QCOMPARE(overlay->focusPolicy(), Qt::NoFocus);
+}
+
+void GalleryTest::helpOverlayFollowsItsHost()
+{
+    QWidget host;
+    host.resize(400, 300);
+    auto* overlay = HelpOverlay::attach(&host);
+    QCOMPARE(overlay->geometry(), host.rect());
+
+    // Shown, because a hidden widget defers its resize event and this is about
+    // what happens to a window a user is actually dragging.
+    host.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&host));
+    host.resize(640, 480);
+    // The host's resize is filtered, so the overlay does not need the
+    // application to remember to keep it in step.
+    QTRY_COMPARE(overlay->geometry(), host.rect());
+}
+
+void GalleryTest::helpOverlayDropsNotesWhoseTargetIsGone()
+{
+    QWidget host;
+    host.resize(400, 300);
+    auto* target = new QWidget(&host);
+    target->resize(60, 20);
+
+    auto* overlay = HelpOverlay::attach(&host);
+    overlay->addNote(target, QStringLiteral("Title"), QStringLiteral("Body"));
+    QCOMPARE(overlay->noteCount(), 1);
+
+    // A leader pointing at nothing is worse than a missing note, so a destroyed
+    // target must not take the overlay down with it either - rendering after
+    // the delete is the actual assertion here.
+    delete target;
+    QImage canvas(host.size(), QImage::Format_ARGB32);
+    canvas.fill(Qt::transparent);
+    QPainter painter(&canvas);
+    overlay->render(&painter, QPoint(), QRegion(), QWidget::DrawChildren);
+    painter.end();
+    QVERIFY(true);   // reached without a crash
+
+    overlay->clear();
+    QCOMPARE(overlay->noteCount(), 0);
+}
+
+void GalleryTest::helpOverlayTonesComeFromTheSharedPalette()
+{
+    // The overlay is the one place a colour is allowed to be decorative - a
+    // screen with eight bubbles needs neighbours told apart. It still may not
+    // invent one: every tone it can draw is a colour the profile already
+    // defines, so a note is never off-palette.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    const ThemeProfile& p = themeFor(surface);
+
+    auto* overlay = HelpOverlay::attach(surface);
+    overlay->addNote(surface, QStringLiteral("A"), QStringLiteral("B"),
+                     HelpPlacement::Auto, HelpTone::Warning);
+    QCOMPARE(overlay->noteCount(), 1);
+
+    const QList<QColor> palette = {p.colors.accent, p.semantic.info.text,
+                                   p.semantic.success.text, p.semantic.warning.text,
+                                   p.semantic.danger.text, p.semantic.neutral.text};
+    for (const QColor& colour : palette) {
+        QVERIFY(colour.isValid());
+    }
+    // Distinguishable from one another, which is the job the colour is doing.
+    for (int i = 0; i < palette.size(); ++i) {
+        for (int j = i + 1; j < palette.size(); ++j) {
+            QVERIFY2(palette.at(i).name() != palette.at(j).name(),
+                     qPrintable(QStringLiteral("tones %1 and %2 are the same colour")
+                                    .arg(i).arg(j)));
+        }
+    }
+}
+
 void GalleryTest::novuTradeMatchesTheApprovedMockupTokens()
 {
     // Transcribed from the approved mockup,
@@ -453,9 +997,6 @@ void GalleryTest::novuTradeMatchesTheApprovedMockupTokens()
     QCOMPARE(p.colors.panelBgAlt.name().toUpper(),  QStringLiteral("#0B1220"));   // SURFACE_ALT
     QCOMPARE(p.colors.accent.name().toUpper(),      QStringLiteral("#10B981"));   // PRIMARY
     QCOMPARE(p.colors.accentLight.name().toUpper(), QStringLiteral("#0EA5E9"));   // SECONDARY
-    QCOMPARE(p.colors.warning.name().toUpper(),     QStringLiteral("#F59E0B"));   // ACCENT
-    QCOMPARE(p.colors.success.name().toUpper(),     QStringLiteral("#22C55E"));
-    QCOMPARE(p.colors.danger.name().toUpper(),      QStringLiteral("#EF4444"));
     QCOMPARE(p.colors.textPrimary.name().toUpper(), QStringLiteral("#E3E8F0"));   // TEXT
     QCOMPARE(p.colors.textSecondary.name().toUpper(), QStringLiteral("#9CA3AF")); // TEXT_SEC
     QCOMPARE(p.colors.textDisabled.name().toUpper(), QStringLiteral("#6B7280"));  // MUTED
@@ -465,6 +1006,24 @@ void GalleryTest::novuTradeMatchesTheApprovedMockupTokens()
     QCOMPARE(p.colors.border.green(), 163);
     QCOMPARE(p.colors.border.blue(), 184);
     QVERIFY(qAbs(p.colors.border.alphaF() - 0.18) < 0.01);
+
+    // Status colours are deliberately NOT the mockup's any more, and this is
+    // the assertion that says so on purpose rather than by omission.
+    //
+    // The mockup gave NovuTrade #22C55E / #F59E0B / #EF4444. Those are the same
+    // four meanings every other Novu window shows, so they moved to the shared
+    // semantic palette: an application owns its surfaces and its accent - both
+    // still asserted above - but not what "failed" looks like. The shared hues
+    // were measured against this profile's own panel and clear 4.5:1 by more
+    // than the shell's do, so nothing was traded away for the consistency.
+    QCOMPARE(p.colors.success.name().toUpper(), sharedSemanticHues().success.name().toUpper());
+    QCOMPARE(p.colors.warning.name().toUpper(), sharedSemanticHues().warning.name().toUpper());
+    QCOMPARE(p.colors.danger.name().toUpper(),  sharedSemanticHues().danger.name().toUpper());
+
+    // The candles are the exception the exception needed: a candle is a price
+    // going up, not a "success", so the web app's greens and reds stay pinned.
+    QCOMPARE(p.chart.bullish.name().toUpper(), QStringLiteral("#22C55E"));
+    QCOMPARE(p.chart.bearish.name().toUpper(), QStringLiteral("#EF4444"));
 
     // SP_XS..SP_XL = 4, 8, 12, 16, 24
     QCOMPARE(p.spacing.xs, 4);

@@ -150,6 +150,12 @@ ComponentSpec buttonComponent()
         "— geometry is identical, and computed rather than styled.");
     spec.headerPath = QStringLiteral("include/novu/ui/Button.h");
     spec.sourcePath = QStringLiteral("src/Button.cpp");
+    spec.usedBy = {QStringLiteral("novuspace"),
+                   QStringLiteral("novuai"),
+                   QStringLiteral("novuexplorer"),
+                   QStringLiteral("novuhub"),
+                   QStringLiteral("novuvoice"),
+                   QStringLiteral("novutrade")};
     spec.variants = {QStringLiteral("Primary"), QStringLiteral("Secondary"),
                      QStringLiteral("Ghost"), QStringLiteral("Danger")};
     spec.states = {QStringLiteral("Normal"), QStringLiteral("Hover"), QStringLiteral("Pressed"),

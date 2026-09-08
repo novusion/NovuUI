@@ -164,6 +164,12 @@ ComponentSpec typographyComponent()
         "TypeRole / Ink vocabulary they resolve against.");
     spec.headerPath = QStringLiteral("include/novu/ui/Text.h");
     spec.sourcePath = QStringLiteral("src/Text.cpp");
+    spec.usedBy = {QStringLiteral("novuspace"),
+                   QStringLiteral("novuai"),
+                   QStringLiteral("novuexplorer"),
+                   QStringLiteral("novuhub"),
+                   QStringLiteral("novuvoice"),
+                   QStringLiteral("novutrade")};
     spec.variants = {QStringLiteral("PageTitle"), QStringLiteral("SectionTitle"),
                      QStringLiteral("CardTitle"), QStringLiteral("Body"),
                      QStringLiteral("Caption"), QStringLiteral("Label"),

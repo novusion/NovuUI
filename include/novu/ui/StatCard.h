@@ -55,7 +55,11 @@ struct StatSpec
 };
 
 // A grid of MiniStats. Returns a layout — it creates no container of its own.
+//
+// `created` receives the cells in the order given, for a page that has to
+// update them later. Without it the caller has to build the grid by hand just
+// to keep the pointers, and then the grid's geometry stops being ours.
 QGridLayout* statGrid(QWidget* parent, const QVector<StatSpec>& stats,
-                      int columns = 2);
+                      int columns = 2, QVector<MiniStat*>* created = nullptr);
 
 } // namespace novu::ui

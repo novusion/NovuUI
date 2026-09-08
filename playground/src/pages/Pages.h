@@ -18,6 +18,7 @@ ComponentSpec typographyComponent();
 ComponentSpec themeRolesComponent();
 ComponentSpec layoutComponent();
 ComponentSpec flowLayoutComponent();
+ComponentSpec windowShellComponent();
 
 // Input
 ComponentSpec buttonComponent();
@@ -41,5 +42,7 @@ ComponentSpec tableViewComponent();
 ComponentSpec emptyStateComponent();
 ComponentSpec infoBannerComponent();
 ComponentSpec progressBarComponent();
+ComponentSpec helpOverlayComponent();
+ComponentSpec feedbackFormComponent();
 
 } // namespace novu::playground::pages

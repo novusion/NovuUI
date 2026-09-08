@@ -27,13 +27,16 @@ ThemeManager& ThemeManager::instance()
 
 ThemeManager::ThemeManager()
 {
-    // The library is usable with no configuration: the canonical theme is
-    // registered and selected before any consumer touches it.
-    const ThemeProfile space = novuSpaceProfile();
-    m_profiles.insert(space.id, space);
-    const ThemeProfile trade = novuTradeProfile();
-    m_profiles.insert(trade.id, trade);
-    m_defaultProfileId = space.id;
+    // The library is usable with no configuration: every shipped palette is
+    // registered and the canonical one selected before any consumer touches it.
+    // The list lives with the profiles, so adding one does not mean remembering
+    // this loop.
+    for (const ThemeProfile& profile : builtinProfiles()) {
+        m_profiles.insert(profile.id, profile);
+        if (m_defaultProfileId.isEmpty()) {
+            m_defaultProfileId = profile.id;
+        }
+    }
 }
 
 void ThemeManager::registerProfile(const ThemeProfile& profile)

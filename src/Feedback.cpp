@@ -14,17 +14,29 @@ namespace novu::ui {
 
 namespace {
 
+// The same roles Badge maps, resolved through the same shared palette - an
+// InfoBanner and a Badge saying the same thing must not be two different
+// colours. Info in particular used to be the application accent here too.
+SemanticRole roleFor(Badge::Tone tone)
+{
+    switch (tone) {
+    case Badge::Tone::Success: return SemanticRole::Success;
+    case Badge::Tone::Warning: return SemanticRole::Warning;
+    case Badge::Tone::Danger:  return SemanticRole::Danger;
+    case Badge::Tone::Info:    return SemanticRole::Info;
+    case Badge::Tone::Neutral: break;
+    }
+    return SemanticRole::Neutral;
+}
+
+const SemanticColor& toneColors(const QWidget* context, Badge::Tone tone)
+{
+    return themeFor(context).semantic.role(roleFor(tone));
+}
+
 QColor toneColor(const QWidget* context, Badge::Tone tone)
 {
-    const ThemeColors& c = themeFor(context).colors;
-    switch (tone) {
-    case Badge::Tone::Success: return c.success;
-    case Badge::Tone::Warning: return c.warning;
-    case Badge::Tone::Danger:  return c.danger;
-    case Badge::Tone::Info:    return c.accentLight;
-    case Badge::Tone::Neutral:
-    default:                   return c.textSecondary;
-    }
+    return toneColors(context, tone).text;
 }
 
 } // namespace

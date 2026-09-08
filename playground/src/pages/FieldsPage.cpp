@@ -78,6 +78,23 @@ QWidget* build(const PreviewContext& ctx)
         matrixCell(grid, 2, 1, checkDisabled);
         matrixCell(grid, 2, 2, checkBox(QStringLiteral("Off"), card, false));
 
+        QHBoxLayout* marks = exampleRow(body, card, QStringLiteral("Checkbox marks"));
+        marks->addWidget(checkBox(QStringLiteral("Checked"), card, true));
+        auto* cross = checkBox(QStringLiteral("Cross"), card, true);
+        cross->setMark(CheckBox::Mark::Cross);
+        marks->addWidget(cross);
+        auto* partial = checkBox(QStringLiteral("Partially checked"), card);
+        partial->setTristate(true);
+        partial->setCheckState(Qt::PartiallyChecked);
+        marks->addWidget(partial);
+        marks->addStretch(1);
+
+        note(body, card,
+             QStringLiteral("The box keeps its outline in every state and the state is the "
+                            "mark inside it. Flooding the indicator with the accent - which "
+                            "is all a stylesheet can do - reads as a colour swatch rather "
+                            "than as something the user ticked."));
+
         note(body, card,
              QStringLiteral("The combo box draws its own arrow: Qt renders a CSS border "
                             "triangle as a filled rectangle that reads as a dash, and the "
@@ -129,6 +146,12 @@ ComponentSpec fieldsComponent()
         "cannot — height, font and an optional fixed width — and nothing else.");
     spec.headerPath = QStringLiteral("include/novu/ui/Fields.h");
     spec.sourcePath = QStringLiteral("src/Fields.cpp");
+    spec.usedBy = {QStringLiteral("novuspace"),
+                   QStringLiteral("novuai"),
+                   QStringLiteral("novuexplorer"),
+                   QStringLiteral("novuhub"),
+                   QStringLiteral("novuvoice"),
+                   QStringLiteral("novutrade")};
     spec.variants = {QStringLiteral("ComboBox"), QStringLiteral("LineEdit"),
                      QStringLiteral("CheckBox")};
     spec.states = {QStringLiteral("Normal"), QStringLiteral("Focused"), QStringLiteral("Disabled"),

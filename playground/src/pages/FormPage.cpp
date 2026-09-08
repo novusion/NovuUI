@@ -183,6 +183,11 @@ ComponentSpec formRowComponent()
         "hint. Returns a layout and creates no wrapper.");
     spec.headerPath = QStringLiteral("include/novu/ui/Form.h");
     spec.sourcePath = QStringLiteral("src/Form.cpp");
+    spec.usedBy = {QStringLiteral("novuspace"),
+                   QStringLiteral("novuai"),
+                   QStringLiteral("novuexplorer"),
+                   QStringLiteral("novuhub"),
+                   QStringLiteral("novutrade")};
     spec.variants = {QStringLiteral("With control"), QStringLiteral("With hint"),
                      QStringLiteral("Without control")};
     spec.states = {QStringLiteral("Normal"), QStringLiteral("Disabled")};
@@ -213,6 +218,10 @@ ComponentSpec propertyRowComponent()
         "state, versions, ids and paths.");
     spec.headerPath = QStringLiteral("include/novu/ui/Form.h");
     spec.sourcePath = QStringLiteral("src/Form.cpp");
+    spec.usedBy = {QStringLiteral("novuspace"),
+                   QStringLiteral("novuai"),
+                   QStringLiteral("novuexplorer"),
+                   QStringLiteral("novutrade")};
     spec.variants = {QStringLiteral("Default"), QStringLiteral("Toned"),
                      QStringLiteral("Monospace")};
     spec.states = {QStringLiteral("Populated"), QStringLiteral("Empty"), QStringLiteral("Error")};
@@ -248,6 +257,10 @@ ComponentSpec searchBarComponent()
         "clear button decided once rather than per panel.");
     spec.headerPath = QStringLiteral("include/novu/ui/Form.h");
     spec.sourcePath = QStringLiteral("src/Form.cpp");
+    spec.usedBy = {QStringLiteral("novuspace"),
+                   QStringLiteral("novuai"),
+                   QStringLiteral("novuexplorer"),
+                   QStringLiteral("novutrade")};
     spec.variants = {QStringLiteral("Default placeholder"), QStringLiteral("Custom placeholder"),
                      QStringLiteral("Fixed width")};
     spec.states = {QStringLiteral("Empty"), QStringLiteral("Populated"),

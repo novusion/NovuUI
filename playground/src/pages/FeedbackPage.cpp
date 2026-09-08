@@ -179,6 +179,10 @@ ComponentSpec emptyStateComponent()
         "missing, and what would make it appear.");
     spec.headerPath = QStringLiteral("include/novu/ui/Feedback.h");
     spec.sourcePath = QStringLiteral("src/Feedback.cpp");
+    spec.usedBy = {QStringLiteral("novuspace"),
+                   QStringLiteral("novuai"),
+                   QStringLiteral("novuexplorer"),
+                   QStringLiteral("novutrade")};
     spec.variants = {QStringLiteral("Glyph + title + subtitle")};
     spec.states = {QStringLiteral("Normal")};
     spec.keywords = {QStringLiteral("empty"), QStringLiteral("placeholder"),
@@ -208,6 +212,10 @@ ComponentSpec infoBannerComponent()
         "rather than styled, so a tone costs no stylesheet rule.");
     spec.headerPath = QStringLiteral("include/novu/ui/Feedback.h");
     spec.sourcePath = QStringLiteral("src/Feedback.cpp");
+    spec.usedBy = {QStringLiteral("novuspace"),
+                   QStringLiteral("novuai"),
+                   QStringLiteral("novuexplorer"),
+                   QStringLiteral("novutrade")};
     spec.variants = {QStringLiteral("Neutral"), QStringLiteral("Success"),
                      QStringLiteral("Warning"), QStringLiteral("Danger"), QStringLiteral("Info"),
                      QStringLiteral("With trailing action")};
@@ -242,6 +250,10 @@ ComponentSpec progressBarComponent()
         "profile.");
     spec.headerPath = QStringLiteral("include/novu/ui/Feedback.h");
     spec.sourcePath = QStringLiteral("src/Feedback.cpp");
+    spec.usedBy = {QStringLiteral("novuspace"),
+                   QStringLiteral("novuexplorer"),
+                   QStringLiteral("novuhub"),
+                   QStringLiteral("novutrade")};
     spec.variants = {QStringLiteral("Determinate")};
     spec.states = {QStringLiteral("0%"), QStringLiteral("Partial"), QStringLiteral("100%"),
                    QStringLiteral("Running"), QStringLiteral("Error")};

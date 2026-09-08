@@ -49,10 +49,23 @@ truth per component.
 | `pageLayout()` | A page's outer layout with page padding and card gap. Returns a layout. |
 | `splitHeader()` | Title/subtitle on the left, actions on the right. Returns the actions layout. |
 | `scrollPage()` | Scrollable page. Creates the one widget a QScrollArea requires. |
+| `AppWindow`, `ToolWindow`, `Dialog` | The shared window frame. An application declares title, icon and capabilities; it never draws chrome. See `docs/WINDOW_CHROME.md`. |
+| `TitleBar` | Icon, caption, leading/trailing slots and the three window controls. Owned by the shell — a page never builds one. |
+| `FeedbackForm`, `FeedbackDialog` | Send feedback: type, title, description, and an explicit account of what else is attached. Produces a `FeedbackRequest` and hands it to the consumer — NovuUI knows nothing about transport. |
+| `textArea()` | The multi-line half of `lineEdit()`. Plain text, height measured in lines. |
+| `HelpOverlay` | An explanatory layer over a live window: coloured bubbles joined to what they explain by dashed leaders. Transparent to the mouse, so the application keeps working while the help is up. |
+| `WindowControlButton` | Minimize, Maximize/Restore and Close as one class, one bounding box. Close is neutral until hovered, then danger. |
 
 Still to come — see `docs/ROADMAP.md`: `EmptyState`, `InfoBanner`,
 `BusyOverlay`, `StatusIndicator`, `ConfirmationBar`, `StatCard`, `TablePanel`,
 `FormRow`, `PropertyRow`, `SearchBar`.
+
+## Rules
+
+`docs/MODULE_RULES.md` is binding: what belongs in NovuUI versus in a feature
+module, the dependency direction, and the rule that a shared component is
+*extracted* from a production application rather than written here as a
+look-alike. Read it before adding a component.
 
 ## Theming
 

@@ -138,6 +138,12 @@ ComponentSpec cardComponent()
         "its padding lives on its own layout — there is no inner body widget.");
     spec.headerPath = QStringLiteral("include/novu/ui/Card.h");
     spec.sourcePath = QStringLiteral("src/Card.cpp");
+    spec.usedBy = {QStringLiteral("novuspace"),
+                   QStringLiteral("novuai"),
+                   QStringLiteral("novuexplorer"),
+                   QStringLiteral("novuhub"),
+                   QStringLiteral("novuvoice"),
+                   QStringLiteral("novutrade")};
     spec.variants = {QStringLiteral("Plain surface"), QStringLiteral("Titled"),
                      QStringLiteral("Titled + subtitle"), QStringLiteral("With header trailing")};
     spec.states = {QStringLiteral("Normal"), QStringLiteral("Empty"), QStringLiteral("Populated")};
