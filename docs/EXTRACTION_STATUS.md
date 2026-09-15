@@ -11,14 +11,20 @@ document.
 
 ## 1. What is built
 
-62 public headers; **65 components with a gallery page**. The eight headers
+64 public headers; **66 components with a gallery page**. The eight headers
 without a page of their own are infrastructure rather than visual components —
 `ItemStrip` and `MonoLineView` are the two painted base classes their
 subclasses are shown through, `TitleBar` is drawn by `WindowShell`, and
 `Style`, `StyleSheet`, `StyleSpec`, `ThemeManager` and `ThemeScope` are the
 theming machinery the *Theme roles* page covers.
 
-Tests: **153 passing, 0 failing** (128 gallery, 25 window chrome).
+Tests: **157 passing, 0 failing** (132 gallery, 25 window chrome).
+
+Documentation followed the freeze rather than being part of it:
+[README](../README.md), [THEMING](THEMING.md), the generated
+[COMPONENTS](COMPONENTS.md) catalogue, [PORTING_GUIDE](PORTING_GUIDE.md) and
+[ports/NOVUAI_UI_PORT](ports/NOVUAI_UI_PORT.md). One architectural change came
+with it: application accents, §6.
 
 ---
 
@@ -126,6 +132,17 @@ headers now say so, so the next person does not merge them by accident.
 classes — `Feedback.h` holds seven — is credited to an application that
 includes the header and names any one of them. The measurement errs towards
 over-reporting within a header, never across one.
+
+**Five product accents are unresolved.** `novuai`, `novuexplorer`, `novuadmin`,
+`novuhub` and `novuvoice` wear the family cyan because no approved product
+accent was found for them. The architecture supports one per product and
+settling one is a single argument in `AppProfiles.cpp` —
+[THEMING §4](THEMING.md#4-application-accents).
+
+**`NovusionUI` is still a second shared library.** Fifteen components exist
+twice, and NovuHub and NovuExplorer link the other one.
+[DUPLICATION_MAP](DUPLICATION_MAP.md) carries the plan; it is migration work and
+has not been started.
 
 **Three form-row shapes coexist**: `Field` (caption above control, validation),
 `SettingRow` (name and hint left, control right), `formRow()` (fixed label

@@ -121,6 +121,43 @@ void applyDerivedTokens(ThemeProfile& p)
     applyWindowTokens(p);
 }
 
+// The Novusion family baseline.
+//
+// Every value here is read off the approved shared palette,
+//
+//     g:\Design\design\Shared\design-system\Novu_Palette.png
+//
+// which is the design system for the family rather than for any one product.
+// It fixes the six surfaces, the three text weights, the four status colours
+// and one accent; the NovuSpace, NovuHub, NovuExplorer and NovuAdmin mockups
+// are all drawn on top of it.
+//
+// The accent here is the *family's* cyan. A product with an approved accent of
+// its own overrides exactly that one value - see applicationProfile() in
+// AppProfiles.cpp. A product without one keeps this, and says so.
+//
+// Geometry is NovuSpace's, and deliberately: the approved NovuSpace design is
+// the only one that states radii, spacing, control heights and a type scale in
+// full, and a second product inventing its own would be the drift these tokens
+// exist to prevent. A product that genuinely needs different geometry overrides
+// the roles it needs, the way novuTradeProfile() does.
+ThemeProfile novusionBaseProfile()
+{
+    ThemeProfile p = novuSpaceProfile();
+    p.id = QStringLiteral("novusion");
+    p.displayName = QStringLiteral("Novusion");
+
+    // ACCENT & BRAND, from the shared palette.
+    p.colors.accent      = QColor(QStringLiteral("#2FC6D8"));
+    p.colors.accentLight = QColor(QStringLiteral("#4DD4E6"));
+    // Measured rather than chosen: dark ink clears 8.4:1 on the family cyan
+    // where white manages 2.1:1. The same reasoning as NovuSpace's amber.
+    p.colors.textOnAccent = QColor(QStringLiteral("#10171A"));
+
+    applyDerivedTokens(p);
+    return p;
+}
+
 // NovuSpace, from the approved design.
 //
 // Every number and every colour below is read off

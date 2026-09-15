@@ -181,3 +181,81 @@ The **two-library** duplication is unresolved and deliberately so: consolidating
 same change, which is application migration. That is the next phase.
 
 See `docs/EXTRACTION_STATUS.md`.
+
+
+---
+
+# Consolidation plan
+
+**A plan only.** Nothing below has been done, and none of it may be done as part
+of documentation work: every step switches a consumer, which is application
+migration. See [PORTING_GUIDE §B](PORTING_GUIDE.md#b--migrating-an-existing-application).
+
+## What is superseded, and by what
+
+| NovusionUI (`novu::brand`) | replaced by | consumers today |
+|---|---|---|
+| `Pulse` (BrandPulse.h) | `novu::ui::Pulse` (Motion.h) | NovuHub, NovuExplorer |
+| `Hairline` | `Separator` | NovuHub, NovuExplorer |
+| `IconButton` | `IconButton` | NovuHub, NovuExplorer |
+| `Pill`, `Tag`, `StatusPill`, `StatusBadge` | `Badge` + `pill()` + `statusBadge()` | NovuHub, NovuExplorer |
+| `Dot` | `StatusDot` | NovuHub, NovuExplorer |
+| `Chip`, `SwatchRow` | `Chip` / `ChipBar`, `Swatch` | NovuExplorer |
+| `SegmentedToggle` | `Segmented` | NovuHub |
+| `Toggle` (BrandPage.h) | `Toggle` | NovuHub |
+| `Select`, `Slider` | `ComboBox`, `Slider` | NovuHub |
+| `BrandButton`, `BackButton` | `Button` | NovuHub, NovuExplorer |
+| `Card` | `Card` | NovuHub, NovuExplorer |
+| `BrandLabel` | `label()` (Text.h) | NovuHub, NovuExplorer |
+| `FlowLayout` | `FlowLayout` | NovuHub |
+| `Avatar` | `Avatar` | NovuHub |
+| `Menu`, `MenuItem`, `PopupMenu` | `Popover` | NovuHub, NovuExplorer |
+| `Tooltip`, `HelpTip` | `Tooltip` | NovuHub, NovuExplorer |
+| `CommandPalette` | `CommandPalette` | NovuExplorer |
+| `FloatingWindow` | `FloatingPanel` / `ToolWindow` | NovuHub |
+| `NavRail` | `NavList` / `Sidebar` | NovuHub |
+| `Page`, `SectionGrid`, `SettingsBlock`, `ThemeOption` | `SettingsShell` / `SettingsPage` / `SettingsSection` | NovuHub |
+| `Theme` (BrandTheme.h) | `ThemeProfile` + `ThemeManager` + `ThemeScope` | NovuHub, NovuExplorer |
+| `NativeFrame`, `WindowShadow` | `WindowShell` | NovuHub, NovuExplorer |
+| `NovuAppMark` | `AppMark` | NovuHub |
+| `drawTintedIcon()` | `paintGlyph()` / `glyphIcon()` | NovuHub, NovuExplorer |
+
+`HoverArea` and `CheckMark` have no direct replacement and are small enough to
+fold into their call sites when the surrounding component moves.
+
+## Order
+
+Bottom-up, so nothing is ever half-migrated:
+
+1. **Theme.** `BrandTheme::Theme` → `ThemeProfile` + `applyStyleSheet()` on each
+   window. Everything else reads colours through it, so it goes first or every
+   later step migrates a component into the wrong palette. Both applications in
+   one change; it is wide but shallow.
+2. **Motion.** `brand::Pulse` → `novu::ui::Pulse`. Small, and it removes one of
+   two 30 fps timers per window.
+3. **Leaves.** `Hairline`, `Dot`, `Pill`/`Tag`/`StatusPill`, `BrandLabel`,
+   `Avatar`, `FlowLayout`. No dependants; one commit each.
+4. **Controls.** `BrandButton`, `Toggle`, `Select`, `Slider`, `IconButton`,
+   `Chip`, `SegmentedToggle`.
+5. **Surfaces.** `Card`, then `Menu`/`PopupMenu`, `Tooltip`, `CommandPalette`.
+6. **Structure.** `NavRail`, `Page`/`SettingsBlock`, `FloatingWindow`.
+7. **The window frame, last and alone.** `NativeFrame` + `WindowShadow` →
+   `WindowShell`. Two implementations answer `WM_NCCALCSIZE` and `WM_NCHITTEST`;
+   getting this wrong breaks resizing, Aero Snap and the drop shadow on a
+   specific Windows build, and it is the hardest to test. Its own change, its
+   own verification, on its own.
+
+## When a NovusionUI file may be deleted
+
+When **no consumer remains** — NovuHub and NovuExplorer both migrated off that
+component, checked by grep, with both applications building and their tests
+green. Not when the first consumer moves.
+
+`NovusionUI` as a repository goes when its last header does.
+
+## What this plan does not decide
+
+Whether `NovuUI` should be renamed `NovusionUI`. The task brief uses the company
+name; this repository, its namespace `novu::ui` and its CMake target `Novu::UI`
+do not. It is a mechanical change across every consumer and it is **not** part of
+consolidation — flagged, not scheduled.

@@ -20,6 +20,7 @@ ComponentSpec iconComponent();
 ComponentSpec separatorComponent();
 ComponentSpec settingsShellComponent();
 ComponentSpec themeRolesComponent();
+ComponentSpec themeStylingComponent();
 ComponentSpec layoutComponent();
 ComponentSpec flowLayoutComponent();
 ComponentSpec windowShellComponent();

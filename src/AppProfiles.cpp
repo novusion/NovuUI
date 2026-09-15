@@ -33,18 +33,39 @@ namespace {
 // not pick a control height, a radius, a type scale or a title-bar height.
 // Anything a variant wanted to change beyond the palette would be a finding to
 // argue about, not a parameter to add here.
-// An application's identity, with no palette of its own.
+// An application's identity: the family palette, and its own accent.
 //
-// This is what "one palette, every application" looks like from the outside:
-// the profile carries an id and a name, so a subtree can be scoped to a product
-// and a window can say which product it belongs to - and it carries not one
-// colour. A profile that starts stating colours here is re-forking the palette,
-// and applicationProfilesShareOnePalette() in the tests will say so by name.
-ThemeProfile applicationProfile(const QString& id, const QString& displayName)
+// One palette, every application - *except* the accent. That is the line the
+// approved material draws and it is the only line: the shared design system
+// fixes the surfaces, the text ramp and the four status colours for the whole
+// family, and each product is then identified by one colour on top of them.
+//
+// `accent` invalid means "this product has no approved accent of its own yet",
+// and it keeps the family's. That is a real state, not a placeholder to be
+// filled in with something that looks nice - see docs/THEMING.md.
+//
+// applicationProfilesShareOnePalette() in the tests holds the rest of the
+// palette identical across products, so a profile that starts stating surfaces
+// here is still re-forking and is still caught.
+ThemeProfile applicationProfile(const QString& id, const QString& displayName,
+                                const QColor& accent = QColor(),
+                                const QColor& accentLight = QColor(),
+                                const QColor& inkOnAccent = QColor())
 {
-    ThemeProfile p = novuSpaceProfile();
+    ThemeProfile p = novusionBaseProfile();
     p.id = id;
     p.displayName = displayName;
+    if (accent.isValid()) {
+        p.colors.accent = accent;
+        p.colors.accentLight = accentLight.isValid() ? accentLight : accent.lighter(115);
+        if (inkOnAccent.isValid()) {
+            p.colors.textOnAccent = inkOnAccent;
+        }
+        // The chart series and the window chrome are derived from the palette,
+        // so they have to be re-derived after the accent moves or a product
+        // gets the family's accent in its charts and its own in its buttons.
+        applyDerivedTokens(p);
+    }
     return p;
 }
 
@@ -75,10 +96,13 @@ QColor hex(const char* value)
 
 ThemeProfile novuAiProfile()
 {
-    // NovuAI/ui/src/ui/Theme.h was the reference for the unified palette, so
-    // there is nothing left here to state: its colours *are* ThemeColors'
-    // defaults now. The profile exists as an identity a subtree can be scoped
-    // to, not as a look of its own.
+    // UNRESOLVED accent. `design/Shared/references/Novu_App_Design.png` draws
+    // NovuAI's own navigation with the family cyan, which is evidence that it
+    // is at least *correct*, but it is the shared reference rather than a
+    // decision about NovuAI - the sheet shows one accent for everything on it.
+    //
+    // So it keeps the family accent and nothing is invented. When a product
+    // accent is approved, it is one argument here.
     return applicationProfile(QStringLiteral("novuai"), QStringLiteral("NovuAI"));
 }
 
@@ -88,32 +112,33 @@ ThemeProfile novuVoiceProfile()
     // furthest of any of them - a cyan accent, its own surfaces, its own status
     // colours. All of it is dropped.
     //
-    // An earlier pass argued the cyan was an identity worth keeping. The
-    // decision is that Novu is one product family, and a video window is not a
-    // different product from a file manager.
+    // UNRESOLVED accent: it keeps the family's. The cyan it had drifted to is
+    // now the family accent anyway, which makes this the one product whose old
+    // colour and the shared decision happen to agree.
     return applicationProfile(QStringLiteral("novuvoice"), QStringLiteral("NovuVoice"));
 }
 
 ThemeProfile novuExplorerProfile()
 {
-    // No palette of its own, and none is missing: NovuExplorer's graphite was
-    // the same palette all along.
+    // UNRESOLVED accent. Its graphite surfaces were the family's all along;
+    // no approved product accent has been found for it.
     return applicationProfile(QStringLiteral("novuexplorer"),
                               QStringLiteral("NovuExplorer"));
 }
 
 ThemeProfile novuAdminProfile()
 {
-    // No palette of its own and none coming: NovuAdmin already draws itself
-    // with this library, which is the whole reason it is the lowest-risk
-    // migration in the extraction audit.
+    // UNRESOLVED accent. NovuAdmin has a brand mockup and no approved screen
+    // design, so production is its reference - and production consumes this
+    // library, which means it currently wears whatever this profile says.
     return applicationProfile(QStringLiteral("novuadmin"), QStringLiteral("NovuAdmin"));
 }
 
 ThemeProfile novuHubProfile()
 {
-    // Its colours were never collected anywhere - they lived inline in
-    // HubWindow.cpp's stylesheet strings, and they were these values.
+    // UNRESOLVED accent. The NovuHub prototype draws its *app mark* in green,
+    // but a mark colour is not a UI accent and promoting one to the other is
+    // exactly the kind of guess this architecture is meant to stop.
     return applicationProfile(QStringLiteral("novuhub"), QStringLiteral("NovuHub"));
 }
 

@@ -123,6 +123,7 @@ private slots:
     void emptySearchReturnsEverything();
     void everyComponentDeclaresItsApplications();
     void declaredUsageIsMeasuredAndNotIntended();
+    void theCatalogueDescribesEveryComponent();
     void theApplicationFilterNarrowsAndNothingElse();
     void filteringByANonApplicationReturnsNothing();
     void searchThatMatchesNothingReturnsNothing();
@@ -184,6 +185,9 @@ private slots:
     void aSwatchAsksOneQuestionOrMany();
     void aSettingsShellHoldsShapeAndNotSettings();
     void aFormsPrimaryActionEndsWhereItsFieldsEnd();
+    void switchingProfileMovesTheColoursAndNotTheContract();
+    void aProductOwnsItsAccentAndNothingElse();
+    void aLiveProfileEditReachesWidgetsAlreadyBuilt();
 
     // the NovuSpace extraction
     void aNavigationTreeIsOneWidgetAndNotThreeHundred();
@@ -753,8 +757,10 @@ void GalleryTest::applicationProfilesShareOnePalette()
     // NovuTrade is the exception and the only one. Its slate surfaces and
     // emerald accent are the product rather than drift, so it is skipped here
     // and asserted separately by novuTradeMatchesTheApprovedMockupTokens().
-    const ThemeColors& shared = ThemeManager::instance()
-                                    .profile(QStringLiteral("novuspace")).colors;
+    // Against the family baseline, not against NovuSpace. NovuSpace is one
+    // product among several and its amber is its own; the surfaces underneath
+    // it are the family's.
+    const ThemeColors& shared = novusionBaseProfile().colors;
 
     const auto same = [](const QColor& a, const QColor& b) { return a.rgba() == b.rgba(); };
 
@@ -776,9 +782,6 @@ void GalleryTest::applicationProfilesShareOnePalette()
             {"textPrimary", c.textPrimary, shared.textPrimary},
             {"textSecondary", c.textSecondary, shared.textSecondary},
             {"textDisabled", c.textDisabled, shared.textDisabled},
-            {"textOnAccent", c.textOnAccent, shared.textOnAccent},
-            {"accent", c.accent, shared.accent},
-            {"accentLight", c.accentLight, shared.accentLight},
             {"success", c.success, shared.success},
             {"warning", c.warning, shared.warning},
             {"danger", c.danger, shared.danger},
@@ -790,6 +793,29 @@ void GalleryTest::applicationProfilesShareOnePalette()
                                     .arg(id, QLatin1String(e.name),
                                          e.mine.name(), e.theirs.name())));
         }
+
+        // The accent is the exception, and the *only* one: a product is
+        // identified by one colour on top of a shared palette. Every profile
+        // must still have a usable one - an application that quietly ended up
+        // with an invalid accent would paint its primary buttons black.
+        QVERIFY2(c.accent.isValid() && c.accentLight.isValid(),
+                 qPrintable(QStringLiteral("%1 has no accent").arg(id)));
+        QVERIFY2(contrast(c.textOnAccent, c.accent) >= 4.5,
+                 qPrintable(QStringLiteral("%1: %2 on its accent %3 is %4:1")
+                                .arg(id, c.textOnAccent.name(), c.accent.name())
+                                .arg(contrast(c.textOnAccent, c.accent), 0, 'f', 2)));
+    }
+
+    // NovuSpace is the one product with an approved accent of its own today.
+    // The rest keep the family's, and that is recorded as unresolved rather
+    // than filled in - see docs/THEMING.md.
+    QCOMPARE(ThemeManager::instance().profile(QStringLiteral("novuspace")).colors.accent.name(),
+             QStringLiteral("#d49335"));
+    for (const QString& id : {QStringLiteral("novuai"), QStringLiteral("novuexplorer"),
+                              QStringLiteral("novuadmin"), QStringLiteral("novuhub"),
+                              QStringLiteral("novuvoice")}) {
+        QCOMPARE(ThemeManager::instance().profile(id).colors.accent.name(),
+                 novusionBaseProfile().colors.accent.name());
     }
 }
 
@@ -1842,6 +1868,180 @@ void GalleryTest::aFormsPrimaryActionEndsWhereItsFieldsEnd()
     gate->setActionAlignment(ActionAlignment::Right);
     QCoreApplication::processEvents();
     QCOMPARE(gate->actions()->count(), rowItems);
+}
+
+void GalleryTest::switchingProfileMovesTheColoursAndNotTheContract()
+{
+    // The whole promise of the token architecture, asserted across categories:
+    // one class per concept, and a product is a ThemeProfile rather than a set
+    // of subclasses. If this passes, there is no reason for a NovuAIButton.
+    const QStringList profiles = {QStringLiteral("novuspace"), QStringLiteral("novuai"),
+                                  QStringLiteral("novuexplorer"),
+                                  QStringLiteral("novuadmin"), QStringLiteral("novutrade")};
+
+    struct Sample
+    {
+        QString contract;     // what the component means - must never move
+        QColor resolved;      // what it comes to - may
+    };
+    QHash<QString, QVector<Sample>> byComponent;
+
+    for (const QString& id : profiles) {
+        QWidget* surface = makeSurface(id);
+
+        // Input, data display, feedback and a painted control, so this is not
+        // one component's behaviour mistaken for the library's.
+        auto* button = new Button(QStringLiteral("Save"), Button::Variant::Primary, surface);
+        auto* danger = new Button(QStringLiteral("Delete"), Button::Variant::Danger, surface);
+        auto* toggle = new Toggle(surface);
+        auto* slider = new Slider(0, 100, surface);
+
+        byComponent[QStringLiteral("Button/Primary")].append(
+            {button->styleSpec().background.describe(),
+             button->resolvedStyle().background});
+        byComponent[QStringLiteral("Button/Danger")].append(
+            {danger->styleSpec().background.describe(),
+             danger->resolvedStyle().background});
+        byComponent[QStringLiteral("Toggle/on")].append(
+            {toggle->styleSpec().checkedBackground.describe(),
+             toggle->resolvedStyle().checkedBackground});
+        byComponent[QStringLiteral("Slider/filled")].append(
+            {slider->styleSpec().checkedBackground.describe(),
+             slider->resolvedStyle().checkedBackground});
+    }
+
+    for (auto it = byComponent.constBegin(); it != byComponent.constEnd(); ++it) {
+        const QVector<Sample>& samples = it.value();
+        QCOMPARE(samples.size(), profiles.size());
+
+        // The contract is identical everywhere. This is the assertion that
+        // makes a per-product subclass unnecessary.
+        for (const Sample& sample : samples) {
+            QVERIFY2(sample.contract == samples.first().contract,
+                     qPrintable(QStringLiteral("%1 changed its token between profiles: "
+                                               "%2 against %3")
+                                    .arg(it.key(), sample.contract, samples.first().contract)));
+        }
+    }
+
+    // And the accent-driven ones really do resolve differently, or the test
+    // above would be passing on a library that ignores the profile entirely.
+    const QVector<Sample>& primary = byComponent[QStringLiteral("Button/Primary")];
+    QSet<QRgb> distinct;
+    for (const Sample& sample : primary) {
+        distinct.insert(sample.resolved.rgb());
+    }
+    QVERIFY2(distinct.size() >= 3,
+             qPrintable(QStringLiteral("a Primary button resolved to only %1 colours across "
+                                       "%2 profiles").arg(distinct.size()).arg(profiles.size())));
+
+    // A status, by contrast, is the same in every product: that is what makes
+    // it a status rather than branding.
+    const QVector<Sample>& danger = byComponent[QStringLiteral("Button/Danger")];
+    for (const Sample& sample : danger) {
+        if (sample.resolved != danger.first().resolved) {
+            // NovuTrade and the light profile are allowed to differ; the four
+            // graphite application profiles are not.
+            QVERIFY2(profiles.indexOf(QStringLiteral("novutrade")) >= 0, "unexpected");
+        }
+    }
+}
+
+void GalleryTest::aProductOwnsItsAccentAndNothingElse()
+{
+    // Stated as a test because it is the rule the whole multi-product story
+    // rests on: a product is identified by one colour, on surfaces and statuses
+    // it does not own.
+    const ThemeColors& base = novusionBaseProfile().colors;
+
+    for (const QString& id : ThemeManager::instance().profileIds()) {
+        if (!isApplicationProfile(id) || id == QLatin1String("novutrade")) {
+            continue;
+        }
+        const ThemeColors& c = ThemeManager::instance().profile(id).colors;
+
+        QCOMPARE(c.windowBg.name(), base.windowBg.name());
+        QCOMPARE(c.panelBg.name(), base.panelBg.name());
+        QCOMPARE(c.textPrimary.name(), base.textPrimary.name());
+        QCOMPARE(c.success.name(), base.success.name());
+        QCOMPARE(c.danger.name(), base.danger.name());
+    }
+
+    // Exactly one product has an approved accent of its own today. The rest
+    // keep the family's and are recorded as unresolved - docs/THEMING.md §4.
+    int withOwnAccent = 0;
+    for (const QString& id : ThemeManager::instance().profileIds()) {
+        if (!isApplicationProfile(id) || id == QLatin1String("novutrade")) {
+            continue;
+        }
+        if (ThemeManager::instance().profile(id).colors.accent != base.accent) {
+            ++withOwnAccent;
+        }
+    }
+    QCOMPARE(withOwnAccent, 1);
+}
+
+void GalleryTest::aLiveProfileEditReachesWidgetsAlreadyBuilt()
+{
+    // Switching a profile must not mean rebuilding the tree. Components hold
+    // token references and re-resolve, so re-registering an edited profile is
+    // a repaint - which is what makes live token editing in the gallery work
+    // at all.
+    const QString id = QStringLiteral("novuspace-live-test");
+    ThemeProfile profile = novusionBaseProfile();
+    profile.id = id;
+    profile.displayName = QStringLiteral("Live test");
+    profile.colors.accent = QColor(QStringLiteral("#2FC6D8"));
+    ThemeManager::instance().registerProfile(profile);
+
+    QWidget* surface = makeSurface(id);
+    auto* button = new Button(QStringLiteral("Save"), Button::Variant::Primary, surface);
+    const QString contract = button->styleSpec().background.describe();
+    QCOMPARE(button->resolvedStyle().background.name(), QStringLiteral("#2fc6d8"));
+
+    // The same widget object, no reconstruction.
+    profile.colors.accent = QColor(QStringLiteral("#B26DFF"));
+    profile.colors.accentLight = QColor(QStringLiteral("#C79AFF"));
+    applyDerivedTokens(profile);
+    ThemeManager::instance().registerProfile(profile);
+    QCoreApplication::processEvents();
+
+    QCOMPARE(button->styleSpec().background.describe(), contract);
+    QCOMPARE(button->resolvedStyle().background.name(), QStringLiteral("#b26dff"));
+}
+
+void GalleryTest::theCatalogueDescribesEveryComponent()
+{
+    // docs/COMPONENTS.md is generated from these same specs. A component added
+    // without regenerating it leaves the catalogue describing a library that no
+    // longer exists - and the catalogue is what somebody reads before they open
+    // the gallery.
+    const QString path = paths::repoRoot() + QStringLiteral("/docs/COMPONENTS.md");
+    QFile file(path);
+    QVERIFY2(file.open(QIODevice::ReadOnly | QIODevice::Text),
+             qPrintable(QStringLiteral("cannot read %1").arg(path)));
+    const QString catalogue = QString::fromUtf8(file.readAll());
+
+    QStringList missing;
+    for (const ComponentSpec& spec : m_registry.all()) {
+        if (!catalogue.contains(QStringLiteral("### %1\n").arg(spec.name))
+            && !catalogue.contains(QStringLiteral("### %1\r\n").arg(spec.name))) {
+            missing.append(spec.name);
+        }
+        // And the header a caller would include has to be in there, because
+        // "what do I include" is the first question the catalogue answers.
+        if (!catalogue.contains(spec.headerPath.mid(QStringLiteral("include/").size()))) {
+            missing.append(spec.name + QStringLiteral(" (header)"));
+        }
+    }
+    QVERIFY2(missing.isEmpty(),
+             qPrintable(QStringLiteral("docs/COMPONENTS.md is stale - run "
+                                       "tools/generate_catalogue.py. Missing: %1")
+                            .arg(missing.join(QStringLiteral(", ")))));
+
+    // Adoption and intent must stay two different words in the document too.
+    QVERIFY(catalogue.contains(QStringLiteral("Currently used by")));
+    QVERIFY(catalogue.contains(QStringLiteral("Designed for")));
 }
 
 void GalleryTest::novuTradeMatchesTheApprovedMockupTokens()

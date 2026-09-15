@@ -18,6 +18,7 @@ void registerBuiltinComponents(ComponentRegistry& registry)
         &pages::motionComponent,
         &pages::iconComponent,
         &pages::separatorComponent,
+        &pages::themeStylingComponent,
         &pages::themeRolesComponent,
         &pages::layoutComponent,
         &pages::flowLayoutComponent,

@@ -77,6 +77,7 @@ add_library(NovuUIPlaygroundLib STATIC
     src/pages/TogglePage.cpp
     src/pages/TableViewPage.cpp
     src/pages/ThemeRolesPage.cpp
+    src/pages/ThemeStylingPage.cpp
     src/pages/TilePage.cpp
     src/pages/TypographyPage.cpp
     src/pages/WindowShellPage.cpp

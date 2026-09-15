@@ -402,6 +402,16 @@ void applyDerivedTokens(ThemeProfile& profile);
 // The profiles shipped with the library. Applications may register their own
 // through ThemeManager; these exist so a fresh consumer looks right with no
 // configuration at all.
+// The family baseline: the surfaces, text, status and accent of
+// `design/Shared/design-system/Novu_Palette.png`, which is the approved
+// palette for the Novusion family as a whole.
+//
+// Every application profile is built from this. What an application may
+// override is its **accent**, and only its accent - the surfaces a product
+// sits on and the colour of the word "failed" are the family's, not the
+// product's.
+ThemeProfile novusionBaseProfile();
+
 ThemeProfile novuSpaceProfile();   // graphite, near-flat — the canonical theme
 ThemeProfile novuTradeProfile();   // slate/emerald, rounded — mirrors the web app
 

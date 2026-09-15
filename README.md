@@ -1,179 +1,247 @@
 # NovuUI
 
-Shared native Qt component library for every Novu application.
+The shared Qt6 component library every Novusion application draws itself with.
 
-It is the single source of truth for reusable controls. A control exists here
-once, or it does not exist. The library contains no application-specific code:
-nothing here knows which application is consuming it.
+A control exists here once, or it does not exist. Nothing in this library knows
+which application is consuming it: there is one `Button`, and NovuSpace's amber
+and NovuAI's cyan are two `ThemeProfile`s rather than two classes.
 
-Visual language: `NovuAI/docs/NOVU_DESIGN_SYSTEM.md`.
-Styling rules: `NovuAI/design/NOVU_THEME_RULES.md`, `NovuAI/design/FIX_FRAMES_HELP.md`.
+**Status: feature extraction is frozen.** 66 components, 156 tests, clean build.
+The library is ready; the applications have not migrated onto it yet. Those are
+two different statements and this repository keeps them apart —
+[EXTRACTION_STATUS](docs/EXTRACTION_STATUS.md) has the numbers.
 
-## Before adding anything: read docs/DUPLICATION_MAP.md
-
-There is a second shared UI library. `NovusionUI` (namespace `novu::brand`,
-beside this repository) is a complete, shipping component set that NovuHub
-and NovuExplorer both link today, and it implements about fifteen of the
-components in this repository a second time.
-
-Check it before writing a component here. `docs/MODULE_RULES.md` already says
-a shared component is *extracted* from a shipping application rather than
-written here as a look-alike; that rule now has a specific place to look.
-
-## The contract
-
-A component owns **all** of its own presentation and geometry:
-
-- padding, spacing, font, colours, border radius
-- `sizeHint()`, `minimumSizeHint()`, size policy
-
-A page owns **none** of it. Pages place components into layouts and nothing
-else. Specifically, a page must never:
-
-- call `setFixedWidth()` / `setMinimumWidth()` on a component
-- measure text with `QFontMetrics` to size a widget
-- set a stylesheet on a component
-- compute column widths
-
-If a page needs a size that a component does not provide, the fix goes into the
-component.
-
-## Why geometry is not in the stylesheet
-
-Qt does not fold QSS `padding` into `sizeHint()` until the widget happens to be
-polished. Anything measured before that — a table sizing its columns while
-populating rows — reads a too-small hint and clips the content. Every component
-here therefore computes its own size from its own font and padding constants,
-and `Badge` paints itself rather than being styled. Geometry has one source of
-truth per component.
-
-## Components
-
-| Component | Notes |
+| | |
 |---|---|
-| `Button` | Variants: `Primary`, `Secondary`, `Ghost`, `Success`, `Warning`, `Danger`. Same geometry across variants. Optional leading `Glyph`. Helpers: `primaryButton()`, `secondaryButton()`, `ghostButton()`, `successButton()`, `warningButton()`, `dangerButton()`. |
-| `Badge` | Tones: `Neutral`, `Success`, `Warning`, `Danger`, `Info`, `Accent`. Two sizes, an optional status dot and an uppercase treatment. `statusBadge()` is a live status, `pill()` a classification. |
-| `Pulse` (Motion.h) | One 30 fps clock for every looping animation in the process, reference-counted so nothing on screen means nothing running. |
-| `StyleSpec` / `ResolvedStyle` | What a component *means* in token references, and what that comes to under the current profile. The inspection seam: a test asserts on either without a screenshot. |
-| `Icon` | The Novu glyph set: stroke outlines taken from the approved design, painted rather than instantiated. No icon font, no QtSvg, and no widget per glyph — `paintGlyph()` is the primary API, `glyphIcon()` the adapter for Qt calls that insist on a `QIcon`. |
-| `IconButton` | A button that is a glyph and nothing else. Square at every control size. `Outlined` for a toolbar, `Ghost` for chrome; checkable goes to the product accent; `rowAction()` is the small ghost one a table row offers. |
-| `StatusDot` | The dot that says something is live. Takes a tone, not a colour; breathes on the shared clock; cross-fades between states. |
-| `Toggle` | The switch: on or off, taking effect at once. Painted, with the knob sliding on Qt's shared animation driver. `toggleRow()` is the settings-column shape. |
-| `Segmented` | Mutually exclusive choices in one tray, words or glyphs. Painted segments with real press/release hit testing; the tray keeps the interaction. |
-| `Separator` | The hairline, at two weights: inside a surface, and between surfaces. Painted, transparent to the mouse, no children. `toolbarDivider()` is the short upright one between two groups of controls. |
-| `TableView` | Owns column layout. Pages declare column *roles*, never widths. |
-| `Card` | The one surface primitive: background, border, themed radius. Self-painted. Padding lives on its own layout — there is no inner "body" widget. |
-| `section()` | Styled heading added to an existing layout. Creates no container. |
-| `toolbar()` | A row of controls with the profile's gap. Returns a layout. |
-| `pageLayout()` | A page's outer layout with page padding and card gap. Returns a layout. |
-| `splitHeader()` | Title/subtitle on the left, actions on the right. Returns the actions layout. |
-| `scrollPage()` | Scrollable page. Creates the one widget a QScrollArea requires. |
-| `AppWindow`, `ToolWindow`, `Dialog` | The shared window frame. An application declares title, icon and capabilities; it never draws chrome. See `docs/WINDOW_CHROME.md`. |
-| `TitleBar` | Icon, caption, leading/trailing slots and the three window controls. Owned by the shell — a page never builds one. |
-| `FeedbackForm`, `FeedbackDialog` | Send feedback: type, title, description, and an explicit account of what else is attached. Produces a `FeedbackRequest` and hands it to the consumer — NovuUI knows nothing about transport. |
-| `textArea()` | The multi-line half of `lineEdit()`. Plain text, height measured in lines. |
-| `HelpOverlay` | An explanatory layer over a live window: coloured bubbles joined to what they explain by dashed leaders. Transparent to the mouse, so the application keeps working while the help is up. |
-| `WindowControlButton` | Minimize, Maximize/Restore and Close as one class, one bounding box. Close is neutral until hovered, then danger. |
+| [docs/COMPONENTS.md](docs/COMPONENTS.md) | every component, generated from the gallery |
+| [docs/THEMING.md](docs/THEMING.md) | how a component gets its colours |
+| [docs/PORTING_GUIDE.md](docs/PORTING_GUIDE.md) | building an application on this |
+| [docs/EXTRACTION_STATUS.md](docs/EXTRACTION_STATUS.md) | coverage, deferrals, known limitations |
+| [docs/DUPLICATION_MAP.md](docs/DUPLICATION_MAP.md) | the second library next door, and the plan |
+| [docs/MODULE_RULES.md](docs/MODULE_RULES.md) | what belongs here versus in a feature module |
 
-Still to come — see `docs/ROADMAP.md`: `EmptyState`, `InfoBanner`,
-`BusyOverlay`, `StatusIndicator`, `ConfirmationBar`, `StatCard`, `TablePanel`,
-`FormRow`, `PropertyRow`, `SearchBar`.
+---
 
-## Rules
+## What belongs here
 
-`docs/MODULE_RULES.md` is binding: what belongs in NovuUI versus in a feature
-module, the dependency direction, and the rule that a shared component is
-*extracted* from a production application rather than written here as a
-look-alike. Read it before adding a component.
+**Yes:** reusable presentation · reusable interaction behaviour · semantic
+styling · shared motion · generic structural composites (a settings shell, a
+console panel, a window frame).
 
-## Theming
+**No:** business logic · persistence · services · file, transfer or chat models ·
+runtime state · domain state · backend communication · anything that knows the
+name of a product feature.
 
-The library supports several products in one process. `ThemeManager` holds
-profiles, `ThemeScope` marks a widget subtree as belonging to one, and
-`themeFor(widget)` resolves it by walking up the parents:
+The test is not "could this be reused" but "is it reused". A component is
+*extracted* from an application that has it, not written here as a look-alike —
+see [MODULE_RULES](docs/MODULE_RULES.md). There is a second shared library
+beside this one for exactly the reason that rule exists; check
+[DUPLICATION_MAP](docs/DUPLICATION_MAP.md) before adding anything.
 
-```cpp
-ThemeScope::apply(novuTradeWorkspace, "novutrade");
-```
+---
 
-Components read **roles**, never numbers — `radius(SurfaceRole::Card)`,
-`text(TypeRole::CardTitle)`, `space(SpacingRole::CardPadding)`. Profiles decide
-the values, so the same component is near-flat graphite in NovuSpace and
-rounded emerald in NovuTrade with no conditional anywhere.
-
-Theme changes propagate live: `registerProfile()` sends a `ThemeChangeEvent` to
-every affected widget, no restart and no component registry.
-
-Full description: `docs/DESIGN_SYSTEM.md`.
-
-### TableView
-
-```cpp
-using novu::ui::TableView;
-
-table->setColumns({
-    {tr("Email"),   TableView::ColumnRole::Text},
-    {tr("Name"),    TableView::ColumnRole::Text},
-    {tr("Plan"),    TableView::ColumnRole::Content},
-    {tr("Status"),  TableView::ColumnRole::Content},
-    {tr("Created"), TableView::ColumnRole::Content},
-    {tr("Actions"), TableView::ColumnRole::Content},
-});
-
-table->setText(row, 0, user.email);
-table->setWidget(row, 3, new Badge(tr("Active"), Badge::Tone::Success));
-table->setWidgets(row, 5, {ghostButton(tr("Plan")), ghostButton(tr("Reset PW"))});
-
-table->relayoutColumns();   // once, after the rows are populated
-```
-
-A column's role is declared once and never inferred from the data. Inferring it
-(from text length, alignment, …) makes the same column behave differently
-depending on which rows happen to be loaded.
-
-Layout algorithm, run on data change and on resize:
-
-1. Measure every cell — widgets report `sizeHint()`, text is measured with that
-   cell's own font — plus the header caption.
-2. `columnWidth = max(header, all cells) + padding`.
-3. `Content` columns are fixed at that width.
-4. Leftover viewport width is shared among `Text` columns in proportion to
-   their measured width. If there is no leftover, every column keeps its
-   measured width and the view scrolls horizontally. Content is never
-   compressed and never elided.
-
-## Consuming it
+## Using it
 
 ```cmake
-add_subdirectory(../NovuUI NovuUI)   # or FetchContent / submodule
-target_link_libraries(MyApp PRIVATE Novu::UI)
+add_subdirectory(../NovuUI NovuUI)
+target_link_libraries(YourApp PRIVATE Novu::UI)
 ```
 
-That gives you exactly one target, `NovuUI`. The component gallery and the
-tests are guarded by `NOVUUI_BUILD_PLAYGROUND` / `NOVUUI_BUILD_TESTS`, which
-default to "NovuUI is the project being built", so a consumer never
-configures them.
+```cpp
+#include "novu/ui/Button.h"
+#include "novu/ui/StyleSheet.h"
 
-## The component gallery
+using namespace novu::ui;
 
-`playground/` is a standalone development executable that renders the real
-components — the same classes an application links — with their variants,
-states and layout-stress scenarios, under any registered theme profile. It is
-the visual test surface: edit a component, press **Rebuild & reload**, see the
-result. Editing sample data or a theme overlay needs no rebuild at all.
+applyStyleSheet(window, QStringLiteral("novuai"));   // scope the subtree
 
-```bash
-cmake -S . -B build && cmake --build build --config Release
-build/playground/Release/NovuUIPlayground
+auto* save = primaryButton(tr("Save"), form);
+save->setGlyph(Glyph::Check);
 ```
 
-Full description, and how to add a component to it: `playground/README.md`.
+`applyStyleSheet()` does two things: it composes the profile's stylesheet onto
+the subtree, and it marks the subtree as belonging to that profile so
+`themeFor()` resolves correctly inside it. One process can host several
+products; nothing here is global.
 
-## Status
+A whole window:
 
-Early. Implemented: `Theme`, `Button`, `Badge`, `TableView`.
+```cpp
+AppWindow window;
+window.setTitle(tr("NovuAI"));
+window.setIcon(glyphIcon(Glyph::Ai, 18, themeFor(&window).window.titleText));
+window.setContentWidget(new Workspace);
+window.show();
+```
 
-Planned, in order of need: `ComboBox`, `SearchBox`, `TextField`, `CheckBox`,
-`Toolbar`, `EmptyState`, `LoadingIndicator`, `Card`.
+`AppWindow`, `ToolWindow` and `Dialog` wear the same frame. An application says
+what a window *is* — title, icon, resizable, modal — and never draws chrome.
 
-Not yet built and not yet verified against a running application.
+---
+
+## Repository
+
+```
+include/novu/ui/     public headers, one per component
+src/                 implementations
+  GlyphTable.inc     the 67 icon outlines, copied from the approved design
+playground/          the component gallery — the catalogue and the visual test surface
+  src/pages/         one file per component page
+tests/               tst_gallery, tst_window_chrome
+docs/                the documents linked above
+tools/               generate_catalogue.py
+run.bat              build, test, list, or open the gallery
+```
+
+```
+run.bat              build if needed, then open the gallery
+run.bat button       open it on a component
+run.bat build        build only
+run.bat tests        build, then run both suites
+run.bat list         print the component registry
+run.bat themes       print the theme profiles
+```
+
+---
+
+## The contract a component signs
+
+A component owns **all** of its own presentation and geometry — padding,
+spacing, font, colours, radius, `sizeHint()`, `minimumSizeHint()`, size policy.
+
+A page owns **none** of it. A page places components into layouts. It must never
+`setFixedWidth()` a component, measure text with `QFontMetrics` to size one, set
+a stylesheet on one, or compute column widths. If a page needs a size a
+component does not provide, the fix goes into the component.
+
+Geometry is computed in `sizeHint()` rather than left to the stylesheet: Qt does
+not fold QSS padding into `sizeHint()` until a widget happens to be polished,
+and anything measured before that reads a too-small hint and clips.
+
+### Composition
+
+Composites are built from primitives and may not re-implement them. `Settings`
+is `NavList` + `PageHeader` + `SettingRow` + `Separator`; `BottomPanel` is
+`TabBar` + `IconButton`. A composite that draws its own tab is a bug.
+
+Runs of items — `Segmented`, `ModuleBar`, `NavList`, `TabBar` — derive from
+`ItemStrip`, which owns hit testing, hover, press-and-release, arrow keys and
+per-item tooltips. There is one implementation of that, not four.
+
+---
+
+## Styling
+
+The short version; [THEMING](docs/THEMING.md) is the long one.
+
+```cpp
+StyleSpec spec;
+spec.background = statusToken(SemanticRole::Danger, ColorRole::StatusFill);
+spec.radius     = SurfaceRole::Button;
+
+const ResolvedStyle style = resolve(spec, this, height());
+painter.setBrush(style.background);
+```
+
+A component holds **token references** and resolves them on demand. It never
+stores a `QColor` that came out of a profile — that is what makes a theme change
+a repaint instead of a rebuild, and it is asserted by
+`componentsKeepTokensRatherThanResolvedColours()`.
+
+### Variants and states, not classes
+
+Colour, accent, icon, text, size, state and theme are **never** reasons for a
+new component:
+
+```cpp
+new Badge(text, Badge::Tone::Success, parent);   // yes
+class SuccessBadge : public Badge                // no
+```
+
+Six badge tones, two sizes, a dot and an uppercase flag are one `Badge` — which
+is why the approved design's nine badge CSS classes are one class here.
+
+---
+
+## Painting versus widgets
+
+Widget count is a budget. HTML DOM structure is not QWidget structure.
+
+**Paint it** when it is decoration: labels nobody selects, separators, dots,
+badges, glyphs, captions, static metadata, section headings, segment labels.
+A settings window of twenty sections would otherwise carry forty extra
+`QLabel`s.
+
+**Make it a widget** when there is real interaction to own: focus, keyboard,
+text selection, context menu, drag and drop.
+
+A painted component that *is* interactive owns its hit testing properly — and
+acts on **press and release in the same item**. Releasing somewhere else is a
+cancelled gesture, and a control that fires on release alone fires after the
+user has changed their mind. Taking the press also matters inside a title bar,
+where ignoring it hands the gesture to the window and the window moves.
+
+---
+
+## Motion
+
+One 30 fps clock for every looping animation in the process:
+
+```cpp
+Pulse::instance().subscribe(this);        // repainted while visible
+motion::phase(profile.animation.ringMs);  // 0..1, from the monotonic clock
+motion::breathe(profile.animation.pulseMs);
+```
+
+Reference-counted — the timer runs only while something is subscribed, and
+hidden widgets are skipped. Phases come off the wall clock, so every dot in a
+window breathes together the way CSS keyframes do.
+
+One-shot transitions use `QVariantAnimation`, which Qt already drives from a
+single timer. **No component owns a `QTimer`.** Periods are tokens
+(`animation.ringMs`, `pulseMs`, `spinMs`, `shimmerMs`), and a profile with
+`normalMs == 0` disables motion everywhere.
+
+---
+
+## Testing
+
+`tests/tst_gallery.cpp` and `tests/tst_window_chrome.cpp`. Run with
+`run.bat tests`.
+
+There is **no screenshot comparison** and none is wanted. A painted component is
+tested through its contract:
+
+```cpp
+QCOMPARE(button->styleSpec().background.describe(), QStringLiteral("accent"));
+QCOMPARE(button->resolvedStyle().background.name(), profile.colors.accent.name());
+```
+
+Test behaviour that matters — what a component means, what it resolves to, what
+it does on press and release, what it emits and what it refuses to decide for
+its host. Not that a method returns what it was given.
+
+Interaction is tested for real: `QTest::mousePress` / `mouseRelease` on the
+rects a component exposes (`segmentRect()`, `handleRect()`, `swatchRect()`),
+which is why those accessors are public.
+
+---
+
+## Adding a component
+
+1. **Check it does not already exist** — here, and in the library recorded in
+   [DUPLICATION_MAP](docs/DUPLICATION_MAP.md).
+2. **Check it is not a variant** of something that does.
+3. `include/novu/ui/Foo.h` + `src/Foo.cpp`, added to `CMakeLists.txt`.
+   Expose `styleSpec()` and `resolvedStyle()` if it paints.
+4. `playground/src/pages/FooPage.cpp` returning a `ComponentSpec` — declared in
+   `pages/Pages.h`, listed in `Components.cpp`, added to
+   `playground/CMakeLists.txt`. Show meaningful states and variants, with the
+   real component; never a gallery-only mock.
+5. `python tools/generate_catalogue.py`.
+6. Tests for the contract.
+7. `run.bat tests`.
+
+Set `designedFor` to the applications it is meant for. Leave `usedBy` empty
+until an application actually includes the header — that field is measured, and
+a test fails the build if it claims an application that has not migrated.
