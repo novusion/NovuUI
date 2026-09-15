@@ -139,6 +139,13 @@ code moves.
 
 ## Rules for both
 
+### Which library
+
+**New work uses `NovuUI` (`novu::ui`) only.** `NovusionUI` (`novu::brand`) is
+the original shared library and is still what NovuHub and NovuExplorer run on;
+it is being migrated away from, not built on. Do not add a dependency on it —
+see [DUPLICATION_MAP](DUPLICATION_MAP.md#the-decided-target-state).
+
 ### Ownership
 
 | the application owns | NovuUI owns |

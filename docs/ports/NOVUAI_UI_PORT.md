@@ -24,6 +24,13 @@ Center (v1, v2) · Debug Launcher · Summary View · What's New · Hub AI-Core
 Bridge · Settings ×10 (General, Server, Runtime, Local AI, Cloud AI, API Keys,
 Data, DevTools, Integrations, Sync/Share).
 
+## Which library
+
+`NovuUI` (`novu::ui`), and nothing else. `NovusionUI` (`novu::brand`) is the
+original shared library that NovuHub and NovuExplorer still run on; the NovuAI
+rebuild must not depend on it —
+[DUPLICATION_MAP](../DUPLICATION_MAP.md#the-decided-target-state).
+
 ## Theme
 
 NovuAI scopes its window to the `novuai` profile:

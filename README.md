@@ -6,7 +6,7 @@ A control exists here once, or it does not exist. Nothing in this library knows
 which application is consuming it: there is one `Button`, and NovuSpace's amber
 and NovuAI's cyan are two `ThemeProfile`s rather than two classes.
 
-**Status: feature extraction is frozen.** 66 components, 156 tests, clean build.
+**Status: feature extraction is frozen.** 66 components, 157 tests, clean build.
 The library is ready; the applications have not migrated onto it yet. Those are
 two different statements and this repository keeps them apart —
 [EXTRACTION_STATUS](docs/EXTRACTION_STATUS.md) has the numbers.
@@ -37,6 +37,11 @@ The test is not "could this be reused" but "is it reused". A component is
 see [MODULE_RULES](docs/MODULE_RULES.md). There is a second shared library
 beside this one for exactly the reason that rule exists; check
 [DUPLICATION_MAP](docs/DUPLICATION_MAP.md) before adding anything.
+
+**This library is the target.** `NovusionUI` (`novu::brand`) is the original
+shared library and still what NovuHub and NovuExplorer run on. New projects and
+mockups use `NovuUI` only and add no new dependency on it —
+[the target state](docs/DUPLICATION_MAP.md#the-decided-target-state).
 
 ---
 

@@ -187,6 +187,41 @@ See `docs/EXTRACTION_STATUS.md`.
 
 # Consolidation plan
 
+## The decided target state
+
+```
+    NovuHub ───────┐
+    NovuExplorer ──┤
+    NovuAI ────────┼──→  NovuUI  (novu::ui)
+    NovuSpace ─────┤
+    NovuAdmin ─────┘
+
+    NovusionUI (novu::brand)  →  0 consumers  →  remove
+```
+
+`NovuUI` is the target. `NovusionUI` is not an old copy to be tidied away — it
+is the library NovuHub and NovuExplorer run on **today**, wired in by path:
+
+```
+NovuHub/CMakeLists.txt:24       set(NOVUSION_UI_DIR ".../../NovusionUI")
+NovuExplorer/CMakeLists.txt:73  set(NOVUSION_UI_DIR ".../../NovusionUI")
+```
+
+with 52 files across the two applications including `novusion/ui/*` or naming
+`novu::brand`. Moving or renaming that directory fails both builds at configure
+time, before a single file compiles. It goes when the last consumer has left,
+and not before.
+
+### The rule for anything new
+
+**New projects and mockups use `NovuUI` only. Do not add a new dependency on
+`NovusionUI`.**
+
+That includes the NovuAI rebuild. Every dependency added to the old library is
+one more thing to unpick later, and the point of the target state above is that
+the number only goes down.
+
+
 **A plan only.** Nothing below has been done, and none of it may be done as part
 of documentation work: every step switches a consumer, which is application
 migration. See [PORTING_GUIDE §B](PORTING_GUIDE.md#b--migrating-an-existing-application).
