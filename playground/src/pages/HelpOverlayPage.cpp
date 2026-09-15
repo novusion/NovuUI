@@ -200,6 +200,7 @@ ComponentSpec helpOverlayComponent()
         "by dashed leaders. The application underneath keeps working.");
     spec.headerPath = QStringLiteral("include/novu/ui/HelpOverlay.h");
     spec.sourcePath = QStringLiteral("src/HelpOverlay.cpp");
+    spec.usedBy = {};
     // Nothing consumes it yet - it was built here first, which is what the
     // design system asks for. NovuAI is the first planned consumer.
     spec.awaitingAdoption = true;

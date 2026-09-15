@@ -200,6 +200,21 @@ QString styleSheetFor(const ThemeProfile& p)
                .arg(radiusInput)
                .arg(css(c.accent), css(c.textDisabled));
 
+    // A refused value, the approved design's `.field.bad .input`.
+    //
+    // After the rules above, so it wins on equal specificity, and repeated for
+    // :focus - without that, clicking into the offending control clears the one
+    // mark saying which control it was, exactly when the user is looking at it.
+    qss += QStringLiteral("QLineEdit[novuInvalid=\"true\"],"
+                          " QPlainTextEdit[novuInvalid=\"true\"],"
+                          " QComboBox[novuInvalid=\"true\"],"
+                          " QDateEdit[novuInvalid=\"true\"] { border-color: %1; }"
+                          "QLineEdit[novuInvalid=\"true\"]:focus,"
+                          " QPlainTextEdit[novuInvalid=\"true\"]:focus,"
+                          " QComboBox[novuInvalid=\"true\"]:focus,"
+                          " QDateEdit[novuInvalid=\"true\"]:focus { border-color: %2; }")
+               .arg(css(p.semantic.danger.border), css(p.semantic.danger.text));
+
     // QDateEdit is a spin box, not a line edit, so none of the rules above reach
     // it. Without this a date field arrives with the light system palette beside
     // inputs that carry the profile.
@@ -322,6 +337,21 @@ QString styleSheetFor(const ThemeProfile& p)
                           "QScrollArea > QWidget > QWidget { background: transparent; }"
                           "QScrollArea#%1 { background: transparent; border: none; }")
                .arg(QLatin1String(name::scrollArea));
+
+    // Splitter handles: the colour only.
+    //
+    // The shape belongs to SplitterHandle, which paints its own centre line and
+    // its collapse arrows — a stylesheet cannot put a control on a handle, and
+    // that is the whole reason the component exists. What is left here is
+    // clearing Qt's default raised bevel for any *plain* QSplitter an
+    // application still uses, so one that has not been migrated is at least not
+    // announcing itself as a Qt splitter.
+    qss += QStringLiteral("QSplitter { background: transparent; border: none; }"
+                          "QSplitter::handle { background: transparent; }"
+                          "QSplitter::handle:horizontal { width: 8px; }"
+                          "QSplitter::handle:vertical { height: 8px; }"
+                          "QSplitter::handle:hover { background: %1; }")
+               .arg(rgba(c.accent, 0.28));
 
     // -- containers addressed by object name -----------------------------------
     qss += QStringLiteral("QFrame#%1 { background: %2; border: none; }")

@@ -1,6 +1,8 @@
 #include "novu/ui/WindowShell.h"
 
 #include "novu/ui/Button.h"
+#include "novu/ui/Feedback.h"
+#include <QKeyEvent>
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
 
@@ -10,6 +12,7 @@
 #include <QLabel>
 #include <QPainter>
 #include <QMouseEvent>
+#include <QTextOption>
 #include <QVBoxLayout>
 #include <QWindow>
 
@@ -794,6 +797,206 @@ void Dialog::setIcon(const QIcon& icon)
     m_shell->setIcon(icon);
 }
 
+namespace {
+
+// The dialog head, painted.
+//
+// Three things that never change after they are set and that nobody can click:
+// as widgets that is a framed label for the mark, a heading label and a wrapped
+// note label, plus the layout to hold them — five objects and a wrapped
+// QLabel's sizeHint, which is the single most common cause of a clipped dialog
+// in this codebase's history.
+class DialogHead : public QWidget
+{
+public:
+    explicit DialogHead(QWidget* parent)
+        : QWidget(parent)
+    {
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+        setAttribute(Qt::WA_TransparentForMouseEvents);
+    }
+
+    void setContent(const QString& heading, const QString& note, Dialog::Tone tone,
+                    Glyph glyph)
+    {
+        m_heading = heading;
+        m_note = note;
+        m_tone = tone;
+        m_glyph = glyph;
+        updateGeometry();
+        update();
+    }
+
+    int heightForWidth(int width) const override
+    {
+        const QFontMetrics headings(headingFont());
+        int height = qMax(headings.height(), kMarkSide);
+        if (!m_note.isEmpty()) {
+            height += kNoteGap + noteHeight(width);
+        }
+        return height;
+    }
+
+    bool hasHeightForWidth() const override { return true; }
+
+    QSize sizeHint() const override
+    {
+        const int width = qMax(320, QFontMetrics(headingFont()).horizontalAdvance(m_heading)
+                                        + kMarkSide + kGap);
+        return QSize(width, heightForWidth(width));
+    }
+
+    QSize minimumSizeHint() const override { return QSize(240, heightForWidth(240)); }
+
+protected:
+    void paintEvent(QPaintEvent*) override
+    {
+        const ThemeProfile& profile = themeFor(this);
+
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+
+        QColor ink = profile.colors.textDisabled;
+        QColor plate = profile.colors.panelBgAlt;
+        QColor outline = profile.colors.border;
+        switch (m_tone) {
+        case Dialog::Tone::Accent:
+            ink = profile.colors.accentLight;
+            plate = withAlpha(profile.colors.accent, 0.12);
+            outline = withAlpha(profile.colors.accent, 0.45);
+            break;
+        case Dialog::Tone::Warning:
+            ink = profile.semantic.warning.text;
+            plate = profile.semantic.warning.fill;
+            outline = profile.semantic.warning.border;
+            break;
+        case Dialog::Tone::Danger:
+            ink = profile.semantic.danger.text;
+            plate = profile.semantic.danger.fill;
+            outline = profile.semantic.danger.border;
+            break;
+        case Dialog::Tone::Neutral:
+            break;
+        }
+
+        const QRectF mark(0, 0, kMarkSide, kMarkSide);
+        painter.setPen(QPen(outline, qMax(1, profile.border(BorderRole::Card))));
+        painter.setBrush(plate);
+        painter.drawRoundedRect(mark.adjusted(0.5, 0.5, -0.5, -0.5),
+                                profile.radii.medium + 2, profile.radii.medium + 2);
+
+        const Glyph glyph = m_glyph != Glyph::None ? m_glyph : defaultGlyph();
+        if (glyph != Glyph::None) {
+            const double inset = (kMarkSide - kMarkGlyph) / 2.0;
+            paintGlyph(&painter, glyph, mark.adjusted(inset, inset, -inset, -inset), ink);
+        }
+
+        const int left = kMarkSide + kGap;
+        const int available = qMax(0, width() - left);
+
+        const QFont headings = headingFont();
+        const QFontMetrics headingMetrics(headings);
+        painter.setFont(headings);
+        painter.setPen(profile.colors.textPrimary);
+        painter.drawText(QRect(left, 0, available, qMax(headingMetrics.height(), kMarkSide)),
+                         Qt::AlignLeft | Qt::AlignVCenter,
+                         headingMetrics.elidedText(m_heading, Qt::ElideRight, available));
+
+        if (m_note.isEmpty()) {
+            return;
+        }
+        QTextOption wrap(Qt::AlignLeft | Qt::AlignTop);
+        wrap.setWrapMode(QTextOption::WordWrap);
+        painter.setFont(noteFont());
+        painter.setPen(profile.colors.textDisabled);
+        painter.drawText(QRectF(left, qMax(headingMetrics.height(), kMarkSide) + kNoteGap,
+                                available, noteHeight(width())),
+                         m_note, wrap);
+    }
+
+    bool event(QEvent* event) override
+    {
+        if (event->type() == ThemeChangeEvent::type()
+            || event->type() == QEvent::ParentChange) {
+            updateGeometry();
+            update();
+        }
+        return QWidget::event(event);
+    }
+
+private:
+    // `.modal-head .mi { width:32px; height:32px }` with a 16px glyph.
+    static constexpr int kMarkSide = 32;
+    static constexpr int kMarkGlyph = 16;
+    static constexpr int kGap = 12;
+    static constexpr int kNoteGap = 6;
+    static constexpr double kNoteLeading = 1.5;
+
+    Glyph defaultGlyph() const
+    {
+        switch (m_tone) {
+        case Dialog::Tone::Warning:
+        case Dialog::Tone::Danger:  return Glyph::Warning;
+        case Dialog::Tone::Accent:  return Glyph::Info;
+        case Dialog::Tone::Neutral: break;
+        }
+        return Glyph::None;
+    }
+
+    QFont headingFont() const
+    {
+        const ThemeProfile& profile = themeFor(this);
+        QFont font = roleFont(this, TypeRole::SectionTitle, true);
+        font.setPixelSize(profile.type.lg - 1);
+        return font;
+    }
+
+    QFont noteFont() const
+    {
+        const ThemeProfile& profile = themeFor(this);
+        QFont font = roleFont(this, TypeRole::Caption);
+        font.setPixelSize(profile.type.sm);
+        return font;
+    }
+
+    int noteHeight(int width) const
+    {
+        const int available = qMax(0, width - kMarkSide - kGap);
+        if (m_note.isEmpty() || available <= 0) {
+            return 0;
+        }
+        const QFontMetrics fm(noteFont());
+        const QRect bounds = fm.boundingRect(QRect(0, 0, available, 10000),
+                                             Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop,
+                                             m_note);
+        const int lines = qMax(1, qRound(double(bounds.height()) / qMax(1, fm.height())));
+        return qRound(fm.height() * kNoteLeading) * lines;
+    }
+
+    QString m_heading;
+    QString m_note;
+    Dialog::Tone m_tone = Dialog::Tone::Neutral;
+    Glyph m_glyph = Glyph::None;
+};
+
+} // namespace
+
+void Dialog::setHeading(const QString& heading, const QString& note, Tone tone, Glyph glyph)
+{
+    m_heading = heading;
+    m_note = note;
+    m_tone = tone;
+    m_glyph = glyph;
+
+    if (!m_head) {
+        m_head = new DialogHead(content());
+        // At the top, above whatever the caller has already put in. Calling
+        // this after filling the body is the common order and must work.
+        contentLayout()->insertWidget(0, m_head);
+    }
+    static_cast<DialogHead*>(m_head)->setContent(heading, note, tone, glyph);
+}
+
 QHBoxLayout* Dialog::buttonRow()
 {
     if (m_buttonRow) {
@@ -808,6 +1011,105 @@ QHBoxLayout* Dialog::buttonRow()
     m_buttonRow->addStretch(1);
     contentLayout()->addLayout(m_buttonRow);
     return m_buttonRow;
+}
+
+void Dialog::keyPressEvent(QKeyEvent* event)
+{
+    // A request already in flight cannot be cancelled by closing the window
+    // that sent it. Swallowing Escape while busy is the cheapest way to stop a
+    // user leaving a dialog whose reply is about to arrive for nobody.
+    if (event->key() == Qt::Key_Escape && m_busy) {
+        event->accept();
+        return;
+    }
+    QDialog::keyPressEvent(event);
+}
+
+void Dialog::setBusy(bool busy, const QString& what)
+{
+    if (m_busy == busy && what.isEmpty()) {
+        return;
+    }
+    m_busy = busy;
+
+    // Every button in the footer, not only the primary one. A Cancel that still
+    // works while a request is in flight is a Cancel that leaves the caller
+    // holding a reply for a dialog that has gone.
+    if (m_buttonRow) {
+        for (int i = 0; i < m_buttonRow->count(); ++i) {
+            if (QWidget* widget = m_buttonRow->itemAt(i)->widget()) {
+                widget->setEnabled(!busy);
+            }
+        }
+    }
+
+    if (busy) {
+        if (!m_busyMark) {
+            auto* row = buttonRow();
+            auto* holder = new QWidget(content());
+            auto* line = new QHBoxLayout(holder);
+            line->setContentsMargins(0, 0, 0, 0);
+            line->setSpacing(themeFor(this).space(SpacingRole::ToolbarGap));
+            line->addWidget(new Spinner(ControlSize::Small, holder));
+            QLabel* caption = label(QString(), holder, TypeRole::Caption, Ink::Muted);
+            caption->setObjectName(QStringLiteral("novuDialogBusyText"));
+            line->addWidget(caption);
+            // Before the stretch, so it sits on the left of the footer and the
+            // buttons stay where they were - a spinner that pushes the buttons
+            // sideways is one the user's hand has to chase.
+            m_buttonRow->insertWidget(0, holder);
+            m_busyMark = holder;
+            Q_UNUSED(row);
+        }
+        if (auto* caption = m_busyMark->findChild<QLabel*>(
+                QStringLiteral("novuDialogBusyText"))) {
+            caption->setText(what);
+        }
+        m_busyMark->show();
+        // A request in flight cannot be cancelled by closing the window that
+        // sent it, so Escape stops working while it is.
+        clearFormError();
+    } else if (m_busyMark) {
+        m_busyMark->hide();
+    }
+}
+
+void Dialog::showFormError(const QString& message)
+{
+    if (m_formError == message) {
+        return;
+    }
+    m_formError = message;
+
+    if (message.isEmpty()) {
+        if (m_errorBanner) {
+            m_errorBanner->hide();
+        }
+        return;
+    }
+
+    // A dialog cannot be both reporting a failure and still working: the
+    // failure is the answer to the work.
+    if (m_busy) {
+        setBusy(false);
+    }
+
+    if (!m_errorBanner) {
+        auto* banner = new InfoBanner(message, Badge::Tone::Danger, content());
+        // Directly above the footer, which is where the eye goes after pressing
+        // a button that did not do what it said.
+        const int before = contentLayout()->count() - (m_buttonRow ? 1 : 0);
+        contentLayout()->insertWidget(qMax(0, before), banner);
+        m_errorBanner = banner;
+    } else {
+        static_cast<InfoBanner*>(m_errorBanner)->setText(message);
+    }
+    m_errorBanner->show();
+}
+
+void Dialog::clearFormError()
+{
+    showFormError(QString());
 }
 
 namespace {
@@ -850,7 +1152,16 @@ bool Dialog::confirm(QWidget* parent, const QString& title, const QString& messa
     dialog->buttonRow()->addWidget(accept);
     connect(cancel, &QAbstractButton::clicked, dialog, &QDialog::reject);
     connect(accept, &QAbstractButton::clicked, dialog, &QDialog::accept);
-    accept->setDefault(true);
+
+    // A destructive confirmation must not answer to Return. A user who hits
+    // Enter to dismiss a dialog they have not read would otherwise delete the
+    // thing the dialog was asking about — which makes the confirmation worse
+    // than useless, because it trained them to expect one.
+    if (destructive) {
+        cancel->setDefault(true);
+    } else {
+        accept->setDefault(true);
+    }
 
     dialog->shell()->setContentSize(QSize(360, 140));
     const bool confirmed = dialog->exec() == QDialog::Accepted;

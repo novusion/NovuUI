@@ -18,6 +18,19 @@ namespace novu::ui {
 // Not QTabWidget: that owns the pages as well as the tabs, which forces the
 // content into a stacked widget it controls. A strip only reports which item
 // is current and leaves the layout to the page.
+//
+// ── overlap, stated rather than merged ───────────────────────────────────
+//
+// `Variant::Segment` and `Segmented` are the same control. Segmented is the
+// newer one: it is painted, it derives from ItemStrip, and it is what the
+// approved design's `.chipset` is. This class keeps a QPushButton per item.
+//
+// They were not merged during the extraction freeze because NovuSpace consumes
+// this header today, and rewriting the internals of a live consumer's
+// component is not a freeze. **New code should use Segmented**; this stays for
+// `Variant::Pill`, which is a section switcher and a different thing.
+//
+// See docs/EXTRACTION_STATUS.md §6.
 class TabStrip : public QWidget
 {
     Q_OBJECT

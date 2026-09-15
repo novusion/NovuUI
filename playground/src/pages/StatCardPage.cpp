@@ -112,9 +112,10 @@ ComponentSpec statCardComponent()
         "a card that is already a surface.");
     spec.headerPath = QStringLiteral("include/novu/ui/StatCard.h");
     spec.sourcePath = QStringLiteral("src/StatCard.cpp");
-    spec.usedBy = {QStringLiteral("novuspace"),
+    spec.designedFor = {QStringLiteral("novuspace"),
                    QStringLiteral("novuai"),
                    QStringLiteral("novutrade")};
+    spec.usedBy = {QStringLiteral("novuspace")};
     spec.variants = {QStringLiteral("StatCard"), QStringLiteral("MiniStat"),
                      QStringLiteral("statGrid()")};
     spec.states = {QStringLiteral("Default"), QStringLiteral("Success"), QStringLiteral("Warning"),

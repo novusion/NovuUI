@@ -6,7 +6,7 @@
 
 #include "novu/ui/Fields.h"
 
-#include <QMainWindow>
+#include "novu/ui/WindowShell.h"
 #include <QString>
 
 class QComboBox;
@@ -43,7 +43,14 @@ class ThemeCatalog;
 // put, so there is always an unchanged reference on screen. Switching also
 // rebuilds the page, because NovuUI components read geometry tokens at
 // construction as well as at paint.
-class GalleryWindow : public QMainWindow
+// It wears NovuUI's own frame rather than the platform's.
+//
+// A component gallery that asks the operating system to draw its title bar is
+// the one window in the product that does not use the thing it is advertising -
+// and the title bar is a component like any other, so not showing it here means
+// it is the only one nobody looks at. AppWindow is used exactly the way an
+// application uses it: a title, an icon and a content widget.
+class GalleryWindow : public novu::ui::AppWindow
 {
     Q_OBJECT
 

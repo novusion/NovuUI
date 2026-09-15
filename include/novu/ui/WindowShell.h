@@ -1,5 +1,6 @@
 #pragma once
 
+#include "novu/ui/Icon.h"
 #include "novu/ui/ThemeProfile.h"
 #include "novu/ui/TitleBar.h"
 
@@ -200,6 +201,10 @@ public:
     explicit Dialog(QWidget* parent = nullptr);
     Dialog(const QString& title, QWidget* parent = nullptr);
 
+    // What kind of question this is, before the title is read. The approved
+    // designs' `.modal-head .mi` and its `.acc` / `.warn` / `.bad` variants.
+    enum class Tone { Neutral, Accent, Warning, Danger };
+
     WindowShell* shell() const { return m_shell; }
     TitleBar* titleBar() const;
     QWidget* content() const;
@@ -209,11 +214,60 @@ public:
     void setTitle(const QString& title);
     void setIcon(const QIcon& icon);
 
+    // The head the approved designs put above every dialog body: a tone-marked
+    // icon, a heading, and a sentence under it saying what the question means.
+    //
+    // Separate from the title bar's caption, and deliberately so. The caption
+    // names the *window* — it is what appears in the task bar and what a user
+    // sees when the dialog is behind something. The head is the *question*, and
+    // it has room for a sentence the caption does not.
+    //
+    // Both NovuSpace and NovuAI draw this and NovuAdmin drew a third copy of
+    // it, which is why it is here: the three disagreed on the icon plate, on
+    // whether the note wrapped, and on the gap between the head and the body.
+    //
+    // Created on first call and placed at the top of the content, above
+    // whatever is already there. Called again, it updates rather than adding a
+    // second head.
+    void setHeading(const QString& heading, const QString& note = {},
+                    Tone tone = Tone::Neutral, Glyph glyph = Glyph::None);
+    QString heading() const { return m_heading; }
+    QString note() const { return m_note; }
+    Tone tone() const { return m_tone; }
+
     // The footer every dialog ends with, created on first use and always in
     // the same place: right-aligned, below the content, with the profile's
     // toolbar gap between buttons. Without it each dialog invents its own
     // button row and they stop lining up.
     QHBoxLayout* buttonRow();
+
+    // ── submitting ───────────────────────────────────────────────────────
+    //
+    // The state a form dialog is in between the user pressing the button and
+    // the server answering. NovuAdmin had to write this by hand for every one
+    // of its seventeen forms, and the halves that were forgotten are the ones
+    // that cost: a dialog that does not disable its own submit is a dialog that
+    // creates two records when the network is slow.
+    //
+    // Busy disables every button in the footer, shows a spinner beside the
+    // primary one, and stops Escape closing the window — a request already in
+    // flight cannot be cancelled by closing the thing that sent it.
+    bool isBusy() const { return m_busy; }
+    void setBusy(bool busy, const QString& what = {});
+
+    // The error the server sent back, shown above the footer in the danger
+    // tone. Empty clears it. Setting one always clears busy, because a dialog
+    // that is both reporting a failure and still working is reporting about
+    // something that already finished.
+    void showFormError(const QString& message);
+    void clearFormError();
+    QString formError() const { return m_formError; }
+    bool hasFormError() const { return !m_formError.isEmpty(); }
+
+protected:
+    void keyPressEvent(QKeyEvent* event) override;
+
+public:
 
     // Drop-in replacements for the QMessageBox calls that are the last native
     // windows left in most applications. Same shell, same chrome.
@@ -230,6 +284,16 @@ public:
 private:
     WindowShell* m_shell = nullptr;
     QHBoxLayout* m_buttonRow = nullptr;
+    QWidget* m_head = nullptr;
+    QString m_heading;
+    QString m_note;
+    Tone m_tone = Tone::Neutral;
+    Glyph m_glyph = Glyph::None;
+
+    QWidget* m_errorBanner = nullptr;
+    QWidget* m_busyMark = nullptr;
+    QString m_formError;
+    bool m_busy = false;
 };
 
 } // namespace novu::ui

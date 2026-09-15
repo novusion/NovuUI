@@ -352,12 +352,13 @@ ComponentSpec themeRolesComponent()
         "two products.");
     spec.headerPath = QStringLiteral("include/novu/ui/ThemeProfile.h");
     spec.sourcePath = QStringLiteral("src/ThemeProfile.cpp");
-    spec.usedBy = {QStringLiteral("novuspace"),
+    spec.designedFor = {QStringLiteral("novuspace"),
                    QStringLiteral("novuai"),
                    QStringLiteral("novuexplorer"),
                    QStringLiteral("novuhub"),
                    QStringLiteral("novuvoice"),
                    QStringLiteral("novutrade")};
+    spec.usedBy = {QStringLiteral("novuspace")};
     spec.variants = {QStringLiteral("Colours"), QStringLiteral("SurfaceRole"),
                      QStringLiteral("SpacingRole"), QStringLiteral("BorderRole"),
                      QStringLiteral("ControlSize"), QStringLiteral("Chart"),

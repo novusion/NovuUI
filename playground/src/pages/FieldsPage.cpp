@@ -146,12 +146,13 @@ ComponentSpec fieldsComponent()
         "cannot — height, font and an optional fixed width — and nothing else.");
     spec.headerPath = QStringLiteral("include/novu/ui/Fields.h");
     spec.sourcePath = QStringLiteral("src/Fields.cpp");
-    spec.usedBy = {QStringLiteral("novuspace"),
+    spec.designedFor = {QStringLiteral("novuspace"),
                    QStringLiteral("novuai"),
                    QStringLiteral("novuexplorer"),
                    QStringLiteral("novuhub"),
                    QStringLiteral("novuvoice"),
                    QStringLiteral("novutrade")};
+    spec.usedBy = {QStringLiteral("novuspace")};
     spec.variants = {QStringLiteral("ComboBox"), QStringLiteral("LineEdit"),
                      QStringLiteral("CheckBox")};
     spec.states = {QStringLiteral("Normal"), QStringLiteral("Focused"), QStringLiteral("Disabled"),

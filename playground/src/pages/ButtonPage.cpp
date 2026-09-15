@@ -4,6 +4,7 @@
 #include "novu/playground/SampleData.h"
 
 #include "novu/ui/Button.h"
+#include "novu/ui/Icon.h"
 #include "novu/ui/Card.h"
 #include "novu/ui/StyleSheet.h"
 #include "novu/ui/Text.h"
@@ -31,6 +32,8 @@ const VariantRow kVariants[] = {
     {"Primary", Button::Variant::Primary},
     {"Secondary", Button::Variant::Secondary},
     {"Ghost", Button::Variant::Ghost},
+    {"Success", Button::Variant::Success},
+    {"Warning", Button::Variant::Warning},
     {"Danger", Button::Variant::Danger},
 };
 
@@ -83,10 +86,12 @@ QWidget* build(const PreviewContext& ctx)
             disabled->setEnabled(false);
             matrixCell(grid, r, 2, disabled);
 
-            // The one geometry variant the stylesheet offers: row actions.
+            // The one geometry variant: row actions. Set through the
+            // component's own API — Button composes its stylesheet from the
+            // profile, so a bare property on the widget reaches the scope sheet
+            // and is then overwritten by the button's own.
             auto* small = new Button(text, row.variant, card);
-            small->setProperty(prop::size, QStringLiteral("small"));
-            repolish(small);
+            small->setControlSize(ControlSize::Small);
             matrixCell(grid, r, 3, small);
         }
 
@@ -106,12 +111,54 @@ QWidget* build(const PreviewContext& ctx)
         row->addWidget(primaryButton(QStringLiteral("Save"), card));
         row->addWidget(secondaryButton(QStringLiteral("Cancel"), card));
         row->addWidget(ghostButton(QStringLiteral("Reset"), card));
+        row->addWidget(successButton(QStringLiteral("Start"), card));
+        row->addWidget(warningButton(QStringLiteral("Go live"), card));
         row->addWidget(dangerButton(QStringLiteral("Delete"), card));
         row->addWidget(detachButton(card));
         row->addStretch(1);
         note(body, card,
              QStringLiteral("detachButton() is a named factory rather than a ghost button so "
                             "the gesture reads the same in every panel that offers it."));
+        column->addWidget(card);
+    }
+
+    // ── with a glyph ─────────────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("With a glyph"),
+                                 QStringLiteral("Named from the icon set, so it is redrawn in "
+                                                "the variant's own ink."));
+        QVBoxLayout* body = card->body();
+
+        QHBoxLayout* row = exampleRow(body, card, QStringLiteral("Leading icon"));
+        const struct { const char* text; Glyph glyph; Button::Variant variant; } withIcons[] = {
+            {"New bot", Glyph::Plus, Button::Variant::Primary},
+            {"Refresh", Glyph::Refresh, Button::Variant::Secondary},
+            {"Export", Glyph::Download, Button::Variant::Ghost},
+            {"Start", Glyph::Play, Button::Variant::Success},
+            {"Go live", Glyph::Warning, Button::Variant::Warning},
+            {"Delete", Glyph::Trash, Button::Variant::Danger},
+        };
+        for (const auto& entry : withIcons) {
+            auto* button = new Button(QString::fromLatin1(entry.text), entry.variant, card);
+            button->setGlyph(entry.glyph);
+            button->setEnabled(!disabledScenario);
+            row->addWidget(button);
+        }
+        row->addStretch(1);
+
+        QHBoxLayout* smallRow = exampleRow(body, card, QStringLiteral("Small"));
+        for (const auto& entry : withIcons) {
+            auto* button = new Button(QString::fromLatin1(entry.text), entry.variant, card);
+            button->setGlyph(entry.glyph);
+            button->setControlSize(ControlSize::Small);
+            smallRow->addWidget(button);
+        }
+        smallRow->addStretch(1);
+
+        note(body, card,
+             QStringLiteral("A Glyph rather than a QIcon: an icon handed in by a page is a "
+                            "drawing at a colour the page chose, and it stops following the "
+                            "theme the moment the profile changes."));
         column->addWidget(card);
     }
 
@@ -125,7 +172,9 @@ QWidget* build(const PreviewContext& ctx)
                                       QStringLiteral("Save and close"),
                                       QStringLiteral("Reset to defaults")};
         for (int i = 0; i < captions.size(); ++i) {
-            auto* button = new Button(captions.at(i), kVariants[i % 4].variant, card);
+            auto* button = new Button(captions.at(i),
+                                      kVariants[i % static_cast<int>(std::size(kVariants))].variant,
+                                      card);
             button->setEnabled(!disabledScenario);
             row->addWidget(button);
         }
@@ -150,14 +199,16 @@ ComponentSpec buttonComponent()
         "— geometry is identical, and computed rather than styled.");
     spec.headerPath = QStringLiteral("include/novu/ui/Button.h");
     spec.sourcePath = QStringLiteral("src/Button.cpp");
-    spec.usedBy = {QStringLiteral("novuspace"),
+    spec.designedFor = {QStringLiteral("novuspace"),
                    QStringLiteral("novuai"),
                    QStringLiteral("novuexplorer"),
                    QStringLiteral("novuhub"),
                    QStringLiteral("novuvoice"),
                    QStringLiteral("novutrade")};
+    spec.usedBy = {QStringLiteral("novuadmin"), QStringLiteral("novuspace")};
     spec.variants = {QStringLiteral("Primary"), QStringLiteral("Secondary"),
-                     QStringLiteral("Ghost"), QStringLiteral("Danger")};
+                     QStringLiteral("Ghost"), QStringLiteral("Success"),
+                     QStringLiteral("Warning"), QStringLiteral("Danger")};
     spec.states = {QStringLiteral("Normal"), QStringLiteral("Hover"), QStringLiteral("Pressed"),
                    QStringLiteral("Focused"), QStringLiteral("Disabled")};
     spec.keywords = {QStringLiteral("action"), QStringLiteral("push"), QStringLiteral("cta"),
@@ -167,8 +218,10 @@ ComponentSpec buttonComponent()
          QStringLiteral("Caption. sizeHint() is measured from it.")},
         {QStringLiteral("variant"), QStringLiteral("enum"),
          {QStringLiteral("Primary"), QStringLiteral("Secondary"), QStringLiteral("Ghost"),
-          QStringLiteral("Danger")},
+          QStringLiteral("Success"), QStringLiteral("Warning"), QStringLiteral("Danger")},
          QStringLiteral("Secondary"), QStringLiteral("Colour role. Never changes geometry.")},
+        {QStringLiteral("glyph"), QStringLiteral("enum"), {}, QStringLiteral("None"),
+         QStringLiteral("A leading icon from the Novu set, redrawn per variant and theme.")},
         {QStringLiteral("enabled"), QStringLiteral("bool"), {}, QStringLiteral("true"),
          QStringLiteral("Disabled buttons drop to the muted palette.")},
         {QStringLiteral("novuSize"), QStringLiteral("enum"), {QStringLiteral("small")},

@@ -174,10 +174,11 @@ ComponentSpec tableViewComponent()
         "declares what each column is, never how wide it becomes.");
     spec.headerPath = QStringLiteral("include/novu/ui/TableView.h");
     spec.sourcePath = QStringLiteral("src/TableView.cpp");
-    spec.usedBy = {QStringLiteral("novuspace"),
+    spec.designedFor = {QStringLiteral("novuspace"),
                    QStringLiteral("novuexplorer"),
                    QStringLiteral("novuhub"),
                    QStringLiteral("novutrade")};
+    spec.usedBy = {QStringLiteral("novuadmin"), QStringLiteral("novuspace")};
     spec.variants = {QStringLiteral("Text column"), QStringLiteral("Content column")};
     spec.states = {QStringLiteral("Empty"), QStringLiteral("Populated"), QStringLiteral("Error"),
                    QStringLiteral("Disabled row actions")};

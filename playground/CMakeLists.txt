@@ -36,20 +36,45 @@ add_library(NovuUIPlaygroundLib STATIC
     src/Scenario.cpp
     src/ShadowRun.cpp
     src/ThemeCatalog.cpp
+    src/pages/AdminPage.cpp
     src/pages/BadgePage.cpp
+    src/pages/ChromePage.cpp
+    src/pages/DiffViewPage.cpp
+    src/pages/DisclosurePage.cpp
+    src/pages/KeysPage.cpp
+    src/pages/LoadingPage.cpp
+    src/pages/LogViewPage.cpp
+    src/pages/MotionPage.cpp
+    src/pages/OverlayPage.cpp
+    src/pages/PopoverPage.cpp
+    src/pages/SettingRowPage.cpp
+    src/pages/SettingsPage.cpp
+    src/pages/SidebarPage.cpp
+    src/pages/TooltipPage.cpp
+    src/pages/TreeViewPage.cpp
+    src/pages/WorkspacePage.cpp
+    src/pages/BottomPanelPage.cpp
     src/pages/ButtonPage.cpp
     src/pages/CardPage.cpp
     src/pages/ChipPage.cpp
     src/pages/FeedbackFormPage.cpp
     src/pages/FeedbackPage.cpp
+    src/pages/FieldPage.cpp
     src/pages/FieldsPage.cpp
     src/pages/FlowLayoutPage.cpp
     src/pages/FormPage.cpp
     src/pages/HelpOverlayPage.cpp
+    src/pages/IconButtonPage.cpp
+    src/pages/IconPage.cpp
+    src/pages/IdentityPage.cpp
     src/pages/LayoutPage.cpp
     src/pages/Pages.h
+    src/pages/SeparatorPage.cpp
+    src/pages/ShellPage.cpp
     src/pages/StatCardPage.cpp
+    src/pages/StatusDotPage.cpp
     src/pages/TabStripPage.cpp
+    src/pages/TogglePage.cpp
     src/pages/TableViewPage.cpp
     src/pages/ThemeRolesPage.cpp
     src/pages/TilePage.cpp

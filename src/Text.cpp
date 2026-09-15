@@ -29,12 +29,61 @@ QColor inkColor(const QWidget* context, Ink ink)
     }
 }
 
+namespace {
+
+// The roles the display face is for: a title, and nothing that is not a title.
+// Kept here rather than as a flag on TypeStyle because it is a property of what
+// the role *is*, and a profile that had to say "and this one is a title too"
+// for every role would eventually disagree with itself.
+bool isDisplayRole(TypeRole role)
+{
+    switch (role) {
+    case TypeRole::PageTitle:
+    case TypeRole::SectionTitle:
+    case TypeRole::CardTitle:
+    case TypeRole::WindowTitle:
+    case TypeRole::Metric:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// The named family first, then the profile's fallbacks. Qt walks the list and
+// takes the first installed one, so a machine without the design's faces gets
+// the profile's stated second choice instead of whatever Qt would have
+// substituted on its own.
+QFont familyStack(const QString& primary, const QStringList& fallbacks)
+{
+    QStringList families;
+    if (!primary.isEmpty()) {
+        families.append(primary);
+    }
+    families.append(fallbacks);
+    QFont f(families.isEmpty() ? QString() : families.first());
+    f.setFamilies(families);
+    return f;
+}
+
+} // namespace
+
 QFont roleFont(const QWidget* context, TypeRole role, bool bold)
 {
     const ThemeProfile& profile = themeFor(context);
     const TypeStyle style = profile.text(role);
+    const TypeScale& scale = profile.type;
 
-    QFont f(profile.type.family);
+    // A role that declares itself monospace gets the mono stack here as well.
+    // Before, only roleMonoFont() honoured the flag, so TypeRole::Mono came out
+    // in the body face at every call site that asked for it by role.
+    const bool mono = style.monospace;
+    const QString primary = mono
+        ? scale.monoFamily
+        : (isDisplayRole(role) && !scale.displayFamily.isEmpty() ? scale.displayFamily
+                                                                 : scale.family);
+
+    QFont f = familyStack(primary, mono ? scale.monoFallbackFamilies
+                                        : scale.fallbackFamilies);
     f.setPixelSize(style.size);
     f.setWeight(bold ? QFont::Bold : static_cast<QFont::Weight>(style.weight));
     return f;
@@ -43,8 +92,11 @@ QFont roleFont(const QWidget* context, TypeRole role, bool bold)
 QFont roleMonoFont(const QWidget* context, TypeRole role, bool bold)
 {
     const ThemeProfile& profile = themeFor(context);
-    QFont f = roleFont(context, role, bold);
-    f.setFamily(profile.type.monoFamily);
+    const TypeStyle style = profile.text(role);
+
+    QFont f = familyStack(profile.type.monoFamily, profile.type.monoFallbackFamilies);
+    f.setPixelSize(style.size);
+    f.setWeight(bold ? QFont::Bold : static_cast<QFont::Weight>(style.weight));
     return f;
 }
 
@@ -67,7 +119,14 @@ QLabel* label(const QString& text, QWidget* parent, TypeRole role, Ink ink, bool
 
 QLabel* caption(const QString& text, QWidget* parent)
 {
-    return label(text.toUpper(), parent, TypeRole::Caption, Ink::Muted, true);
+    // The uppercasing and the tracking are the treatment, not the font, so they
+    // are applied here rather than stored in the role. Without the tracking a
+    // 10px uppercase mono line reads as a solid bar.
+    auto* lb = label(text.toUpper(), parent, TypeRole::Eyebrow, Ink::Muted);
+    QFont f = lb->font();
+    f.setLetterSpacing(QFont::PercentageSpacing, 110);
+    lb->setFont(f);
+    return lb;
 }
 
 void applyText(QLabel* lb, TypeRole role, Ink ink, bool bold)

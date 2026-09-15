@@ -9,6 +9,17 @@ nothing here knows which application is consuming it.
 Visual language: `NovuAI/docs/NOVU_DESIGN_SYSTEM.md`.
 Styling rules: `NovuAI/design/NOVU_THEME_RULES.md`, `NovuAI/design/FIX_FRAMES_HELP.md`.
 
+## Before adding anything: read docs/DUPLICATION_MAP.md
+
+There is a second shared UI library. `NovusionUI` (namespace `novu::brand`,
+beside this repository) is a complete, shipping component set that NovuHub
+and NovuExplorer both link today, and it implements about fifteen of the
+components in this repository a second time.
+
+Check it before writing a component here. `docs/MODULE_RULES.md` already says
+a shared component is *extracted* from a shipping application rather than
+written here as a look-alike; that rule now has a specific place to look.
+
 ## The contract
 
 A component owns **all** of its own presentation and geometry:
@@ -40,8 +51,16 @@ truth per component.
 
 | Component | Notes |
 |---|---|
-| `Button` | Variants: `Primary`, `Secondary`, `Ghost`, `Danger`. Same geometry across variants. Helpers: `primaryButton()`, `secondaryButton()`, `ghostButton()`, `dangerButton()`. |
-| `Badge` | Tones: `Neutral`, `Success`, `Warning`, `Danger`, `Info`. Covers status / tag / plan / release / price badges. |
+| `Button` | Variants: `Primary`, `Secondary`, `Ghost`, `Success`, `Warning`, `Danger`. Same geometry across variants. Optional leading `Glyph`. Helpers: `primaryButton()`, `secondaryButton()`, `ghostButton()`, `successButton()`, `warningButton()`, `dangerButton()`. |
+| `Badge` | Tones: `Neutral`, `Success`, `Warning`, `Danger`, `Info`, `Accent`. Two sizes, an optional status dot and an uppercase treatment. `statusBadge()` is a live status, `pill()` a classification. |
+| `Pulse` (Motion.h) | One 30 fps clock for every looping animation in the process, reference-counted so nothing on screen means nothing running. |
+| `StyleSpec` / `ResolvedStyle` | What a component *means* in token references, and what that comes to under the current profile. The inspection seam: a test asserts on either without a screenshot. |
+| `Icon` | The Novu glyph set: stroke outlines taken from the approved design, painted rather than instantiated. No icon font, no QtSvg, and no widget per glyph — `paintGlyph()` is the primary API, `glyphIcon()` the adapter for Qt calls that insist on a `QIcon`. |
+| `IconButton` | A button that is a glyph and nothing else. Square at every control size. `Outlined` for a toolbar, `Ghost` for chrome; checkable goes to the product accent; `rowAction()` is the small ghost one a table row offers. |
+| `StatusDot` | The dot that says something is live. Takes a tone, not a colour; breathes on the shared clock; cross-fades between states. |
+| `Toggle` | The switch: on or off, taking effect at once. Painted, with the knob sliding on Qt's shared animation driver. `toggleRow()` is the settings-column shape. |
+| `Segmented` | Mutually exclusive choices in one tray, words or glyphs. Painted segments with real press/release hit testing; the tray keeps the interaction. |
+| `Separator` | The hairline, at two weights: inside a surface, and between surfaces. Painted, transparent to the mouse, no children. `toolbarDivider()` is the short upright one between two groups of controls. |
 | `TableView` | Owns column layout. Pages declare column *roles*, never widths. |
 | `Card` | The one surface primitive: background, border, themed radius. Self-painted. Padding lives on its own layout — there is no inner "body" widget. |
 | `section()` | Styled heading added to an existing layout. Creates no container. |

@@ -102,6 +102,14 @@ ThemeProfile novuExplorerProfile()
                               QStringLiteral("NovuExplorer"));
 }
 
+ThemeProfile novuAdminProfile()
+{
+    // No palette of its own and none coming: NovuAdmin already draws itself
+    // with this library, which is the whole reason it is the lowest-risk
+    // migration in the extraction audit.
+    return applicationProfile(QStringLiteral("novuadmin"), QStringLiteral("NovuAdmin"));
+}
+
 ThemeProfile novuHubProfile()
 {
     // Its colours were never collected anywhere - they lived inline in
@@ -239,6 +247,7 @@ bool isApplicationProfile(const QString& profileId)
         QStringLiteral("novuai"),
         QStringLiteral("novuexplorer"),
         QStringLiteral("novuhub"),
+        QStringLiteral("novuadmin"),
         QStringLiteral("novuvoice"),
         QStringLiteral("novutrade"),
     };
@@ -254,6 +263,7 @@ QList<ThemeProfile> builtinProfiles()
             novuAiProfile(),
             novuExplorerProfile(),
             novuHubProfile(),
+            novuAdminProfile(),
             novuVoiceProfile(),
             midnightBlueProfile(),
             warmGrayProfile(),

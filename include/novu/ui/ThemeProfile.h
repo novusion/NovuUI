@@ -6,6 +6,7 @@
 #include <QHash>
 #include <QList>
 #include <QString>
+#include <QStringList>
 
 namespace novu::ui {
 
@@ -100,6 +101,31 @@ struct TypeScale
     // every component into a conditional.
     QString family = QStringLiteral("Segoe UI");
     QString monoFamily = QStringLiteral("Consolas");
+
+    // The third family: the one titles are set in.
+    //
+    // The approved designs use two sans faces, not one — a display face for
+    // window, page and card titles and a text face for everything else. With
+    // one family a title is the body font made bigger, which is the single
+    // most visible difference between the mockups and the current windows.
+    //
+    // Empty means "the same as `family`", so a profile that has only one face
+    // says nothing and nothing changes for it.
+    QString displayFamily;
+
+    // What to fall back to when the named family is not installed.
+    //
+    // Qt's own substitution picks by script coverage, and on a machine without
+    // Inter it lands on whatever the system's default sans is — which on
+    // Windows is not Segoe UI. Naming the fallback keeps an un-provisioned
+    // developer machine and a deployed one the same shape rather than two.
+    // Every family above is tried first, then these, in order.
+    QStringList fallbackFamilies = {QStringLiteral("Segoe UI"),
+                                    QStringLiteral("Noto Sans"),
+                                    QStringLiteral("Arial")};
+    QStringList monoFallbackFamilies = {QStringLiteral("Cascadia Mono"),
+                                        QStringLiteral("Consolas"),
+                                        QStringLiteral("Courier New")};
 };
 
 // What a piece of text *is*. A component asks for a role and gets size and
@@ -115,6 +141,18 @@ enum class TypeRole {
     Metric,      // large numeric value on a StatCard
     Mono,        // ids, hashes, versions
     WindowTitle, // the caption in a window or dialog title bar
+    // The uppercase, letter-spaced line that names a group: the caption over a
+    // row of controls, a table's column head, a menu section, the breadcrumb
+    // in front of a page title.
+    //
+    // Separate from Label because the two look nothing alike and mean
+    // different things — Label is the name of one field, sentence case beside
+    // its control; Eyebrow is the name of a *group*, several steps smaller and
+    // set in the monospace face. They were one role, and the result was every
+    // caption in the library being a small bold body font while the approved
+    // design drew a tracked mono line. Declared last so the existing
+    // enumerators keep their values.
+    Eyebrow,
 };
 
 struct TypeStyle
@@ -180,6 +218,19 @@ struct AnimationTokens
     int fastMs = 120;
     int normalMs = 200;
     int slowMs = 320;
+
+    // The loops. A transition has a duration because something changed; these
+    // have a period because nothing did — they run for as long as the thing
+    // they belong to is on screen, so they are a different kind of number and
+    // are named separately.
+    //
+    // Values are the approved design's CSS keyframes, in order: rlspin, the
+    // ring travelling round a primary button; softglow, a live status dot
+    // breathing; spin, a busy indicator; shimmer, a skeleton's sweep.
+    int ringMs = 7000;
+    int pulseMs = 2200;
+    int spinMs = 900;
+    int shimmerMs = 1300;
 };
 
 // Icon sizing, so no component invents a pixel size for a glyph.
@@ -207,15 +258,18 @@ struct WindowTokens
 {
     // The three controls are one bounding box, used for all of them. Close is
     // never wider or taller than Minimize - the size is the contract.
-    int titleBarHeight = 32;
-    int controlWidth = 46;
-    int controlHeight = 32;
+    // The approved NovuSpace design's `.titlebar` and `.winbtn`. Systemic
+    // rather than per profile: controlGeometryIsIdenticalAcrossProfiles() in
+    // the tests is what stops a fourth application inventing a fourth size.
+    int titleBarHeight = 42;
+    int controlWidth = 30;
+    int controlHeight = 24;
 
     // Leading inset before the window icon, and the gap between icon, title
     // and any trailing widget an application adds. The controls themselves sit
     // flush against the trailing edge - a gap there would leave a dead strip
     // where the pointer expects Close on a maximised window.
-    int titleBarPadding = 10;
+    int titleBarPadding = 12;
     int titleBarGap = 8;
 
     int borderWidth = 1;
@@ -224,14 +278,18 @@ struct WindowTokens
     // flag rather than by two different event filters.
     int resizeMargin = 6;
 
-    int iconSize = 16;
+    int iconSize = 18;
     // The bounding box of a control's glyph, not its stroke length. Minimize
     // draws one line across it, Maximize a square inside it, Close a cross
     // through it, so all three read at the same visual weight.
-    int glyphSize = 10;
+    int glyphSize = 11;
     int glyphStroke = 1;
 
+    // The bar is a vertical gradient in the design, not a flat field:
+    // --titlebar-top to --titlebar-bot. Two tokens rather than one, because a
+    // profile that wants a flat bar simply sets them equal.
     QColor titleBarBg{QStringLiteral("#1A1F25")};
+    QColor titleBarBgBottom{QStringLiteral("#151A20")};
     QColor titleBarBgInactive{QStringLiteral("#161A1F")};
     QColor titleText{QStringLiteral("#E3E8F0")};
     QColor titleTextInactive{QStringLiteral("#6E7A8E")};
@@ -359,6 +417,11 @@ ThemeProfile novuAiProfile();
 ThemeProfile novuVoiceProfile();
 ThemeProfile novuExplorerProfile();
 ThemeProfile novuHubProfile();
+// NovuAdmin consumes this library today and is the reference implementation
+// for the dialog and form patterns, so it needs an identity like any other
+// product - a subtree has to be scopeable to it, and the gallery has to be
+// able to answer "which components does NovuAdmin use".
+ThemeProfile novuAdminProfile();
 
 // Selectable themes, which are a different thing: a user's choice of
 // appearance rather than a product's identity, so these are allowed palettes of

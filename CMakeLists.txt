@@ -20,23 +20,61 @@ add_library(NovuUI STATIC
     include/novu/ui/ThemeManager.h
     include/novu/ui/ThemeScope.h
     include/novu/ui/Card.h
+    include/novu/ui/CommandPalette.h
     include/novu/ui/Layout.h
+    include/novu/ui/Avatar.h
     include/novu/ui/Badge.h
+    include/novu/ui/Icon.h
+    include/novu/ui/Motion.h
+    include/novu/ui/IconButton.h
+    include/novu/ui/Segmented.h
+    include/novu/ui/SelectionBar.h
+    include/novu/ui/Separator.h
+    include/novu/ui/Settings.h
+    include/novu/ui/StatusDot.h
+    include/novu/ui/StyleSpec.h
+    include/novu/ui/Toggle.h
+    include/novu/ui/BottomPanel.h
     include/novu/ui/Button.h
     include/novu/ui/TableView.h
     include/novu/ui/Style.h
     include/novu/ui/StyleSheet.h
     include/novu/ui/Text.h
     include/novu/ui/FlowLayout.h
+    include/novu/ui/Swatch.h
+    include/novu/ui/TabBar.h
     include/novu/ui/TabStrip.h
     include/novu/ui/Chip.h
+    include/novu/ui/Field.h
     include/novu/ui/Fields.h
+    include/novu/ui/FloatingPanel.h
     include/novu/ui/Form.h
     include/novu/ui/StatCard.h
     include/novu/ui/Feedback.h
     include/novu/ui/FeedbackForm.h
+    include/novu/ui/GateCard.h
     include/novu/ui/HelpOverlay.h
+    include/novu/ui/AppMark.h
+    include/novu/ui/DiffView.h
+    include/novu/ui/Disclosure.h
+    include/novu/ui/Drawer.h
+    include/novu/ui/ItemStrip.h
+    include/novu/ui/Keys.h
+    include/novu/ui/LogView.h
+    include/novu/ui/MonoLineView.h
+    include/novu/ui/ModuleBar.h
+    include/novu/ui/NavList.h
+    include/novu/ui/PageHeader.h
+    include/novu/ui/Popover.h
+    include/novu/ui/SettingRow.h
+    include/novu/ui/Sidebar.h
+    include/novu/ui/Slider.h
+    include/novu/ui/Splitter.h
+    include/novu/ui/StatusBar.h
+    include/novu/ui/Tooltip.h
     include/novu/ui/Tile.h
+    include/novu/ui/Toast.h
+    include/novu/ui/TreeView.h
     include/novu/ui/TitleBar.h
     include/novu/ui/WindowShell.h
     src/Theme.cpp
@@ -45,23 +83,62 @@ add_library(NovuUI STATIC
     src/ThemeManager.cpp
     src/ThemeScope.cpp
     src/Card.cpp
+    src/CommandPalette.cpp
     src/Layout.cpp
+    src/Avatar.cpp
     src/Badge.cpp
+    src/GlyphTable.inc
+    src/Icon.cpp
+    src/Motion.cpp
+    src/IconButton.cpp
+    src/Segmented.cpp
+    src/SelectionBar.cpp
+    src/Separator.cpp
+    src/Settings.cpp
+    src/StatusDot.cpp
+    src/StyleSpec.cpp
+    src/Toggle.cpp
+    src/BottomPanel.cpp
     src/Button.cpp
     src/TableView.cpp
     src/Style.cpp
     src/StyleSheet.cpp
     src/Text.cpp
     src/FlowLayout.cpp
+    src/Swatch.cpp
+    src/TabBar.cpp
     src/TabStrip.cpp
     src/Chip.cpp
+    src/Field.cpp
     src/Fields.cpp
+    src/FloatingPanel.cpp
     src/Form.cpp
     src/StatCard.cpp
     src/Feedback.cpp
     src/FeedbackForm.cpp
+    src/GateCard.cpp
     src/HelpOverlay.cpp
+    src/AppMark.cpp
+    src/DiffView.cpp
+    src/Disclosure.cpp
+    src/Drawer.cpp
+    src/ItemStrip.cpp
+    src/Keys.cpp
+    src/LogView.cpp
+    src/MonoLineView.cpp
+    src/ModuleBar.cpp
+    src/NavList.cpp
+    src/PageHeader.cpp
+    src/Popover.cpp
+    src/SettingRow.cpp
+    src/Sidebar.cpp
+    src/Slider.cpp
+    src/Splitter.cpp
+    src/StatusBar.cpp
+    src/Tooltip.cpp
     src/Tile.cpp
+    src/Toast.cpp
+    src/TreeView.cpp
     src/TitleBar.cpp
     src/WindowShell.cpp
 )

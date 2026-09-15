@@ -123,8 +123,9 @@ ComponentSpec chipComponent()
         "table shows. The strip carries no background of its own.");
     spec.headerPath = QStringLiteral("include/novu/ui/Chip.h");
     spec.sourcePath = QStringLiteral("src/Chip.cpp");
-    spec.usedBy = {QStringLiteral("novuspace"),
+    spec.designedFor = {QStringLiteral("novuspace"),
                    QStringLiteral("novutrade")};
+    spec.usedBy = {QStringLiteral("novuspace")};
     spec.variants = {QStringLiteral("On"), QStringLiteral("Off"),
                      QStringLiteral("Bar with caption"), QStringLiteral("Bar without caption")};
     spec.states = {QStringLiteral("On"), QStringLiteral("Off"), QStringLiteral("Disabled"),

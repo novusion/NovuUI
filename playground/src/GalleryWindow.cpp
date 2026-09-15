@@ -13,6 +13,7 @@
 #include "novu/ui/Feedback.h"
 #include "novu/ui/Fields.h"
 #include "novu/ui/Layout.h"
+#include "novu/ui/Icon.h"
 #include "novu/ui/StyleSheet.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
@@ -53,18 +54,26 @@ Badge::Tone toneFor(BuildState state)
 
 GalleryWindow::GalleryWindow(ComponentRegistry& registry, SampleData& data,
                              ThemeCatalog& themes, QWidget* parent)
-    : QMainWindow(parent)
+    : AppWindow(parent)
     , m_registry(registry)
     , m_data(data)
     , m_themes(themes)
     , m_build(new BuildBridge(this))
     , m_watcher(new DevWatcher(this))
 {
-    setWindowTitle(QStringLiteral("NovuUI Component Gallery"));
-    resize(1440, 940);
-
+    // Through the shell, so the caption in the bar and the title the taskbar
+    // and Alt-Tab show are one statement rather than two.
     m_chromeProfileId = ThemeManager::instance().defaultProfileId();
     m_profileId = m_chromeProfileId;
+
+    setTitle(QStringLiteral("NovuUI Component Gallery"));
+    // Its own icon set, at the profile's own icon size, in the profile's own
+    // title ink. The gallery has no art of its own and should not acquire any:
+    // whatever it shows in its bar is one more thing the library is claiming
+    // to be able to draw.
+    const ThemeProfile& chrome = ThemeManager::instance().profile(m_chromeProfileId);
+    setIcon(glyphIcon(Glyph::Overview, chrome.window.iconSize, chrome.window.titleText));
+    shell()->setContentSize(QSize(1440, 940));
 
     buildChrome();
     // Labelled for whichever Theme the gallery opens on, before anything is
@@ -102,7 +111,7 @@ GalleryWindow::GalleryWindow(ComponentRegistry& registry, SampleData& data,
 void GalleryWindow::buildChrome()
 {
     auto* root = new QWidget(this);
-    setCentralWidget(root);
+    setContentWidget(root);
 
     // The chrome is a scope of its own, on the default profile. Everything
     // below is therefore drawn by NovuUI, styled by NovuUI, and unaffected by
@@ -183,15 +192,12 @@ void GalleryWindow::buildChrome()
 
     // Visibility only, and no second dropdown: the Theme above already names
     // the application, so this is the whole control.
-    m_appFilter = checkBox(QStringLiteral("Used by this app only"), header);
+    m_appFilter = checkBox(QStringLiteral("Designed for this app only"), header);
     connect(m_appFilter, &QCheckBox::toggled, this,
             &GalleryWindow::onApplicationFilterToggled);
     actions->addWidget(m_appFilter);
 
     actions->addStretch(1);
-
-    m_status = new Badge(QStringLiteral("Ready"), Badge::Tone::Success, header);
-    actions->addWidget(m_status);
 
     m_sourceButton = ghostButton(QStringLiteral("Open source"), header);
     connect(m_sourceButton, &QPushButton::clicked, this, &GalleryWindow::onOpenSource);
@@ -205,6 +211,19 @@ void GalleryWindow::buildChrome()
     m_rebuildButton->setEnabled(m_build->canBuild());
     connect(m_rebuildButton, &QPushButton::clicked, this, &GalleryWindow::onRebuild);
     actions->addWidget(m_rebuildButton);
+
+    // The build status gets its own line under the controls rather than a
+    // place in the toolbar row. It is the one item here whose width is not
+    // known in advance - "Rebuild needed" grows a list of every file that
+    // changed - and sharing a row with the controls meant that list pushed
+    // Theme and Scenario across the window whenever it got long.
+    //
+    // Left-aligned, because it is a statement about the state of the preview
+    // and reads from the same edge as everything else in the header.
+    QHBoxLayout* statusRow = toolbar(headerColumn);
+    m_status = new Badge(QStringLiteral("Ready"), Badge::Tone::Success, header);
+    statusRow->addWidget(m_status);
+    statusRow->addStretch(1);
 
     workColumn->addWidget(header);
 
@@ -221,6 +240,11 @@ void GalleryWindow::buildChrome()
     m_buildLog = label(QString(), m_buildLogArea, TypeRole::Mono, Ink::Muted);
     m_buildLog->setFont(roleMonoFont(m_buildLogArea, TypeRole::Mono));
     m_buildLog->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    // Compiler and linker output is one unbroken line per diagnostic. Without
+    // this the label's own width becomes the scroll area's minimum, and the
+    // minimum becomes the window's.
+    m_buildLog->setWordWrap(true);
+    m_buildLog->setMinimumWidth(0);
     m_buildLog->setTextInteractionFlags(Qt::TextSelectableByMouse);
     m_buildLogArea->setWidget(m_buildLog);
     m_buildLogArea->hide();
@@ -326,6 +350,17 @@ void GalleryWindow::selectComponent(const QString& id)
     }
     if (!spec->states.isEmpty()) {
         meta << QStringLiteral("states: %1").arg(spec->states.join(QStringLiteral(", ")));
+    }
+    // Adoption and intent, never merged into one line. The gallery is what
+    // people quote, and a catalogue that overstates adoption is worse than one
+    // that says nothing.
+    meta << (spec->usedBy.isEmpty()
+                 ? QStringLiteral("currently used by: nothing yet — built, not adopted")
+                 : QStringLiteral("currently used by: %1")
+                       .arg(spec->usedBy.join(QStringLiteral(", "))));
+    if (!spec->designedFor.isEmpty()) {
+        meta << QStringLiteral("designed for: %1")
+                    .arg(spec->designedFor.join(QStringLiteral(", ")));
     }
     meta << QStringLiteral("%1 · %2").arg(spec->headerPath, spec->sourcePath);
     m_meta->setText(meta.join(QStringLiteral("\n")));
@@ -472,14 +507,15 @@ void GalleryWindow::refreshApplicationFilter()
     const bool isApplication = novu::ui::isApplicationProfile(m_profileId);
     m_appFilter->setEnabled(isApplication);
     m_appFilter->setText(isApplication
-                             ? QStringLiteral("Used by %1 only")
+                             ? QStringLiteral("Designed for %1 only")
                                    .arg(ThemeCatalog::displayNameFor(m_profileId))
-                             : QStringLiteral("Used by this app only"));
+                             : QStringLiteral("Designed for this app only"));
     m_appFilter->setToolTip(
         isApplication
-            ? QStringLiteral("Show only the components %1 uses. Membership is declared per "
-                             "component and seeded from docs/ECOSYSTEM_AUDIT.md; it becomes "
-                             "fact as each application migrates onto NovuUI.")
+            ? QStringLiteral("Show only the components %1 is meant to use. That is "
+                             "applicability, not adoption - each component also states "
+                             "whether %1 consumes it today, and during extraction almost "
+                             "none of them do.")
                   .arg(ThemeCatalog::displayNameFor(m_profileId))
             : QStringLiteral("%1 is a selectable theme, not an application, so there is "
                              "nothing to filter by.")

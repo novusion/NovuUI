@@ -10,6 +10,11 @@ namespace novu::ui {
 
 // A small on/off label. On is the accent, off is muted — legible at a glance
 // across a row of twenty.
+//
+// One QPushButton per chip, which predates ItemStrip. A row of twenty is
+// therefore twenty widgets; Segmented and ModuleBar paint their items instead.
+// Left alone during the extraction freeze because NovuSpace consumes this
+// header today — see docs/EXTRACTION_STATUS.md §6.
 class Chip : public QPushButton
 {
     Q_OBJECT

@@ -46,6 +46,15 @@ inline constexpr const char* active = "novuActive";
 // Geometry variant that composes with any kind: "small" for row actions.
 inline constexpr const char* size = "novuSize";
 
+// The value in this control was refused. Set by Field when it is given an
+// error and cleared when the error goes, so the danger outline is decided by
+// the sheet rather than written onto the widget - a control that had its border
+// colour set directly would keep that colour through a theme change.
+//
+// Composes with everything: an invalid control is still a line edit, a combo
+// box or a text area, and still focuses and disables normally.
+inline constexpr const char* invalid = "novuInvalid";
+
 } // namespace prop
 
 // Object names, for the few containers that must be addressed without a bare

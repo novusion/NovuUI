@@ -36,6 +36,7 @@ const ToneRow kTones[] = {
     {"Warning", Badge::Tone::Warning, "pending, expiring, trial"},
     {"Danger", Badge::Tone::Danger, "failed, revoked, offline"},
     {"Info", Badge::Tone::Info, "release channels, versions"},
+    {"Accent", Badge::Tone::Accent, "the product pointing at something, never a status"},
 };
 
 Badge::Tone toneForStatus(const QString& status)
@@ -66,7 +67,7 @@ QWidget* build(const PreviewContext& ctx)
     // ── tones ────────────────────────────────────────────────────────────
     {
         Card* card = exampleCard(page, QStringLiteral("Tones"),
-                                 QStringLiteral("Five, and what each one means."));
+                                 QStringLiteral("Six, and what each one means."));
         QVBoxLayout* body = card->body();
 
         QStringList rows;
@@ -75,16 +76,65 @@ QWidget* build(const PreviewContext& ctx)
         }
         QGridLayout* grid = matrix(body, card,
                                    {QStringLiteral("Short"), QStringLiteral("Word"),
-                                    QStringLiteral("Numeric"), QStringLiteral("Meaning")},
+                                    QStringLiteral("With a dot"), QStringLiteral("Large"),
+                                    QStringLiteral("Uppercase"), QStringLiteral("Meaning")},
                                    rows);
         for (int r = 0; r < static_cast<int>(std::size(kTones)); ++r) {
             const ToneRow& row = kTones[r];
             matrixCell(grid, r, 0, new Badge(QStringLiteral("v2"), row.tone, card));
             matrixCell(grid, r, 1, new Badge(QString::fromLatin1(row.name), row.tone, card));
-            matrixCell(grid, r, 2, new Badge(QStringLiteral("1 284.50"), row.tone, card));
-            matrixCell(grid, r, 3, label(QString::fromLatin1(row.meaning), card,
+
+            auto* dotted = new Badge(QStringLiteral("running"), row.tone, card);
+            dotted->setDot(true);
+            matrixCell(grid, r, 2, dotted);
+
+            auto* large = new Badge(QStringLiteral("1 284.50"), row.tone, card);
+            large->setSize(Badge::Size::Large);
+            matrixCell(grid, r, 3, large);
+
+            auto* upper = new Badge(QStringLiteral("kraken"), row.tone, card);
+            upper->setUppercase(true);
+            matrixCell(grid, r, 4, upper);
+
+            matrixCell(grid, r, 5, label(QString::fromLatin1(row.meaning), card,
                                          TypeRole::Caption, Ink::Muted));
         }
+        note(body, card,
+             QStringLiteral("The dot is not decoration: a badge with one reads as a live "
+                            "status, a badge without one reads as a classification. Accent is "
+                            "the product accent and is deliberately outside the semantic "
+                            "palette — a status may never resolve to it."));
+        column->addWidget(card);
+    }
+
+    // ── the two factories ────────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Status or classification"),
+                                 QStringLiteral("Two named factories, because the combination "
+                                                "is what carries the meaning."));
+        QVBoxLayout* body = card->body();
+
+        QHBoxLayout* live = exampleRow(body, card,
+                                       QStringLiteral("statusBadge() — tone, dot, sentence case"));
+        live->addWidget(statusBadge(QStringLiteral("running"), Badge::Tone::Success, card));
+        live->addWidget(statusBadge(QStringLiteral("paused"), Badge::Tone::Warning, card));
+        live->addWidget(statusBadge(QStringLiteral("disconnected"), Badge::Tone::Danger, card));
+        live->addWidget(statusBadge(QStringLiteral("open"), Badge::Tone::Info, card));
+        live->addWidget(statusBadge(QStringLiteral("stopped"), Badge::Tone::Neutral, card));
+        live->addStretch(1);
+
+        QHBoxLayout* tags = exampleRow(body, card,
+                                       QStringLiteral("pill() — uppercase, neutral, no dot"));
+        for (const QString& text : {QStringLiteral("paper"), QStringLiteral("demo"),
+                                    QStringLiteral("spot"), QStringLiteral("v2.4.0"),
+                                    QStringLiteral("read only")}) {
+            tags->addWidget(pill(text, card));
+        }
+        tags->addStretch(1);
+
+        note(body, card,
+             QStringLiteral("Spelling out \"neutral, uppercase, no dot\" at forty call sites "
+                            "is how the distinction stops being one."));
         column->addWidget(card);
     }
 
@@ -166,14 +216,16 @@ ComponentSpec badgeComponent()
         "sizeHint() is correct from construction rather than after polish.");
     spec.headerPath = QStringLiteral("include/novu/ui/Badge.h");
     spec.sourcePath = QStringLiteral("src/Badge.cpp");
-    spec.usedBy = {QStringLiteral("novuspace"),
+    spec.designedFor = {QStringLiteral("novuspace"),
                    QStringLiteral("novuai"),
                    QStringLiteral("novuexplorer"),
                    QStringLiteral("novuhub"),
                    QStringLiteral("novuvoice"),
                    QStringLiteral("novutrade")};
+    spec.usedBy = {QStringLiteral("novuadmin"), QStringLiteral("novuspace")};
     spec.variants = {QStringLiteral("Neutral"), QStringLiteral("Success"),
-                     QStringLiteral("Warning"), QStringLiteral("Danger"), QStringLiteral("Info")};
+                     QStringLiteral("Warning"), QStringLiteral("Danger"), QStringLiteral("Info"),
+                     QStringLiteral("Accent")};
     spec.states = {QStringLiteral("Normal")};
     spec.keywords = {QStringLiteral("tag"), QStringLiteral("status"), QStringLiteral("pill"),
                      QStringLiteral("chip"), QStringLiteral("label"), QStringLiteral("tone")};
@@ -182,8 +234,15 @@ ComponentSpec badgeComponent()
          QStringLiteral("The whole width of the badge is measured from this.")},
         {QStringLiteral("tone"), QStringLiteral("enum"),
          {QStringLiteral("Neutral"), QStringLiteral("Success"), QStringLiteral("Warning"),
-          QStringLiteral("Danger"), QStringLiteral("Info")},
+          QStringLiteral("Danger"), QStringLiteral("Info"), QStringLiteral("Accent")},
          QStringLiteral("Neutral"), QStringLiteral("Meaning, not colour.")},
+        {QStringLiteral("size"), QStringLiteral("enum"),
+         {QStringLiteral("Regular"), QStringLiteral("Large")}, QStringLiteral("Regular"),
+         QStringLiteral("In a row, or beside a title.")},
+        {QStringLiteral("dot"), QStringLiteral("bool"), {}, QStringLiteral("false"),
+         QStringLiteral("A live status carries one; a classification does not.")},
+        {QStringLiteral("uppercase"), QStringLiteral("bool"), {}, QStringLiteral("false"),
+         QStringLiteral("Applied at paint time; text() still returns what was set.")},
     };
     spec.scenarios = {Scenario::Normal,   Scenario::Empty,      Scenario::SingleItem,
                       Scenario::ManyItems, Scenario::LongText,  Scenario::LongIdentifier,

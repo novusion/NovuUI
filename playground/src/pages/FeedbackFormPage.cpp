@@ -223,6 +223,7 @@ ComponentSpec feedbackFormComponent()
         "nothing about transport.");
     spec.headerPath = QStringLiteral("include/novu/ui/FeedbackForm.h");
     spec.sourcePath = QStringLiteral("src/FeedbackForm.cpp");
+    spec.usedBy = {};
     // Built here first, ahead of the applications that will open it.
     spec.awaitingAdoption = true;
     spec.variants = {QStringLiteral("Bug"), QStringLiteral("Suggestion"),

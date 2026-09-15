@@ -3,6 +3,8 @@
 #include <QColor>
 #include <QString>
 
+class QWidget;
+
 namespace novu::ui {
 
 // The Novu application palette.
@@ -50,14 +52,14 @@ struct ThemeColors
     // is already consistent with every other product. A profile overrides one
     // of these only when its *surface* forces it to, never to have a look of
     // its own.
-    QColor success{QStringLiteral("#2EA043")};
-    QColor warning{QStringLiteral("#D29922")};
-    QColor danger{QStringLiteral("#F85149")};
+    QColor success{QStringLiteral("#6ADB9E")};
+    QColor warning{QStringLiteral("#FFB14D")};
+    QColor danger{QStringLiteral("#E8A8B0")};
     // Info used to have no colour at all: every component that needed one
     // reached for accentLight, which is the *application* accent. An Info badge
     // was therefore sky blue in NovuTrade, gold in Warm Gray and violet in Dark
     // Purple - the same status wearing three identities.
-    QColor info{QStringLiteral("#58A6FF")};
+    QColor info{QStringLiteral("#4DA3FF")};
 };
 
 // The status hues every Novusion application shares.
@@ -68,17 +70,28 @@ struct ThemeColors
 // mean the same thing in every Novu window, so they look the same in every
 // Novu window.
 //
-// The values are NovuAI's, adopted as the reference: decent rather than
-// saturated, but still clean enough that none of them reads as disabled. The
-// palette they replaced had drifted into four versions of the same four
-// meanings - an olive #98C379 in the shell, a mint #3CCB7F in NovuVoice, a
-// darker #16A34A in NovuTrade.
+// The values are the approved NovuSpace design's, adopted as the reference:
+//
+//     g:\Design\design\NovuSpace\mockups\NovuSpace-Trade-brand-mockup.html
+//
+// which states this layer outright - "trading semantics are a SEPARATE layer
+// and never borrow the accent: green running, red error, amber warning, blue
+// informational". They are the design's *ink* values rather than its plate
+// values, because semanticColorFrom() derives the plate and the border from the
+// ink; reading them off the ink puts the word in a badge at exactly the colour
+// the design specifies.
+//
+// They replaced NovuAI's darker set (#2EA043 / #D29922 / #F85149 / #58A6FF),
+// which in turn had replaced four versions of the same four meanings - an olive
+// #98C379 in the shell, a mint #3CCB7F in NovuVoice, a darker #16A34A in
+// NovuTrade. The direction of travel has not changed: one status palette, and
+// it is the approved design's.
 struct SemanticHues
 {
-    QColor success{QStringLiteral("#2EA043")};
-    QColor warning{QStringLiteral("#D29922")};
-    QColor danger{QStringLiteral("#F85149")};
-    QColor info{QStringLiteral("#58A6FF")};
+    QColor success{QStringLiteral("#6ADB9E")};   // --green-l
+    QColor warning{QStringLiteral("#FFB14D")};   // --amber
+    QColor danger{QStringLiteral("#E8A8B0")};    // .badge.bad / .btn.danger ink
+    QColor info{QStringLiteral("#4DA3FF")};      // --blue
 };
 
 const SemanticHues& sharedSemanticHues();
@@ -149,6 +162,36 @@ inline constexpr int fontSizeSmall = 11;
 inline constexpr int fontSizeNormal = 12;
 inline constexpr int fontSizeMedium = 13;
 } // namespace metrics
+
+// ── the active panel ───────────────────────────────────────────────────────
+
+// The property an application sets on a panel to say whether it currently has
+// the user's attention. Named once here so a panel, a list and a table cannot
+// spell it three ways.
+inline constexpr const char* activePanelProperty = "novuActivePanel";
+
+// Whether a selected row in `widget` should be painted at full strength.
+//
+// Ported unchanged in behaviour from NovuExplorer's `selectionIsActive`, which
+// is the answer to a problem every two-panel application has and most get
+// wrong: a list that clears its selection when it loses focus forgets where the
+// user was, and a list that keeps it at full strength gives a window two rows
+// that both look current.
+//
+// So the selection stays and dims. True while the widget has focus, and also
+// while the focus is somewhere else inside the same *panel* — a search box
+// above a list is still that list's panel, and typing in it must not dim the
+// row the user is about to act on.
+//
+// A widget with no panel ancestor — a dialog, a popover, a preview — is always
+// active. That is deliberate: those have no sibling to be confused with, and
+// the alternative is every dialog in the system drawing a dimmed selection.
+bool selectionIsActive(const QWidget* widget);
+
+// How far a selection is dimmed when its panel is not the active one. Used by
+// every component that draws a selection, so two lists side by side dim by the
+// same amount.
+inline constexpr double inactiveSelectionOpacity = 0.55;
 
 // The single theme instance every component reads from.
 const ThemeColors& theme();

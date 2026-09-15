@@ -1,4 +1,6 @@
 #include "novu/ui/Theme.h"
+#include <QWidget>
+#include <QVariant>
 
 namespace novu::ui {
 
@@ -52,6 +54,29 @@ SemanticColor semanticColorFrom(const QColor& hue)
     c.hover = withAlpha(hue, 0.24);
     c.pressed = withAlpha(hue, 0.32);
     return c;
+}
+
+bool selectionIsActive(const QWidget* widget)
+{
+    if (!widget) {
+        return true;
+    }
+    if (widget->hasFocus()) {
+        return true;
+    }
+    // Walk up looking for a panel that has declared itself. The first one found
+    // decides: a panel inside a panel is the inner one's business.
+    for (const QWidget* parent = widget->parentWidget(); parent;
+         parent = parent->parentWidget()) {
+        const QVariant declared = parent->property(activePanelProperty);
+        if (declared.isValid()) {
+            return declared.toBool();
+        }
+    }
+    // No panel above it - a dialog, a popover, a preview. Those have no sibling
+    // to be confused with, so a dimmed selection in one would be dimmed for no
+    // reason a user could see.
+    return true;
 }
 
 } // namespace novu::ui

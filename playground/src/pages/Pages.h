@@ -15,28 +15,64 @@ namespace novu::playground::pages {
 
 // Foundation
 ComponentSpec typographyComponent();
+ComponentSpec motionComponent();
+ComponentSpec iconComponent();
+ComponentSpec separatorComponent();
+ComponentSpec settingsShellComponent();
 ComponentSpec themeRolesComponent();
 ComponentSpec layoutComponent();
 ComponentSpec flowLayoutComponent();
 ComponentSpec windowShellComponent();
+ComponentSpec floatingPanelComponent();
+ComponentSpec splitterComponent();
+ComponentSpec gateCardComponent();
+ComponentSpec activePanelComponent();
 
 // Input
+ComponentSpec bottomPanelComponent();
 ComponentSpec buttonComponent();
+ComponentSpec iconButtonComponent();
+ComponentSpec toggleComponent();
+ComponentSpec segmentedComponent();
+ComponentSpec sliderComponent();
+ComponentSpec swatchComponent();
+ComponentSpec fieldComponent();
 ComponentSpec fieldsComponent();
 ComponentSpec chipComponent();
+ComponentSpec settingRowComponent();
+ComponentSpec formSubmissionComponent();
 ComponentSpec formRowComponent();
 ComponentSpec searchBarComponent();
 
 // Navigation
 ComponentSpec tabStripComponent();
 ComponentSpec tileComponent();
+ComponentSpec navListComponent();
+ComponentSpec sidebarComponent();
+ComponentSpec moduleBarComponent();
+ComponentSpec disclosureComponent();
+ComponentSpec popoverComponent();
+ComponentSpec statusBarComponent();
+ComponentSpec pageHeaderComponent();
+ComponentSpec treeViewComponent();
+ComponentSpec tabBarComponent();
+ComponentSpec drawerComponent();
+ComponentSpec commandPaletteComponent();
+ComponentSpec selectionBarComponent();
 
 // Data display
+ComponentSpec avatarComponent();
 ComponentSpec badgeComponent();
 ComponentSpec cardComponent();
 ComponentSpec statCardComponent();
+ComponentSpec statusDotComponent();
 ComponentSpec propertyRowComponent();
 ComponentSpec tableViewComponent();
+ComponentSpec appMarkComponent();
+ComponentSpec keyCapComponent();
+ComponentSpec shortcutListComponent();
+ComponentSpec logViewComponent();
+ComponentSpec diffViewComponent();
 
 // Feedback
 ComponentSpec emptyStateComponent();
@@ -44,5 +80,12 @@ ComponentSpec infoBannerComponent();
 ComponentSpec progressBarComponent();
 ComponentSpec helpOverlayComponent();
 ComponentSpec feedbackFormComponent();
+ComponentSpec spinnerComponent();
+ComponentSpec skeletonComponent();
+ComponentSpec statusLineComponent();
+ComponentSpec stepsComponent();
+ComponentSpec tooltipComponent();
+ComponentSpec toastComponent();
+ComponentSpec dialogComponent();
 
 } // namespace novu::playground::pages

@@ -104,8 +104,9 @@ ComponentSpec tileComponent()
         "selected state is one fill and one border from the profile.");
     spec.headerPath = QStringLiteral("include/novu/ui/Tile.h");
     spec.sourcePath = QStringLiteral("src/Tile.cpp");
-    spec.usedBy = {QStringLiteral("novuspace"),
+    spec.designedFor = {QStringLiteral("novuspace"),
                    QStringLiteral("novutrade")};
+    spec.usedBy = {QStringLiteral("novuspace")};
     spec.variants = {QStringLiteral("Plain"), QStringLiteral("Badged")};
     spec.states = {QStringLiteral("Unchecked"), QStringLiteral("Checked"),
                    QStringLiteral("Hover"), QStringLiteral("Disabled (badged)")};

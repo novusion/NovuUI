@@ -36,6 +36,7 @@ const RoleRow kRoles[] = {
     {"Label", TypeRole::Label, "form labels"},
     {"Metric", TypeRole::Metric, "the large number on a StatCard"},
     {"Mono", TypeRole::Mono, "ids, hashes, versions"},
+    {"Eyebrow", TypeRole::Eyebrow, "the name of a group: a caption, a column head"},
 };
 
 struct InkRow
@@ -164,16 +165,18 @@ ComponentSpec typographyComponent()
         "TypeRole / Ink vocabulary they resolve against.");
     spec.headerPath = QStringLiteral("include/novu/ui/Text.h");
     spec.sourcePath = QStringLiteral("src/Text.cpp");
-    spec.usedBy = {QStringLiteral("novuspace"),
+    spec.designedFor = {QStringLiteral("novuspace"),
                    QStringLiteral("novuai"),
                    QStringLiteral("novuexplorer"),
                    QStringLiteral("novuhub"),
                    QStringLiteral("novuvoice"),
                    QStringLiteral("novutrade")};
+    spec.usedBy = {QStringLiteral("novuspace")};
     spec.variants = {QStringLiteral("PageTitle"), QStringLiteral("SectionTitle"),
                      QStringLiteral("CardTitle"), QStringLiteral("Body"),
                      QStringLiteral("Caption"), QStringLiteral("Label"),
-                     QStringLiteral("Metric"), QStringLiteral("Mono")};
+                     QStringLiteral("Metric"), QStringLiteral("Mono"),
+                     QStringLiteral("Eyebrow")};
     spec.states = {QStringLiteral("Default"), QStringLiteral("Secondary"), QStringLiteral("Muted"),
                    QStringLiteral("Accent"), QStringLiteral("Success"), QStringLiteral("Warning"),
                    QStringLiteral("Danger"), QStringLiteral("Info")};

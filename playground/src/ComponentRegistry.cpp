@@ -108,7 +108,10 @@ QVector<ComponentSpec> ComponentRegistry::search(const QString& query,
         // Visibility only. The filter never touches how a component is built,
         // which scenario it gets or which profile it resolves against - a
         // filtered gallery and an unfiltered one render the same widget.
-        if (!applicationId.isEmpty() && !spec.isUsedBy(applicationId)) {
+        // Applicability, not adoption. Filtering on measured usage would
+        // empty the catalogue: almost nothing is consumed yet, and the point
+        // of the filter is "show me what this application needs".
+        if (!applicationId.isEmpty() && !spec.isDesignedFor(applicationId)) {
             continue;
         }
         result.append(spec);

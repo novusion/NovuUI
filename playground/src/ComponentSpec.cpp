@@ -60,6 +60,16 @@ bool ComponentSpec::isUsedBy(const QString& applicationId) const
     return !applicationId.isEmpty() && usedBy.contains(applicationId);
 }
 
+bool ComponentSpec::isDesignedFor(const QString& applicationId) const
+{
+    if (applicationId.isEmpty()) {
+        return false;
+    }
+    // Anything already in use is also, trivially, applicable - so the filter
+    // cannot hide a component from the very application that consumes it.
+    return designedFor.contains(applicationId) || usedBy.contains(applicationId);
+}
+
 bool ComponentSpec::matches(const QString& query) const
 {
     const QString needle = query.trimmed();

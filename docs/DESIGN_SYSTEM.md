@@ -9,6 +9,7 @@ Companion documents:
 |---|---|
 | `MODULE_RULES.md` | who is allowed to build what, and where it goes — binding on NovuUI and on every consuming module |
 | `ECOSYSTEM_AUDIT.md` | what is shared, what is duplicated across the applications, and the extraction order |
+| `EXTRACTION_AUDIT.md` | the per-concept extraction matrix for NovuAI, NovuAdmin and NovuExplorer, and which implementation is authoritative |
 | `WINDOW_CHROME.md` | the window frame: components, tokens, platform behaviour, migration |
 
 ---

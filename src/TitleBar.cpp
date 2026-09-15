@@ -8,6 +8,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QLinearGradient>
 #include <QPainter>
 #include <QResizeEvent>
 
@@ -499,7 +500,17 @@ void TitleBar::paintEvent(QPaintEvent*)
     const WindowTokens& w = profile.window;
 
     QPainter painter(this);
-    painter.fillRect(rect(), m_windowActive ? w.titleBarBg : w.titleBarBgInactive);
+    if (m_windowActive && w.titleBarBg != w.titleBarBgBottom) {
+        // The design's `linear-gradient(180deg, --titlebar-top, --titlebar-bot)`.
+        // An inactive bar goes flat: a window that is not in front should not be
+        // the thing catching the eye.
+        QLinearGradient gradient(rect().topLeft(), rect().bottomLeft());
+        gradient.setColorAt(0.0, w.titleBarBg);
+        gradient.setColorAt(1.0, w.titleBarBgBottom);
+        painter.fillRect(rect(), gradient);
+    } else {
+        painter.fillRect(rect(), m_windowActive ? w.titleBarBg : w.titleBarBgInactive);
+    }
 
     // A hairline under the bar, so the chrome and the content read as two
     // surfaces rather than one flat field. Thickness from the divider role -

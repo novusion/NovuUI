@@ -136,12 +136,13 @@ ComponentSpec layoutComponent()
         "widgets — each returns a layout wherever a layout is enough.");
     spec.headerPath = QStringLiteral("include/novu/ui/Layout.h");
     spec.sourcePath = QStringLiteral("src/Layout.cpp");
-    spec.usedBy = {QStringLiteral("novuspace"),
+    spec.designedFor = {QStringLiteral("novuspace"),
                    QStringLiteral("novuai"),
                    QStringLiteral("novuexplorer"),
                    QStringLiteral("novuhub"),
                    QStringLiteral("novuvoice"),
                    QStringLiteral("novutrade")};
+    spec.usedBy = {};
     spec.variants = {QStringLiteral("toolbar()"), QStringLiteral("pageLayout()"),
                      QStringLiteral("splitHeader()"), QStringLiteral("scrollPage()")};
     spec.states = {QStringLiteral("Normal"), QStringLiteral("Empty"), QStringLiteral("Scrolling")};

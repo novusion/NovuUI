@@ -32,6 +32,47 @@ QLabel* roleLabel(QWidget* parent, const QString& text, TypeRole role, const QCo
 
 } // namespace
 
+namespace {
+
+// The stretches applyActionAlignment() owns, marked so it can tell them from a
+// stretch the caller added itself.
+constexpr int kAlignmentStretch = 1;
+
+bool isAlignmentStretch(QLayoutItem* item)
+{
+    auto* spacer = item ? item->spacerItem() : nullptr;
+    return spacer && spacer->expandingDirections().testFlag(Qt::Horizontal);
+}
+
+} // namespace
+
+void applyActionAlignment(QHBoxLayout* row, ActionAlignment alignment)
+{
+    if (!row) {
+        return;
+    }
+    // Take out the ones we put in last time, so repeated calls do not stack
+    // stretch upon stretch and squeeze the actions into nothing.
+    for (int i = row->count() - 1; i >= 0; --i) {
+        if (isAlignmentStretch(row->itemAt(i))) {
+            delete row->takeAt(i);
+        }
+    }
+
+    switch (alignment) {
+    case ActionAlignment::Left:
+        row->addStretch(kAlignmentStretch);
+        break;
+    case ActionAlignment::Center:
+        row->insertStretch(0, kAlignmentStretch);
+        row->addStretch(kAlignmentStretch);
+        break;
+    case ActionAlignment::Right:
+        row->insertStretch(0, kAlignmentStretch);
+        break;
+    }
+}
+
 QHBoxLayout* toolbar(QBoxLayout* into)
 {
     auto* row = new QHBoxLayout();

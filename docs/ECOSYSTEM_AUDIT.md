@@ -3,6 +3,11 @@
 Surveyed 2026-08-29 across `NovuExplorer`, `NovuAI`, `NovuVoice`, `NovuHub`,
 `NovuSpace` and `NovuAdmin`.
 
+> **Stale paths.** NovuAI was restructured after this survey: its sources moved
+> from `ui/src/**` to `src/frontend/**`, `src/backend/**` and `src/modules/**`.
+> Every NovuAI path below is therefore out of date. `EXTRACTION_AUDIT.md`
+> (2026-09-14) carries the current ones, and is the audit to act on.
+
 Method, so the numbers can be read honestly: class inventories come from
 `class X : public QWidget|QFrame|QDialog|...` across each repository's headers.
 Styling counts come from matching Qt class names in stylesheet-shaped source

@@ -95,7 +95,27 @@ struct ComponentSpec
     //
     // NovuExplorer and NovuHub have no profile of their own - they wear
     // "novuspace" - so their usage is recorded under that id.
+    // MEASURED. Which applications include this component's header and name
+    // one of its classes today, derived from their sources.
+    //
+    // This field is a fact and must stay one. It was previously a single list
+    // that mixed "uses it" with "will use it", and the gallery then told anyone
+    // who looked that NovuAI used twenty-six components while NovuAI did not
+    // link the library at all. A catalogue that overstates adoption is worse
+    // than one that says nothing, because it is the thing people quote.
+    //
+    // Empty is the normal state during extraction and means exactly what it
+    // says: built, not yet adopted.
     QStringList usedBy;
+
+    // INTENT. Which applications this component was extracted for, and is
+    // expected to serve once they migrate.
+    //
+    // Seeded from the approved designs and from docs/EXTRACTION_AUDIT.md. This
+    // is the useful list for navigating the catalogue - "show me what NovuSpace
+    // needs" - and it is deliberately a different name from the one above so
+    // that neither can be read as the other.
+    QStringList designedFor;
 
     // True when nothing consumes this component yet.
     //
@@ -128,7 +148,12 @@ struct ComponentSpec
     // Membership, for the gallery's application filter. A component with no
     // recorded membership belongs to no application yet, so a filtered view
     // hides it rather than guessing.
+    // Measured adoption. False for almost everything during extraction.
     bool isUsedBy(const QString& applicationId) const;
+
+    // Stated applicability. What the gallery's application filter runs on,
+    // because a filter over measured adoption would hide the whole library.
+    bool isDesignedFor(const QString& applicationId) const;
 };
 
 } // namespace novu::playground

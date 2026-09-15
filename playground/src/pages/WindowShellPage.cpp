@@ -328,12 +328,13 @@ ComponentSpec windowShellComponent()
         "radius, drag and resize. Applications choose semantics, never chrome.");
     spec.headerPath = QStringLiteral("include/novu/ui/WindowShell.h");
     spec.sourcePath = QStringLiteral("src/WindowShell.cpp");
-    spec.usedBy = {QStringLiteral("novuspace"),
+    spec.designedFor = {QStringLiteral("novuspace"),
                    QStringLiteral("novuai"),
                    QStringLiteral("novuexplorer"),
                    QStringLiteral("novuhub"),
                    QStringLiteral("novuvoice"),
                    QStringLiteral("novutrade")};
+    spec.usedBy = {};
     spec.variants = {QStringLiteral("AppWindow"), QStringLiteral("ToolWindow"),
                      QStringLiteral("Dialog")};
     spec.states = {QStringLiteral("Active"), QStringLiteral("Inactive"),

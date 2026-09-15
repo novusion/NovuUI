@@ -7,6 +7,8 @@
 #include "novu/ui/Button.h"
 #include "novu/ui/Card.h"
 #include "novu/ui/Feedback.h"
+#include "novu/ui/Separator.h"
+#include "novu/ui/Form.h"
 #include "novu/ui/Text.h"
 
 #include <QHBoxLayout>
@@ -119,6 +121,40 @@ QWidget* buildInfoBanner(const PreviewContext& ctx)
         column->addWidget(card);
     }
 
+    {
+        Card* card = exampleCard(page, QStringLiteral("A message nobody budgeted for"),
+                                 QStringLiteral("Width is a preference. The sentence never "
+                                                "gets a vote."));
+        QVBoxLayout* body = card->body();
+
+        // The real thing, verbatim: one unbroken line of linker output. This
+        // card is a regression guard, not an illustration - a banner that sized
+        // itself to this text dragged the gallery window off the screen, and
+        // the only way that stays fixed is if it is visible when it breaks.
+        body->addWidget(new InfoBanner(
+            QStringLiteral("NovuUI.lib(Button.obj) : error LNK2019: unresolved external symbol "
+                           "\"public: static class novu::ui::Pulse & __cdecl "
+                           "novu::ui::Pulse::instance(void)\" (?instance@Pulse@ui@novu@@SAEAAV123"
+                           "@XZ) referenced in function \"private: void __cdecl "
+                           "novu::ui::Button::applyVariant(void)\" (?applyVariant@Button@ui@novu"
+                           "@@AEAAXXZ)"),
+            Badge::Tone::Danger, card));
+
+        auto* retry = ghostButton(QStringLiteral("Rebuild"), card);
+        body->addWidget(new InfoBanner(
+            QStringLiteral("C:/Users/someone/Projects/Novusion/NovuSpace/modules/novutrade/"
+                           "backtesting/strategies/mean-reversion/parameters/optimisation.json "
+                           "could not be written: the path exceeds the maximum length."),
+            Badge::Tone::Warning, card, retry));
+
+        note(body, card,
+             QStringLiteral("Both elide to whatever they are given, and both keep the whole "
+                            "message on the tooltip. The second one elides against its button "
+                            "rather than underneath it. Drag the window narrower - the banners "
+                            "shrink; nothing else moves."));
+        column->addWidget(card);
+    }
+
     column->addStretch(1);
     return page;
 }
@@ -159,8 +195,121 @@ QWidget* buildProgressBar(const PreviewContext& ctx)
     }
 
     note(body, card,
-         QStringLiteral("setValue() clamps to 0..100 and only repaints on a real change."));
+         QStringLiteral("setValue() clamps to 0..100 and only repaints on a real change. "
+                        "A caller computing a percentage from two live counters will hand "
+                        "over 101 sooner or later, and a fill wider than its track paints "
+                        "over the card it is in."));
     column->addWidget(card);
+
+    // ── capacity, which colours itself ───────────────────────────────────
+    {
+        Card* usage = exampleCard(page, QStringLiteral("How much is used"),
+                                  QStringLiteral("A capacity bar picks its own "
+                                                 "colour; a progress bar must not."));
+        QVBoxLayout* usageBody = usage->body();
+
+        const struct { int percent; const char* used; const char* left; } capacities[] = {
+            {34, "34%", "312 GB free"},
+            {78, "78%", "104 GB free"},
+            {94, "94%", "28 GB free"},
+        };
+        for (const auto& entry : capacities) {
+            QHBoxLayout* row = exampleRow(
+                usageBody, usage, QStringLiteral("At %1%").arg(entry.percent));
+            auto* bar = new ProgressBar(entry.percent, ProgressBar::Tone::Threshold, usage);
+            bar->setLegend(QString::fromLatin1(entry.used),
+                           QString::fromLatin1(entry.left));
+            bar->setFixedWidth(280);
+            row->addWidget(bar);
+            row->addWidget(label(QStringLiteral("effectiveRole() = %1")
+                                     .arg(semanticRoleName(bar->effectiveRole())),
+                                 usage, TypeRole::Mono, Ink::Muted));
+            row->addStretch(1);
+        }
+
+        note(usageBody, usage,
+             QStringLiteral("Amber past 75%, red past 90% — a full disk has to read as full "
+                            "without anyone reading the number. The progress bars above do "
+                            "not do this, or every download would turn red as it finished, "
+                            "so it is a tone the caller chooses rather than something the "
+                            "component decides for itself. Ported from NovuAdmin's UsageBar."));
+        column->addWidget(usage);
+    }
+
+    // ── not measured ─────────────────────────────────────────────────────
+    {
+        Card* unknown = exampleCard(page, QStringLiteral("Not measured"),
+                                    QStringLiteral("Which is not the same as zero."));
+        QVBoxLayout* unknownBody = unknown->body();
+
+        QHBoxLayout* none = exampleRow(unknownBody, unknown, QStringLiteral("Unknown"));
+        auto* nothing = new ProgressBar(0, ProgressBar::Tone::Threshold, unknown);
+        nothing->setUnknown(true);
+        nothing->setLegend(QStringLiteral("—"), QStringLiteral("no reading"));
+        nothing->setFixedWidth(280);
+        none->addWidget(nothing);
+        none->addStretch(1);
+
+        QHBoxLayout* zero = exampleRow(unknownBody, unknown,
+                                       QStringLiteral("Measured zero"));
+        auto* empty = new ProgressBar(0, ProgressBar::Tone::Threshold, unknown);
+        empty->setLegend(QStringLiteral("0%"), QStringLiteral("1.2 TB free"));
+        empty->setFixedWidth(280);
+        zero->addWidget(empty);
+        zero->addStretch(1);
+
+        note(unknownBody, unknown,
+             QStringLiteral("Drawn differently on purpose. A telemetry panel that cannot reach "
+                            "a host shows the first; an idle disk shows the second. A value of "
+                            "0 cannot say which one it is, which is the whole reason "
+                            "setUnknown() exists."));
+        column->addWidget(unknown);
+    }
+
+    // ── a metric row ─────────────────────────────────────────────────────
+    {
+        Card* metrics = exampleCard(page, QStringLiteral("A metric row"),
+                                    QStringLiteral("Composed, rather than a fourth "
+                                                   "row component."));
+        QVBoxLayout* metricsBody = metrics->body();
+        metricsBody->setSpacing(4);
+
+        const struct { const char* label; const char* value; int percent; } readings[] = {
+            {"Memory", "6.1 GB / 16 GB", 38},
+            {"Disk", "912 GB / 1 TB", 91},
+            {"Sessions", "144 / 200", 72},
+        };
+        for (const auto& reading : readings) {
+            propertyRow(metricsBody, metrics, QString::fromLatin1(reading.label),
+                        QString::fromLatin1(reading.value), Ink::Secondary, true);
+            metricsBody->addWidget(
+                new ProgressBar(reading.percent, ProgressBar::Tone::Threshold, metrics));
+            metricsBody->addSpacing(8);
+        }
+
+        separator(metricsBody, metrics);
+        QHBoxLayout* bytes = exampleRow(metricsBody, metrics,
+                                        QStringLiteral("formatBytes()"));
+        for (const qint64 size : {qint64(0), qint64(812), qint64(1024) * 1024 * 3 / 2,
+                                  qint64(1024) * 1024 * 1024 * 14,
+                                  qint64(1024) * 1024 * 1024 * 1024 * 3}) {
+            bytes->addWidget(new Badge(formatBytes(size), Badge::Tone::Neutral, metrics));
+        }
+        bytes->addStretch(1);
+
+        note(metricsBody, metrics,
+             QStringLiteral("A labelled reading with a bar under it is propertyRow() plus a "
+                            "ProgressBar, not a fourth row component. The library already has "
+                            "three kinds of row, and a fourth that is one of them with a bar "
+                            "is how a component set stops being learnable."));
+        note(metricsBody, metrics,
+             QStringLiteral("formatBytes() is shared for the same reason a size in a table and "
+                            "a size under a bar must agree. NovuAdmin had two of these and "
+                            "they disagreed about whether a kilobyte was 1000 or 1024, which "
+                            "showed as a file that was 1.0 MB in the table and 0.98 MB in its "
+                            "own properties."));
+        column->addWidget(metrics);
+    }
 
     column->addStretch(1);
     return page;
@@ -179,10 +328,11 @@ ComponentSpec emptyStateComponent()
         "missing, and what would make it appear.");
     spec.headerPath = QStringLiteral("include/novu/ui/Feedback.h");
     spec.sourcePath = QStringLiteral("src/Feedback.cpp");
-    spec.usedBy = {QStringLiteral("novuspace"),
+    spec.designedFor = {QStringLiteral("novuspace"),
                    QStringLiteral("novuai"),
                    QStringLiteral("novuexplorer"),
                    QStringLiteral("novutrade")};
+    spec.usedBy = {QStringLiteral("novuspace")};
     spec.variants = {QStringLiteral("Glyph + title + subtitle")};
     spec.states = {QStringLiteral("Normal")};
     spec.keywords = {QStringLiteral("empty"), QStringLiteral("placeholder"),
@@ -212,10 +362,11 @@ ComponentSpec infoBannerComponent()
         "rather than styled, so a tone costs no stylesheet rule.");
     spec.headerPath = QStringLiteral("include/novu/ui/Feedback.h");
     spec.sourcePath = QStringLiteral("src/Feedback.cpp");
-    spec.usedBy = {QStringLiteral("novuspace"),
+    spec.designedFor = {QStringLiteral("novuspace"),
                    QStringLiteral("novuai"),
                    QStringLiteral("novuexplorer"),
                    QStringLiteral("novutrade")};
+    spec.usedBy = {QStringLiteral("novuspace")};
     spec.variants = {QStringLiteral("Neutral"), QStringLiteral("Success"),
                      QStringLiteral("Warning"), QStringLiteral("Danger"), QStringLiteral("Info"),
                      QStringLiteral("With trailing action")};
@@ -246,23 +397,38 @@ ComponentSpec progressBarComponent()
     spec.name = QStringLiteral("ProgressBar");
     spec.category = Category::Feedback;
     spec.description = QStringLiteral(
-        "A determinate progress strip for long local work. Six pixels tall, painted from the "
-        "profile.");
+        "A proportion: how much is done, or how much is used. Capacity bars colour "
+        "themselves by threshold; an unmeasured reading is drawn differently from zero.");
     spec.headerPath = QStringLiteral("include/novu/ui/Feedback.h");
     spec.sourcePath = QStringLiteral("src/Feedback.cpp");
-    spec.usedBy = {QStringLiteral("novuspace"),
+    spec.designedFor = {QStringLiteral("novuspace"),
                    QStringLiteral("novuexplorer"),
                    QStringLiteral("novuhub"),
                    QStringLiteral("novutrade")};
-    spec.variants = {QStringLiteral("Determinate")};
+    spec.usedBy = {QStringLiteral("novuspace")};
+    spec.variants = {QStringLiteral("Accent"), QStringLiteral("Threshold"),
+                     QStringLiteral("Success"), QStringLiteral("Warning"),
+                     QStringLiteral("Danger")};
     spec.states = {QStringLiteral("0%"), QStringLiteral("Partial"), QStringLiteral("100%"),
-                   QStringLiteral("Running"), QStringLiteral("Error")};
+                   QStringLiteral("Running"), QStringLiteral("Unknown"),
+                   QStringLiteral("Error")};
     spec.keywords = {QStringLiteral("progress"), QStringLiteral("loading"),
                      QStringLiteral("busy"), QStringLiteral("percent"),
-                     QStringLiteral("feedback")};
+                     QStringLiteral("feedback"), QStringLiteral("meter"),
+                     QStringLiteral("quota"), QStringLiteral("usage"),
+                     QStringLiteral("capacity"), QStringLiteral("formatBytes")};
     spec.properties = {
         {QStringLiteral("value"), QStringLiteral("int"), {}, QStringLiteral("0"),
          QStringLiteral("0..100. Clamped, and only repaints on a real change.")},
+        {QStringLiteral("tone"), QStringLiteral("enum"),
+         {QStringLiteral("Accent"), QStringLiteral("Threshold"), QStringLiteral("Success"),
+          QStringLiteral("Warning"), QStringLiteral("Danger")},
+         QStringLiteral("Accent"),
+         QStringLiteral("Threshold goes amber past 75% and red past 90%.")},
+        {QStringLiteral("unknown"), QStringLiteral("bool"), {}, QStringLiteral("false"),
+         QStringLiteral("An empty track and no fill: not measured, which is not idle.")},
+        {QStringLiteral("legend"), QStringLiteral("QString"), {}, QStringLiteral(""),
+         QStringLiteral("Used on the left, left on the right. Adds a line to the height.")},
     };
     spec.scenarios = {Scenario::Normal, Scenario::ErrorState};
     spec.build = buildProgressBar;
