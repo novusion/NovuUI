@@ -56,6 +56,11 @@ public:
     // appears in the chrome.*
     enum class CountTone { Normal, Alert, Bad };
 
+    // Which side of the row the status dot sits on. The NovuSpace design
+    // puts it before the label; NovuAI puts it at the trailing edge, in
+    // front of the count. One drawing, two placements.
+    enum class StatusPlacement { Leading, Trailing };
+
     explicit NavList(QWidget* parent = nullptr);
 
     // `key` is the caller's own identifier and what every signal carries. It is
@@ -66,7 +71,10 @@ public:
     // into a file browser*.
     int addChild(const QString& key, const QString& label);
     // `.rail-sec` — a caption, not a row. Not selectable and not counted.
-    int addSection(const QString& title);
+    // A section may carry a key, which is what makes it addressable: a
+    // collapsible section, or one with an action on its heading, needs to
+    // be named the way a row is.
+    int addSection(const QString& title, const QString& key = QString());
     void clear();
 
     int count() const { return m_rows.size(); }
@@ -108,10 +116,20 @@ public:
     // was asked for and does not hide anything itself, because what a twisty
     // reveals is usually rows fetched on demand.
     void setExpandable(const QString& key, bool expandable);
+    // A section collapses everything under it, up to the next section.
+    void setSectionCollapsible(const QString& key, bool collapsible);
+    // An affordance at the trailing edge of a section heading - the `+`
+    // the design puts on WORKSPACES. Reports intent, does nothing itself.
+    void setSectionAction(const QString& key, Glyph glyph,
+                          const QString& tooltip = QString());
+    QRect sectionActionRect(int index) const;
     void setExpanded(const QString& key, bool expanded);
     bool isExpanded(const QString& key) const;
 
     // Hides labels, counts and twisties and centres the glyphs.
+    StatusPlacement statusPlacement() const { return m_statusPlacement; }
+    void setStatusPlacement(StatusPlacement placement);
+
     bool isCollapsed() const { return m_collapsed; }
     void setCollapsed(bool collapsed);
 
@@ -134,6 +152,7 @@ signals:
     void currentChanged(const QString& key);
     // The twisty was clicked. `expanded` is the state it has been set to.
     void expandToggled(const QString& key, bool expanded);
+    void sectionActionTriggered(const QString& key);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -162,10 +181,16 @@ private:
         // with no dot and a row with a Neutral dot are different drawings.
         bool hasStatus = false;
         StatusDot::Tone status = StatusDot::Tone::Neutral;
+        // Sections only.
+        Glyph action = Glyph::None;
+        QString actionTip;
     };
 
     int rowHeight(const Row& row) const;
     int sectionHeight() const;
+    void applySectionVisibility();
+    int sectionTop() const;
+    int sectionBottom() const;
     // The next selectable row in `step` direction, skipping captions and
     // disabled rows. -1 when there is none.
     int neighbour(int from, int step) const;
@@ -181,6 +206,9 @@ private:
     int m_pressed = -1;
     bool m_pressedTwisty = false;
     bool m_collapsed = false;
+    bool m_pressedAction = false;
+    bool m_hoveredAction = false;
+    StatusPlacement m_statusPlacement = StatusPlacement::Leading;
 };
 
 } // namespace novu::ui

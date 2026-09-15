@@ -1,5 +1,7 @@
 #include "novu/ui/Text.h"
 
+#include <QEvent>
+
 #include "novu/ui/ThemeManager.h"
 
 #include <QLabel>
@@ -109,10 +111,63 @@ QFont iconFont(int pixelSize)
     return f;
 }
 
+namespace {
+
+// The dynamic property an Ink role is remembered under. A string rather than
+// the enum so it survives a QVariant round trip and is visible in a debugger.
+constexpr const char* kInkRole = "novuInkRole";
+
+// One filter for every label in the process: it holds no state, so a second
+// instance would buy nothing. Installed by setInk() when a role - rather than
+// a bare colour - is what was asked for.
+class InkWatcher : public QObject
+{
+public:
+    static InkWatcher* instance()
+    {
+        static InkWatcher watcher;
+        return &watcher;
+    }
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (event->type() != ThemeChangeEvent::type()) {
+            return QObject::eventFilter(watched, event);
+        }
+        auto* lb = qobject_cast<QLabel*>(watched);
+        if (!lb) {
+            return QObject::eventFilter(watched, event);
+        }
+        const QVariant role = lb->property(kInkRole);
+        if (role.isValid()) {
+            // Through the colour overload, which is what actually writes the
+            // palette and the one-property sheet.
+            setInk(lb, inkColor(lb, static_cast<Ink>(role.toInt())));
+        }
+        return QObject::eventFilter(watched, event);
+    }
+};
+
+void rememberInk(QLabel* lb, Ink ink)
+{
+    if (!lb) {
+        return;
+    }
+    const bool first = !lb->property(kInkRole).isValid();
+    lb->setProperty(kInkRole, static_cast<int>(ink));
+    if (first) {
+        lb->installEventFilter(InkWatcher::instance());
+    }
+}
+
+} // namespace
+
 QLabel* label(const QString& text, QWidget* parent, TypeRole role, Ink ink, bool bold)
 {
     auto* lb = new QLabel(text, parent);
     lb->setFont(roleFont(parent, role, bold));
+    rememberInk(lb, ink);
     setInk(lb, inkColor(parent, ink));
     return lb;
 }
@@ -135,6 +190,8 @@ void applyText(QLabel* lb, TypeRole role, Ink ink, bool bold)
         return;
     }
     lb->setFont(roleFont(lb, role, bold));
+    // Through the role overload, so the ink is remembered and a theme change
+    // reaches this label the way it reaches a component.
     setInk(lb, ink);
 }
 
@@ -143,6 +200,7 @@ void setInk(QLabel* lb, Ink ink)
     if (!lb) {
         return;
     }
+    rememberInk(lb, ink);
     setInk(lb, inkColor(lb, ink));
 }
 

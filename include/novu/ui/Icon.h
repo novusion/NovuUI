@@ -53,6 +53,46 @@ enum class Glyph {
     // help
     HelpTip, HelpCenter, WhatsNew,
 
+    // NovuAI's set, at the same scale. Its mockup states these in a 16x16
+    // box; they are the same outlines at 24, converted rather than redrawn.
+    // Anything NovuUI already drew - Users, Stop, Refresh - is not repeated
+    // here: one drawing per idea.
+    Sun,
+    Moon,
+    Chat,
+    Image,
+    Video,
+    Audio,
+    Code,
+    Branch,
+    Commit,
+    Push,
+    Pull,
+    Layers,
+    Terminal,
+    Send,
+    Sparkle,
+    Task,
+    Grid,
+    Graph,
+    Brain,
+    Hub,
+    Design,
+    Flow,
+    At,
+    Slash,
+    Keyboard,
+    PanelLeft,
+    PanelRight,
+    Agent,
+    Workspace,
+    Group,
+    FanIn,
+    FanOut,
+    User,
+    Doc,
+    Cloud,
+
     // direction
     ChevronDown, Back, Forward, More,
 };

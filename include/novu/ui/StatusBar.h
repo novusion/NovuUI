@@ -80,6 +80,12 @@ public:
     void setTrailingWidget(QWidget* widget);
     QWidget* trailingWidget() const { return m_trailing; }
 
+    // The mirror of the trailing slot. A status bar that starts with a
+    // control - NovuAI opens with a model picker and two buttons - cannot
+    // say that with text items.
+    void setLeadingWidget(QWidget* widget);
+    QWidget* leadingWidget() const { return m_leading; }
+
     StyleSpec styleSpec() const;
     ResolvedStyle resolvedStyle() const;
 
@@ -109,10 +115,12 @@ private:
     Entry* find(int handle);
     int entryWidth(const Entry& entry) const;
     void layoutTrailing();
+    void layoutLeading();
 
     QVector<Entry> m_items;
     int m_nextHandle = 1;
     bool m_offline = false;
+    QWidget* m_leading = nullptr;
     QWidget* m_trailing = nullptr;
 };
 

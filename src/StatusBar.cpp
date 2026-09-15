@@ -224,6 +224,35 @@ void StatusBar::setTrailingWidget(QWidget* widget)
     update();
 }
 
+void StatusBar::setLeadingWidget(QWidget* widget)
+{
+    if (m_leading == widget) {
+        return;
+    }
+    if (m_leading) {
+        m_leading->setParent(nullptr);
+        m_leading->deleteLater();
+    }
+    m_leading = widget;
+    if (m_leading) {
+        m_leading->setParent(this);
+        m_leading->show();
+    }
+    layoutLeading();
+    update();
+}
+
+void StatusBar::layoutLeading()
+{
+    if (!m_leading) {
+        return;
+    }
+    const QSize hint = m_leading->sizeHint();
+    const int widgetHeight = qMin(hint.height(), height() - 6);
+    m_leading->setGeometry(kPaddingH, (height() - widgetHeight) / 2,
+                           hint.width(), widgetHeight);
+}
+
 int StatusBar::entryWidth(const Entry& entry) const
 {
     switch (entry.kind) {
@@ -288,6 +317,9 @@ QSize StatusBar::sizeHint() const
     if (m_trailing) {
         width += kGap + m_trailing->sizeHint().width();
     }
+    if (m_leading) {
+        width += kGap + m_leading->sizeHint().width();
+    }
     return QSize(width, kHeight);
 }
 
@@ -299,6 +331,7 @@ QSize StatusBar::minimumSizeHint() const
 void StatusBar::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
+    layoutLeading();
     layoutTrailing();
 }
 
@@ -306,6 +339,7 @@ bool StatusBar::event(QEvent* event)
 {
     if (event->type() == ThemeChangeEvent::type() || event->type() == QEvent::ParentChange) {
         updateGeometry();
+        layoutLeading();
         layoutTrailing();
         update();
     }
@@ -335,6 +369,9 @@ void StatusBar::paintEvent(QPaintEvent*)
     const QFont mono = monoFont(this);
 
     int left = kPaddingH;
+    if (m_leading) {
+        left = m_leading->geometry().right() + kGap;
+    }
     int right = width() - kPaddingH;
     if (m_trailing) {
         right = m_trailing->geometry().left() - kGap;

@@ -127,6 +127,11 @@ public:
     // The head. Passing an empty subtitle drops the second line rather than
     // reserving space for it.
     void setIdentity(Glyph glyph, const QString& name, const QString& subtitle = {});
+    // Not every rail is headed by an identity. NovuAI names itself in the
+    // title bar and starts its sidebar at the first section, so the head
+    // is a choice rather than a fixture.
+    bool isHeadVisible() const { return m_headVisible; }
+    void setHeadVisible(bool visible);
     void setName(const QString& name);
     void setSubtitle(const QString& subtitle);
     QString name() const { return m_name; }
@@ -180,6 +185,7 @@ private:
     QString m_name;
     QString m_subtitle;
     bool m_collapsed = false;
+    bool m_headVisible = true;
     int m_expandedWidth = 236;
 
     AppMark* m_mark = nullptr;

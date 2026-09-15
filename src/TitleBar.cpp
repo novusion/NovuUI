@@ -454,9 +454,79 @@ void TitleBar::updateElidedTitle()
     m_titleLabel->setToolTip(m_titleLabel->text() == m_titleText ? QString() : m_titleText);
 }
 
+void TitleBar::setCentre(QWidget* widget)
+{
+    if (m_centre == widget) {
+        return;
+    }
+    if (m_centre) {
+        // Reparented away rather than deleted: the caller owns it.
+        m_centre->setParent(nullptr);
+    }
+    m_centre = widget;
+    if (m_centre) {
+        m_centre->setParent(this);
+        m_centre->show();
+    }
+    layoutCentre();
+    applyTheme();
+}
+
+// Placed by hand rather than by the row, because the row can only centre a
+// widget between its neighbours and the design centres this one on the
+// window. It is clamped to the space actually available, so a narrow window
+// slides it rather than overlapping the caption or the window controls.
+void TitleBar::layoutCentre()
+{
+    if (!m_centre) {
+        return;
+    }
+    const ThemeProfile& profile = themeFor(this);
+    const int gap = profile.window.titleBarGap;
+
+    int leftLimit = profile.window.titleBarPadding;
+    if (m_leading && m_leading->isVisible()) {
+        leftLimit = m_leading->geometry().right() + gap;
+    } else if (m_iconLabel && m_iconLabel->isVisible()) {
+        leftLimit = m_iconLabel->geometry().right() + gap;
+    }
+
+    int rightLimit = width() - profile.window.titleBarPadding;
+    for (QWidget* widget : m_trailing) {
+        if (widget && widget->isVisible()) {
+            rightLimit = qMin(rightLimit, widget->geometry().left() - gap);
+        }
+    }
+    if (m_minimize && m_minimize->isVisible()) {
+        rightLimit = qMin(rightLimit, m_minimize->geometry().left() - gap);
+    } else if (m_maximize && m_maximize->isVisible()) {
+        rightLimit = qMin(rightLimit, m_maximize->geometry().left() - gap);
+    } else if (m_close && m_close->isVisible()) {
+        rightLimit = qMin(rightLimit, m_close->geometry().left() - gap);
+    }
+
+    const QSize hint = m_centre->sizeHint();
+    const int available = qMax(0, rightLimit - leftLimit);
+    const int centreWidth = qMin(hint.width(), available);
+    const int centreHeight = qMin(hint.height(), height());
+    int x = (width() - centreWidth) / 2;
+    x = qBound(leftLimit, x, qMax(leftLimit, rightLimit - centreWidth));
+
+    m_centre->setGeometry(x, (height() - centreHeight) / 2,
+                          centreWidth, centreHeight);
+    m_centre->setVisible(centreWidth > 0);
+
+    // The caption keeps what is left of the space before the centre, so the
+    // two cannot overlap.
+    if (m_titleLabel) {
+        m_titleLabel->setMaximumWidth(qMax(0, x - gap - m_titleLabel->x()));
+    }
+}
+
 void TitleBar::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
+    layoutCentre();
     updateElidedTitle();
 }
 

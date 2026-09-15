@@ -167,7 +167,12 @@ struct ControlMetrics
 {
     int height = 32;
     int heightSmall = 26;
+    // A row in a table or a list.
     int rowHeight = 34;
+    // A row in a navigation rail, which is a different measurement: the
+    // approved NovuSpace design draws `.navbtn` at 30 and its table rows at
+    // 34, and NovuAI draws its module rows at 27. NavList reads this.
+    int navRowHeight = 30;
 };
 
 enum class ControlSize { Small, Medium, Large };

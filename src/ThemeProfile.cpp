@@ -261,6 +261,7 @@ ThemeProfile novuSpaceProfile()
     p.setRoleSpacing(SpacingRole::FormRowGap, 6);        // .field gap
     p.setRoleSpacing(SpacingRole::TableCellPadding, 9);  // td padding
     p.setRoleSpacing(SpacingRole::PagePadding, 20);      // .page-body
+    p.setRoleSpacing(SpacingRole::SectionGap, 18);       // .rail-sec margin-top
 
     // Type, role by role, as the design sets each one. Weight 600 throughout
     // the titles: the display face is drawn at demibold, not bold.

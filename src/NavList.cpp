@@ -16,9 +16,12 @@ namespace novu::ui {
 
 namespace {
 
-// `.navbtn { padding:7px 9px; gap:10px; border-radius:9px }`.
+// `.navbtn { padding:7px 9px; gap:10px; border-radius:9px }`. The vertical
+// padding is a floor rather than the height: what a row measures comes from
+// the profile's `controls.rowHeight`, and this only stops a large type scale
+// from being clipped by a small token.
 constexpr int kRowPaddingH = 9;
-constexpr int kRowPaddingV = 7;
+constexpr int kRowPaddingV = 2;
 constexpr int kRowGap = 10;
 constexpr int kRowRadiusBump = 5;   // over the profile's small radius
 
@@ -41,9 +44,9 @@ constexpr int kCountPaddingV = 1;
 constexpr double kActiveBarWidth = 2.5;
 constexpr int kActiveBarInset = 7;
 
-// `.rail-sec { margin:18px 0 8px }`.
-constexpr int kSectionTop = 18;
-constexpr int kSectionBottom = 8;
+// `.rail-sec { margin:18px 0 8px }` — NovuSpace's values, which the profile
+// now states as SpacingRole::SectionGap and the small spacing step.
+constexpr int kSectionActionSide = 16;
 
 // `[disabled] { opacity:.42 }`.
 constexpr double kDisabledOpacity = 0.42;
@@ -117,9 +120,10 @@ int NavList::addChild(const QString& key, const QString& label)
     return index;
 }
 
-int NavList::addSection(const QString& title)
+int NavList::addSection(const QString& title, const QString& key)
 {
     Row row;
+    row.key = key;
     row.label = title;
     row.section = true;
     m_rows.append(row);
@@ -304,7 +308,77 @@ void NavList::setExpanded(const QString& key, bool expanded)
         return;
     }
     target->expanded = expanded;
+    if (target->section) {
+        applySectionVisibility();
+    }
     update();
+}
+
+void NavList::setSectionCollapsible(const QString& key, bool collapsible)
+{
+    Row* target = row(key);
+    if (!target || !target->section) {
+        return;
+    }
+    target->expandable = collapsible;
+    if (collapsible && !target->expanded) {
+        target->expanded = true;
+    }
+    updateGeometry();
+    update();
+}
+
+void NavList::setSectionAction(const QString& key, Glyph glyph, const QString& tooltip)
+{
+    Row* target = row(key);
+    if (!target || !target->section) {
+        return;
+    }
+    target->action = glyph;
+    target->actionTip = tooltip;
+    update();
+}
+
+QRect NavList::sectionActionRect(int index) const
+{
+    if (index < 0 || index >= m_rows.size()) {
+        return QRect();
+    }
+    const Row& row = m_rows.at(index);
+    if (!row.section || row.action == Glyph::None || m_collapsed) {
+        return QRect();
+    }
+    const QRect box = rowRect(index);
+    const int top = box.top() + sectionTop()
+        + (box.height() - sectionTop() - sectionBottom() - kSectionActionSide) / 2;
+    return QRect(width() - kRowPaddingH - kSectionActionSide, top,
+                 kSectionActionSide, kSectionActionSide);
+}
+
+void NavList::setStatusPlacement(StatusPlacement placement)
+{
+    if (m_statusPlacement == placement) {
+        return;
+    }
+    m_statusPlacement = placement;
+    updateGeometry();
+    update();
+}
+
+// A collapsed section takes everything under it with it, up to the next
+// section. Visibility rather than removal: the rows keep their state, and a
+// hidden row is already zero-height everywhere else in this class.
+void NavList::applySectionVisibility()
+{
+    bool hidden = false;
+    for (Row& row : m_rows) {
+        if (row.section) {
+            hidden = row.expandable && !row.expanded;
+            continue;
+        }
+        row.visible = !hidden;
+    }
+    updateGeometry();
 }
 
 bool NavList::isExpanded(const QString& key) const
@@ -357,13 +431,28 @@ int NavList::rowHeight(const Row& row) const
     if (row.section) {
         return sectionHeight();
     }
+    // The profile states the navigation row height. The content is the
+    // floor, so a product with a larger type scale cannot be clipped by a
+    // smaller token.
+    const ThemeProfile& profile = themeFor(this);
     const QFontMetrics fm(rowFont(this, row.child));
-    return qMax(fm.height(), kGlyphSide) + 2 * kRowPaddingV;
+    return qMax(profile.controls.navRowHeight,
+                qMax(fm.height(), kGlyphSide) + 2 * kRowPaddingV);
+}
+
+int NavList::sectionTop() const
+{
+    return themeFor(this).space(SpacingRole::SectionGap);
+}
+
+int NavList::sectionBottom() const
+{
+    return themeFor(this).spacing.sm;
 }
 
 int NavList::sectionHeight() const
 {
-    return QFontMetrics(sectionFont(this)).height() + kSectionTop + kSectionBottom;
+    return QFontMetrics(sectionFont(this)).height() + sectionTop() + sectionBottom();
 }
 
 QRect NavList::rowRect(int index) const
@@ -389,6 +478,13 @@ QRect NavList::twistyRect(int index) const
     }
     const QRect box = rowRect(index);
     const int left = row.child ? kChildIndent : kRowPaddingH;
+    if (row.section) {
+        // Centred on the caption rather than on the whole block: a section is
+        // mostly the margin above it.
+        const int top = box.top() + sectionTop()
+            + (box.height() - sectionTop() - sectionBottom() - kTwistySide) / 2;
+        return QRect(left, top, kTwistySide, kTwistySide);
+    }
     return QRect(left, box.top() + (box.height() - kTwistySide) / 2,
                  kTwistySide, kTwistySide);
 }
@@ -521,12 +617,27 @@ void NavList::mousePressEvent(QMouseEvent* event)
         return;
     }
     const int index = indexAt(event->pos());
+    if (index >= 0 && m_rows.at(index).section) {
+        // A section heading is not selectable, but its disclosure and its
+        // action are both targets.
+        const bool onAction = sectionActionRect(index).contains(event->pos());
+        const bool onTwisty = m_rows.at(index).expandable
+            && twistyRect(index).contains(event->pos());
+        if (onAction || onTwisty) {
+            m_pressed = index;
+            m_pressedAction = onAction;
+            m_pressedTwisty = onTwisty;
+            update();
+            return;
+        }
+    }
     if (index < 0 || m_rows.at(index).section || !m_rows.at(index).enabled) {
         m_pressed = -1;
         QWidget::mousePressEvent(event);
         return;
     }
     m_pressed = index;
+    m_pressedAction = false;
     // The twisty is a separate target: expanding a workspace and opening it
     // are different actions on the same line.
     m_pressedTwisty = twistyRect(index).contains(event->pos());
@@ -541,10 +652,21 @@ void NavList::mouseReleaseEvent(QMouseEvent* event)
     }
     const int pressed = m_pressed;
     const bool pressedTwisty = m_pressedTwisty;
+    const bool pressedAction = m_pressedAction;
     m_pressed = -1;
     m_pressedTwisty = false;
+    m_pressedAction = false;
 
     const int released = indexAt(event->pos());
+
+    if (pressedAction) {
+        if (released == pressed && sectionActionRect(released).contains(event->pos())) {
+            emit sectionActionTriggered(m_rows.at(pressed).key);
+        }
+        update();
+        return;
+    }
+
     const bool releasedTwisty =
         released == pressed && twistyRect(released).contains(event->pos());
 
@@ -552,6 +674,9 @@ void NavList::mouseReleaseEvent(QMouseEvent* event)
         if (pressedTwisty) {
             Row& row = m_rows[pressed];
             row.expanded = !row.expanded;
+            if (row.section) {
+                applySectionVisibility();
+            }
             emit expandToggled(row.key, row.expanded);
         } else {
             choose(pressed);
@@ -563,13 +688,21 @@ void NavList::mouseReleaseEvent(QMouseEvent* event)
 void NavList::mouseMoveEvent(QMouseEvent* event)
 {
     const int index = indexAt(event->pos());
-    const int hovered = (index >= 0 && !m_rows.at(index).section && m_rows.at(index).enabled)
+    const bool onSection = index >= 0 && m_rows.at(index).section;
+    // A section heading does not highlight, but its two affordances do, so it
+    // still counts as hovered while the pointer is over one of them.
+    const bool onAction = onSection && sectionActionRect(index).contains(event->pos());
+    const int hovered = (index >= 0
+                         && ((!onSection && m_rows.at(index).enabled) || onAction))
         ? index
         : -1;
-    const bool onTwisty = hovered >= 0 && twistyRect(hovered).contains(event->pos());
-    if (hovered != m_hovered || onTwisty != m_hoveredTwisty) {
+    const bool onTwisty = hovered >= 0 && !onSection
+        && twistyRect(hovered).contains(event->pos());
+    if (hovered != m_hovered || onTwisty != m_hoveredTwisty
+        || onAction != m_hoveredAction) {
         m_hovered = hovered;
         m_hoveredTwisty = onTwisty;
+        m_hoveredAction = onAction;
         update();
     }
     QWidget::mouseMoveEvent(event);
@@ -657,8 +790,24 @@ void NavList::paintEvent(QPaintEvent*)
             }
             painter.setFont(sections);
             painter.setPen(profile.colors.textDisabled);
-            painter.drawText(box.adjusted(kRowPaddingH, kSectionTop, -kRowPaddingH,
-                                          -kSectionBottom),
+            int captionLeft = kRowPaddingH;
+            if (row.expandable) {
+                const QRect twisty = twistyRect(index);
+                paintGlyph(&painter, Glyph::ChevronDown,
+                           QRectF(twisty).adjusted(4, 4, -4, -4),
+                           profile.colors.textDisabled, row.expanded ? 0.0 : -90.0);
+                captionLeft = twisty.right() + 6;
+            }
+            if (row.action != Glyph::None) {
+                const QRect act = sectionActionRect(index);
+                paintGlyph(&painter, row.action, QRectF(act).adjusted(3, 3, -3, -3),
+                           index == m_hovered && m_hoveredAction
+                               ? profile.colors.textSecondary
+                               : profile.colors.textDisabled);
+            }
+            painter.drawText(box.adjusted(captionLeft, sectionTop(),
+                                          -kRowPaddingH - kSectionActionSide,
+                                          -sectionBottom()),
                              Qt::AlignLeft | Qt::AlignVCenter, row.label.toUpper());
             continue;
         }
@@ -750,15 +899,16 @@ void NavList::paintEvent(QPaintEvent*)
             left = static_cast<int>(glyphBox.right()) + kRowGap;
         }
 
-        if (row.hasStatus) {
+        // One drawing, either side of the row. `.wsdot.archived` is an
+        // outline rather than a fill: an archived workspace is present
+        // without being live, and a filled grey dot says "idle", which is a
+        // different thing.
+        const auto paintStatus = [&](double x) {
             const QColor hue = row.status == StatusDot::Tone::Accent
                 ? profile.colors.accentLight
                 : profile.semantic.role(roleFor(row.status)).text;
-            const QRectF dot(left, box.center().y() - kStatusDot / 2.0,
+            const QRectF dot(x, box.center().y() - kStatusDot / 2.0,
                              kStatusDot, kStatusDot);
-            // `.wsdot.archived` is an outline rather than a fill: an archived
-            // workspace is present without being live, and a filled grey dot
-            // says "idle", which is a different thing.
             if (row.status == StatusDot::Tone::Neutral) {
                 painter.setPen(QPen(profile.colors.border, 1));
                 painter.setBrush(Qt::NoBrush);
@@ -767,7 +917,12 @@ void NavList::paintEvent(QPaintEvent*)
                 painter.setBrush(hue);
             }
             painter.drawEllipse(dot);
-            left = static_cast<int>(dot.right()) + kRowGap;
+        };
+
+        if (row.hasStatus && (m_statusPlacement == StatusPlacement::Leading
+                              || m_collapsed)) {
+            paintStatus(left);
+            left += kStatusDot + kRowGap;
         }
 
         if (m_collapsed) {
@@ -819,6 +974,11 @@ void NavList::paintEvent(QPaintEvent*)
             painter.setPen(pillInk);
             painter.drawText(pill, Qt::AlignCenter, text);
             rightEdge = static_cast<int>(pill.left()) - kRowGap;
+        }
+
+        if (row.hasStatus && m_statusPlacement == StatusPlacement::Trailing) {
+            paintStatus(rightEdge - kStatusDot);
+            rightEdge -= kStatusDot + kRowGap;
         }
 
         const QFont font = rowFont(this, row.child);

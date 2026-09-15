@@ -120,6 +120,14 @@ public:
     void setLeading(QWidget* widget);
     QWidget* leading() const { return m_leading; }
 
+    // A widget centred in the bar rather than packed against an edge. The
+    // caption keeps the leftover space when there is none; when there is one,
+    // the centre takes it and the caption stays at its natural width, so the
+    // centred thing is centred on the WINDOW and not on what is left over.
+    // NovuAI's command field is the case this exists for.
+    void setCentre(QWidget* widget);
+    QWidget* centre() const { return m_centre; }
+
     // Widgets between the caption and the controls. A list rather than one
     // slot for the same reason Card::setHeaderTrailing takes a list: one slot
     // does not survive a window that wants both a sync indicator and a
@@ -153,6 +161,7 @@ protected:
 
 private:
     void applyTheme();
+    void layoutCentre();
     void updateIconPixmap();
     // The caption is elided by the bar, not by the label: a window title is
     // whatever the application named the document, and a path that does not
@@ -163,6 +172,7 @@ private:
     QLabel* m_iconLabel = nullptr;
     QLabel* m_titleLabel = nullptr;
     QWidget* m_leading = nullptr;
+    QWidget* m_centre = nullptr;
     QList<QWidget*> m_trailing;
 
     WindowControlButton* m_minimize = nullptr;

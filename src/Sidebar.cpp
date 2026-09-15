@@ -531,8 +531,23 @@ int Sidebar::collapsedWidth() const
     return m_mark->side() + 2 * kCollapsedPaddingH;
 }
 
+void Sidebar::setHeadVisible(bool visible)
+{
+    if (m_headVisible == visible) {
+        return;
+    }
+    m_headVisible = visible;
+    m_mark->setVisible(visible);
+    relayout();
+    updateGeometry();
+    update();
+}
+
 int Sidebar::headHeight() const
 {
+    if (!m_headVisible) {
+        return 0;
+    }
     const QFontMetrics names(nameFont(this));
     int text = names.height();
     if (!m_subtitle.isEmpty()) {
@@ -545,7 +560,9 @@ void Sidebar::relayout()
 {
     const int head = headHeight();
 
-    if (m_collapsed) {
+    if (!m_headVisible) {
+        // nothing to place
+    } else if (m_collapsed) {
         m_mark->move((width() - m_mark->side()) / 2, kHeadPaddingTop);
     } else {
         m_mark->move(kHeadPaddingH, kHeadPaddingTop + (head - kHeadPaddingTop
@@ -638,7 +655,7 @@ void Sidebar::paintEvent(QPaintEvent*)
     painter.setPen(QPen(profile.colors.border, borderWidth));
     painter.drawLine(width() - borderWidth, 0, width() - borderWidth, height());
 
-    if (m_collapsed) {
+    if (m_collapsed || !m_headVisible) {
         return;   // the design hides `.rail-head .t` entirely
     }
 
