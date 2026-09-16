@@ -6,6 +6,7 @@
 
 #include <QEvent>
 #include <QFontMetrics>
+#include <QGuiApplication>
 #include <QLinearGradient>
 #include <QPainter>
 #include <QPen>
@@ -279,6 +280,75 @@ void AppMark::paintEvent(QPaintEvent*)
     painter.setFont(font);
     painter.setPen(ink);
     painter.drawText(QRectF(0, 0, edge, edge), Qt::AlignCenter, m_initials);
+}
+
+// ── the product mark ────────────────────────────────────────────────────
+
+namespace {
+
+// The design's own polygon points, in its own 48x48 box - see novuMark() in
+// the approved NovuSpace mockup. Copied rather than re-derived: three
+// isometric faces of a cube have no formula worth inventing when the design
+// already states the coordinates.
+constexpr QPointF kFaceLeft[] = {
+    {23.58, 23.76}, {23.58, 10.74}, {12.30, 17.25}, {12.30, 30.27},
+};
+constexpr QPointF kFaceRight[] = {
+    {24.42, 23.76}, {24.42, 10.74}, {35.70, 17.25}, {35.70, 30.27},
+};
+constexpr QPointF kFaceBottom[] = {
+    {24.00, 24.49}, {35.27, 31.00}, {24.00, 37.51}, {12.73, 31.00},
+};
+constexpr double kViewBox = 48.0;
+
+} // namespace
+
+void paintBrandMark(QPainter* painter, const QRectF& box, const QWidget* context)
+{
+    if (!painter || box.isEmpty()) {
+        return;
+    }
+    const ThemeColors& c = themeFor(context).colors;
+
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing, true);
+    painter->translate(box.topLeft());
+    const double scale = qMin(box.width(), box.height()) / kViewBox;
+    painter->scale(scale, scale);
+    painter->setPen(Qt::NoPen);
+
+    // Left and bottom are the shared neutrals every product draws this in -
+    // `#B7C1CE` / `#8793A3` in the design, which are this profile's own
+    // textSecondary / textDisabled. Only the right face is the product.
+    painter->setBrush(c.textSecondary);
+    painter->drawPolygon(kFaceLeft, 4);
+    painter->setBrush(c.accent);
+    painter->drawPolygon(kFaceRight, 4);
+    painter->setBrush(c.textDisabled);
+    painter->drawPolygon(kFaceBottom, 4);
+    painter->restore();
+}
+
+QPixmap brandMarkPixmap(int size, const QWidget* context, qreal devicePixelRatio)
+{
+    if (size <= 0) {
+        return {};
+    }
+    const qreal ratio = devicePixelRatio > 0.0 ? devicePixelRatio
+                                               : (qApp ? qApp->devicePixelRatio() : 1.0);
+    QPixmap pixmap(QSize(size, size) * ratio);
+    pixmap.setDevicePixelRatio(ratio);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    paintBrandMark(&painter, QRectF(0, 0, size, size), context);
+    return pixmap;
+}
+
+QIcon brandMarkIcon(int size, const QWidget* context)
+{
+    QIcon icon;
+    icon.addPixmap(brandMarkPixmap(size, context));
+    return icon;
 }
 
 } // namespace novu::ui

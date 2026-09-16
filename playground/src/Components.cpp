@@ -68,6 +68,7 @@ void registerBuiltinComponents(ComponentRegistry& registry)
         &pages::propertyRowComponent,
         &pages::tableViewComponent,
         &pages::appMarkComponent,
+        &pages::productMarkComponent,
         &pages::keyCapComponent,
         &pages::shortcutListComponent,
         &pages::logViewComponent,

@@ -3,8 +3,13 @@
 #include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
 
+#include <QIcon>
+#include <QPixmap>
 #include <QString>
 #include <QWidget>
+
+class QPainter;
+class QRectF;
 
 namespace novu::ui {
 
@@ -112,5 +117,39 @@ private:
     int m_sideOverride = 0;
     bool m_accented = true;
 };
+
+// ── the product mark ────────────────────────────────────────────────────
+//
+// A different drawing from AppMark above and not a shape option on it: the
+// isometric gem every window icon, every favicon and the title bar's own
+// `.app-ico` are drawn from. Three filled polygons in a 48x48 box, no plate,
+// no border, no gradient behind it - AppMark's whole class exists to be that
+// background; this is the mark that sometimes sits on nothing at all.
+//
+// The geometry is identical in every approved mockup that draws it; NovuSpace
+// names the reason in its own source, as a small reusable function:
+//
+//     const novuMark = (fill, size) => `<svg viewBox="0 0 48 48">
+//       <polygon .../* left */  fill="#B7C1CE">
+//       <polygon .../* right */ ${fill ? `fill="${fill}"` : `class="accent-mark"`}>
+//       <polygon .../* bottom */fill="#8793A3">`;
+//
+// called as `novuMark(null, 28)` at every real call site - the accent face is
+// always the CSS variable, never a literal, and the other two are always the
+// same neutral pair. `#B7C1CE` and `#8793A3` are not new colours: they are
+// this profile's own `textSecondary` and `textDisabled`, which is why the
+// functions below take a context rather than three colours - the mark is
+// always drawn in the product's own accent and the shared neutrals, never in
+// anything a caller invents.
+//
+// (NovuAdmin's and NovuHub's older mockups draw this filled in three steps of
+// their own accent instead - #26A362/#3CCB7F/#6ADB9E, hard-coded rather than
+// read off a variable. Superseded here by NovuSpace's own reusable function,
+// which is both the newer source and the only one that states the rule
+// itself rather than one product's coincidence of it.)
+void paintBrandMark(QPainter* painter, const QRectF& box, const QWidget* context);
+
+QPixmap brandMarkPixmap(int size, const QWidget* context, qreal devicePixelRatio = 0);
+QIcon brandMarkIcon(int size, const QWidget* context);
 
 } // namespace novu::ui

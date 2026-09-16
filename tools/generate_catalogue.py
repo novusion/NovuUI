@@ -20,12 +20,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAGES = os.path.join(ROOT, "playground", "src", "pages")
 OUT = os.path.join(ROOT, "docs", "COMPONENTS.md")
 
-CATEGORY_ORDER = ["Foundation", "Input", "Navigation", "Data display", "Feedback"]
+CATEGORY_ORDER = ["Foundation", "Window title bar", "Navigation", "Footer", "Input",
+                  "Data display", "Feedback"]
 
 CATEGORY_ENUM = {
     "Category::Foundation": "Foundation",
-    "Category::Input": "Input",
+    "Category::TitleBar": "Window title bar",
     "Category::Navigation": "Navigation",
+    "Category::Footer": "Footer",
+    "Category::Input": "Input",
     "Category::DataDisplay": "Data display",
     "Category::Feedback": "Feedback",
 }

@@ -2,6 +2,7 @@
 
 #include "novu/playground/ExampleLayout.h"
 
+#include "novu/ui/AppMark.h"
 #include "novu/ui/Button.h"
 #include "novu/ui/Card.h"
 #include "novu/ui/Form.h"
@@ -39,6 +40,9 @@ QWidget* barSample(QWidget* parent, const QString& title, bool minimizable,
 {
     auto* bar = new TitleBar(parent);
     bar->setTitle(title);
+    // `.app-ico` - the product's own mark, not a placeholder glyph. iconSize
+    // is 18 in every profile, matching `.app-ico{width:18px;height:18px}`.
+    bar->setIcon(brandMarkIcon(themeFor(bar).window.iconSize, bar));
     bar->setMinimizable(minimizable);
     bar->setMaximizable(maximizable);
     bar->setWindowActive(active);
@@ -55,6 +59,7 @@ QWidget* barWithActions(QWidget* parent, const QString& title)
 {
     auto* bar = new TitleBar(parent);
     bar->setTitle(title);
+    bar->setIcon(brandMarkIcon(themeFor(bar).window.iconSize, bar));
     bar->setMinimizable(true);
     bar->setMaximizable(true);
     bar->setWindowActive(true);
@@ -122,6 +127,7 @@ void openReferenceWindow(const QString& profileId)
     // parent to inherit the gallery's profile from.
     ThemeScope::apply(window, profileId);
     window->setTitle(QStringLiteral("Novu reference window"));
+    window->setIcon(brandMarkIcon(themeFor(window).window.iconSize, window));
 
     auto* body = new QWidget(window->content());
     QVBoxLayout* column = pageLayout(body);
@@ -164,6 +170,7 @@ void openReferenceTool(const QString& profileId)
     window->setAttribute(Qt::WA_DeleteOnClose);
     ThemeScope::apply(window, profileId);
     window->setTitle(QStringLiteral("Detached panel"));
+    window->setIcon(brandMarkIcon(themeFor(window).window.iconSize, window));
 
     auto* body = new QWidget(window->content());
     QVBoxLayout* column = pageLayout(body);

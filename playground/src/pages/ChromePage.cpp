@@ -10,12 +10,14 @@
 #include "novu/ui/PageHeader.h"
 #include "novu/ui/Separator.h"
 #include "novu/ui/StatusBar.h"
+#include "novu/ui/StyleSheet.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
 
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QPainter>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -72,6 +74,102 @@ QWidget* buildAppMark(const PreviewContext& ctx)
                             "initials is two identities in one box, so setting either clears "
                             "the other. Accented is the product's own mark; unaccented is a "
                             "generic one beside a row."));
+        column->addWidget(card);
+    }
+
+    column->addStretch(1);
+    return page;
+}
+
+// ── Product mark ─────────────────────────────────────────────────────────
+
+namespace {
+
+// A bare paint call, one widget per product so each can be scoped to its own
+// profile - `paintBrandMark()` resolves the accent through `themeFor()`, the
+// same way every painted component here does, so the only way to show five
+// products side by side is five small surfaces, not five calls in one.
+class BrandMarkSwatch : public QWidget
+{
+public:
+    explicit BrandMarkSwatch(int side, QWidget* parent) : QWidget(parent)
+    {
+        setFixedSize(side, side);
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override
+    {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        paintBrandMark(&painter, rect(), this);
+    }
+};
+
+} // namespace
+
+QWidget* buildProductMark(const PreviewContext& ctx)
+{
+    auto* page = new QWidget(ctx.parent);
+    QVBoxLayout* column = previewPage(page);
+    const ThemeProfile& profile = themeFor(ctx.parent);
+
+    // ── one product, one accent ──────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("One product, one accent"),
+                                 QStringLiteral("The same three polygons in every approved "
+                                                "mockup that draws them. Only the right face "
+                                                "moves."));
+        QVBoxLayout* body = card->body();
+        QHBoxLayout* row = exampleRow(body, card, QString());
+
+        for (const QString& id : ThemeManager::instance().profileIds()) {
+            if (!isApplicationProfile(id) || id == QLatin1String("novutrade")) {
+                continue;
+            }
+            const ThemeProfile& p = ThemeManager::instance().profile(id);
+            auto* cell = new QWidget(card);
+            auto* cellLayout = new QVBoxLayout(cell);
+            cellLayout->setContentsMargins(0, 0, 0, 0);
+            cellLayout->setSpacing(6);
+            cellLayout->setAlignment(Qt::AlignHCenter);
+            auto* swatch = new BrandMarkSwatch(32, cell);
+            applyStyleSheet(swatch, id);
+            cellLayout->addWidget(swatch, 0, Qt::AlignHCenter);
+            cellLayout->addWidget(label(p.displayName, cell, TypeRole::Caption, Ink::Muted));
+            row->addWidget(cell);
+            row->addSpacing(profile.space(SpacingRole::ToolbarGap));
+        }
+        row->addStretch(1);
+
+        note(body, card,
+             QStringLiteral("Left and bottom are this profile's own textSecondary and "
+                            "textDisabled - not a colour invented for the mark, the same "
+                            "tokens every other painted component reads. NovuVoice keeps the "
+                            "family stand-in because it has no approved mockup of its own yet, "
+                            "the same reason its accent is unresolved."));
+        column->addWidget(card);
+    }
+
+    // ── sizes ─────────────────────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Sizes"),
+                                 QStringLiteral("The design's own call sites: the title bar's "
+                                                "18px icon, and novuMark()'s own 22, 28 and "
+                                                "40."));
+        QVBoxLayout* body = card->body();
+        QHBoxLayout* row = exampleRow(body, card, QString());
+        for (const int side : {18, 22, 28, 40}) {
+            row->addWidget(new BrandMarkSwatch(side, card));
+            row->addWidget(label(QStringLiteral("%1px").arg(side), card, TypeRole::Mono,
+                                 Ink::Muted));
+            row->addSpacing(profile.space(SpacingRole::ToolbarGap));
+        }
+        row->addStretch(1);
+        note(body, card,
+             QStringLiteral("One drawing scaled, the way every glyph and every AppMark size "
+                            "here already is - there is no separate small-size artwork to keep "
+                            "in step with the large one."));
         column->addWidget(card);
     }
 
@@ -249,6 +347,41 @@ QWidget* buildPageHeader(const PreviewContext& ctx)
         column->addWidget(card);
     }
 
+    // -- layout --------------------------------------------------------------
+    {
+        Card* card = exampleCard(page, QStringLiteral("Stacked and inline"),
+                                 QStringLiteral("Two arrangements of the same three "
+                                                "strings, both of them in an approved "
+                                                "design."));
+        QVBoxLayout* body = card->body();
+
+        auto* stacked = new PageHeader(QStringLiteral("Web workspaces"),
+                                       QStringLiteral("Organise browser workspaces, "
+                                                      "profiles and stored sessions"),
+                                       card);
+        stacked->setPath({QStringLiteral("NovuSpace"), QStringLiteral("Web"),
+                          QStringLiteral("Overview")});
+        body->addWidget(stacked);
+
+        auto* inline_ = new PageHeader(QStringLiteral("Web workspaces"),
+                                       QStringLiteral("Organise browser workspaces, "
+                                                      "profiles and stored sessions"),
+                                       card);
+        inline_->setPath({QStringLiteral("NovuSpace"), QStringLiteral("Web"),
+                          QStringLiteral("Overview")});
+        inline_->setLayout(PageHeader::Layout::Inline);
+        body->addWidget(inline_);
+
+        note(body, card,
+             QStringLiteral("Stacked is the default: the trail above the title, the "
+                            "description under it. Inline is NovuSpace's own "
+                            "`.page-head` — `.ttl{display:flex;align-items:baseline;"
+                            "gap:10px}` puts all three on one baseline, and the band is "
+                            "one row of padding tall because of it. Three rows where the "
+                            "reference draws one moves every pixel of the page below."));
+        column->addWidget(card);
+    }
+
     {
         Card* card = exampleCard(page, QStringLiteral("Breadcrumb alone"),
                                  QStringLiteral("For a header a caller composes "
@@ -309,6 +442,39 @@ ComponentSpec appMarkComponent()
          QStringLiteral("The product's own mark, or a generic one beside a row.")},
     };
     spec.build = buildAppMark;
+    return spec;
+}
+
+ComponentSpec productMarkComponent()
+{
+    ComponentSpec spec;
+    spec.id = QStringLiteral("product-mark");
+    spec.name = QStringLiteral("Product mark");
+    spec.category = Category::TitleBar;
+    spec.description = QStringLiteral(
+        "The isometric gem every window icon, every favicon and the title bar's own icon "
+        "are drawn from — three filled polygons, no plate, no border. Left and bottom are "
+        "the shared neutrals; only the right face is the product's own accent.");
+    spec.headerPath = QStringLiteral("include/novu/ui/AppMark.h");
+    spec.sourcePath = QStringLiteral("src/AppMark.cpp");
+    spec.designedFor = {QStringLiteral("novuspace"), QStringLiteral("novuai"),
+                        QStringLiteral("novuexplorer"), QStringLiteral("novuadmin"),
+                        QStringLiteral("novuhub")};
+    spec.usedBy = {};
+    spec.variants = {QStringLiteral("18px"), QStringLiteral("22px"), QStringLiteral("28px"),
+                     QStringLiteral("40px")};
+    spec.states = {};
+    spec.keywords = {QStringLiteral("app-ico"), QStringLiteral("novuMark"),
+                     QStringLiteral("gem"), QStringLiteral("favicon"),
+                     QStringLiteral("window icon"), QStringLiteral("logo"),
+                     QStringLiteral("brand")};
+    spec.properties = {
+        {QStringLiteral("accent"), QStringLiteral("QColor"), {}, QString(),
+         QStringLiteral("Resolved from the context's own profile — never passed in.")},
+        {QStringLiteral("size"), QStringLiteral("int"), {}, QString(),
+         QStringLiteral("The box the mark is scaled into. One drawing, any size.")},
+    };
+    spec.build = buildProductMark;
     return spec;
 }
 

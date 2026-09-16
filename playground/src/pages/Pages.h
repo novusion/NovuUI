@@ -71,6 +71,7 @@ ComponentSpec statusDotComponent();
 ComponentSpec propertyRowComponent();
 ComponentSpec tableViewComponent();
 ComponentSpec appMarkComponent();
+ComponentSpec productMarkComponent();
 ComponentSpec keyCapComponent();
 ComponentSpec shortcutListComponent();
 ComponentSpec logViewComponent();
