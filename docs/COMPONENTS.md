@@ -143,7 +143,7 @@ The card a person signs in on: a mark, a title, the form the caller fills, and a
 
 ### Icon
 
-The Novu icon set: stroke outlines taken from the approved design, painted rather than instantiated. No icon font, no QtSvg, no widget per glyph.
+The symbolic language as a whole, not just the glyph outlines: static glyphs, StatusDot's still and breathing tones, and Spinner's loading marks, at the sizes and inks that cut across all three. Every widget shown is the real production component — StatusDot and Spinner keep their own detailed pages for their full API.
 
 ```cpp
 #include "novu/ui/Icon.h"

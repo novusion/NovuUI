@@ -3,7 +3,9 @@
 #include "novu/playground/ExampleLayout.h"
 
 #include "novu/ui/Card.h"
+#include "novu/ui/Feedback.h"
 #include "novu/ui/Icon.h"
+#include "novu/ui/StatusDot.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
 
@@ -14,6 +16,8 @@
 #include <QPainter>
 #include <QVBoxLayout>
 #include <QWidget>
+
+#include <iterator>
 
 using namespace novu::ui;
 
@@ -111,15 +115,52 @@ QLabel* glyphLabel(QWidget* parent, Glyph glyph, int size, Ink ink)
     return lb;
 }
 
+// This page is the symbolic language as a whole, not just the glyph outlines
+// — StatusDot and Spinner are their own components with their own detailed
+// pages, and stay that way. What is shared here is a page-local caption
+// helper, not a second copy of either.
+struct ToneRow
+{
+    const char* name;
+    StatusDot::Tone tone;
+};
+
+const ToneRow kTones[] = {
+    {"Neutral", StatusDot::Tone::Neutral}, {"Success", StatusDot::Tone::Success},
+    {"Warning", StatusDot::Tone::Warning}, {"Danger", StatusDot::Tone::Danger},
+    {"Info", StatusDot::Tone::Info},       {"Accent", StatusDot::Tone::Accent},
+};
+
+QWidget* dotWithCaption(QWidget* parent, StatusDot::Tone tone, bool pulsing, const char* name)
+{
+    auto* cell = new QWidget(parent);
+    auto* layout = new QVBoxLayout(cell);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(6);
+    layout->setAlignment(Qt::AlignHCenter);
+    auto* dot = new StatusDot(tone, pulsing, cell);
+    dot->setDiameter(11);
+    layout->addWidget(dot, 0, Qt::AlignHCenter);
+    layout->addWidget(label(QString::fromLatin1(name), cell, TypeRole::Caption, Ink::Muted));
+    return cell;
+}
+
 QWidget* build(const PreviewContext& ctx)
 {
     auto* page = new QWidget(ctx.parent);
     QVBoxLayout* column = previewPage(page);
     const ThemeProfile& profile = themeFor(ctx.parent);
 
-    // ── the set ──────────────────────────────────────────────────────────
+    // This page is the symbolic language as a whole: static glyphs, the
+    // status dots and their breathing state, the loading marks, and the
+    // sizes and inks that cut across all three. Every widget below is the
+    // real production component — StatusDot and Spinner keep their own
+    // detailed pages for their full API, and nothing here is a second
+    // implementation of either.
+
+    // ── glyphs ───────────────────────────────────────────────────────────
     {
-        Card* card = exampleCard(page, QStringLiteral("The set"),
+        Card* card = exampleCard(page, QStringLiteral("Glyphs"),
                                  QStringLiteral("Every glyph, painted from the approved "
                                                 "outlines."));
         QVBoxLayout* body = card->body();
@@ -132,10 +173,81 @@ QWidget* build(const PreviewContext& ctx)
         column->addWidget(card);
     }
 
-    // ── sizes ────────────────────────────────────────────────────────────
+    // ── status indicators ───────────────────────────────────────────────
     {
-        Card* card = exampleCard(page, QStringLiteral("Sizes"),
-                                 QStringLiteral("Three, and the profile owns all three."));
+        Card* card = exampleCard(page, QStringLiteral("Status indicators"),
+                                 QStringLiteral("StatusDot's six tones, still — the smallest "
+                                                "symbol in the language and one of the most "
+                                                "used."));
+        QVBoxLayout* body = card->body();
+        QHBoxLayout* row = exampleRow(body, card, QString());
+        for (const ToneRow& t : kTones) {
+            row->addWidget(dotWithCaption(card, t.tone, false, t.name));
+            row->addSpacing(profile.space(SpacingRole::ToolbarGap));
+        }
+        row->addStretch(1);
+        note(body, card,
+             QStringLiteral("A tone, not a colour — the same six meanings Badge and the status "
+                            "palette carry, so a dot and a badge for the same status never "
+                            "disagree. The full contract, including the cross-fade on a state "
+                            "change, is on StatusDot's own page."));
+        column->addWidget(card);
+    }
+
+    // ── animated indicators ─────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Animated indicators"),
+                                 QStringLiteral("The same dots, pulsing — the design's "
+                                                "softglow, on the shared clock."));
+        QVBoxLayout* body = card->body();
+        QHBoxLayout* row = exampleRow(body, card, QString());
+        for (const ToneRow& t : kTones) {
+            row->addWidget(dotWithCaption(card, t.tone, true, t.name));
+            row->addSpacing(profile.space(SpacingRole::ToolbarGap));
+        }
+        row->addStretch(1);
+        note(body, card,
+             QStringLiteral("This is the glow a live engine or a connected service points at — "
+                            "not a separate component, but StatusDot's own `pulsing` state: a "
+                            "halo breathing on Pulse, the one animation clock every looping "
+                            "primitive in NovuUI shares. Only the tones that mean something is "
+                            "actually live are ever pulsed; a dot that breathes while nothing "
+                            "is happening is a dot nobody reads any more."));
+        column->addWidget(card);
+    }
+
+    // ── loading / process indicators ────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Loading / process indicators"),
+                                 QStringLiteral("Spinner: \"something is happening and I "
+                                                "cannot tell you how long.\""));
+        QVBoxLayout* body = card->body();
+        QHBoxLayout* row = exampleRow(body, card, QStringLiteral("Small · Medium · Large"));
+        const struct { const char* name; ControlSize size; } spinnerSizes[] = {
+            {"Small", ControlSize::Small}, {"Medium", ControlSize::Medium},
+            {"Large", ControlSize::Large},
+        };
+        for (const auto& s : spinnerSizes) {
+            row->addWidget(new Spinner(s.size, card));
+            row->addWidget(label(QString::fromLatin1(s.name), card, TypeRole::Caption,
+                                 Ink::Muted));
+            row->addSpacing(profile.space(SpacingRole::ToolbarGap));
+        }
+        row->addStretch(1);
+        note(body, card,
+             QStringLiteral("Also on the shared clock, sized from the same IconMetrics the "
+                            "glyphs above are. The running ring that travels round a Primary "
+                            "button mid-action is the same motion again, drawn by "
+                            "motion::paintRunningRing() directly onto the button's own outline "
+                            "rather than through a widget — see the Motion page for that "
+                            "primitive and the shimmer it shares a clock with."));
+        column->addWidget(card);
+    }
+
+    // ── sizes & states ───────────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Sizes & states"),
+                                 QStringLiteral("Three sizes, and the profile owns all three."));
         QVBoxLayout* body = card->body();
         QHBoxLayout* row = exampleRow(body, card, QStringLiteral("Small · Medium · Large"));
         for (const int size : {profile.icons.small, profile.icons.medium, profile.icons.large}) {
@@ -148,7 +260,13 @@ QWidget* build(const PreviewContext& ctx)
         note(body, card,
              QStringLiteral("The stroke weight scales with the box, so the same outline at "
                             "13px and at 20px is one drawing rather than one line weight at "
-                            "two sizes."));
+                            "two sizes.\n\nglyphIcon() is the only state a bare glyph has: it "
+                            "supplies a faded pixmap for QIcon::Disabled so a disabled control "
+                            "reads as disabled instead of lightening toward Qt's own grey. "
+                            "There is no hover or pressed state here, because a glyph is "
+                            "decoration rather than a widget that tracks the pointer — those "
+                            "belong to what is interactive around it, on IconButton's own "
+                            "page."));
         column->addWidget(card);
     }
 
@@ -190,8 +308,10 @@ ComponentSpec iconComponent()
     spec.name = QStringLiteral("Icon");
     spec.category = Category::Foundation;
     spec.description = QStringLiteral(
-        "The Novu icon set: stroke outlines taken from the approved design, painted rather "
-        "than instantiated. No icon font, no QtSvg, no widget per glyph.");
+        "The symbolic language as a whole, not just the glyph outlines: static glyphs, "
+        "StatusDot's still and breathing tones, and Spinner's loading marks, at the sizes "
+        "and inks that cut across all three. Every widget shown is the real production "
+        "component — StatusDot and Spinner keep their own detailed pages for their full API.");
     spec.headerPath = QStringLiteral("include/novu/ui/Icon.h");
     spec.sourcePath = QStringLiteral("src/Icon.cpp");
     spec.designedFor = {QStringLiteral("novuspace")};
@@ -199,7 +319,11 @@ ComponentSpec iconComponent()
     spec.variants = {QStringLiteral("Small"), QStringLiteral("Medium"), QStringLiteral("Large")};
     spec.states = {QStringLiteral("Normal"), QStringLiteral("Disabled")};
     spec.keywords = {QStringLiteral("glyph"), QStringLiteral("svg"), QStringLiteral("stroke"),
-                     QStringLiteral("symbol"), QStringLiteral("pictogram")};
+                     QStringLiteral("symbol"), QStringLiteral("pictogram"),
+                     QStringLiteral("status"), QStringLiteral("indicator"),
+                     QStringLiteral("spinner"), QStringLiteral("loading"),
+                     QStringLiteral("pulse"), QStringLiteral("glow"),
+                     QStringLiteral("animated")};
     spec.properties = {
         {QStringLiteral("glyph"), QStringLiteral("enum"), {}, QStringLiteral("None"),
          QStringLiteral("Which outline. Named, so it follows the theme.")},
