@@ -18,8 +18,9 @@ namespace novu::ui {
 
 namespace {
 
-// `.statusbar { height:32px; gap:10px; padding:0 16px }`.
-constexpr int kHeight = 32;
+// `.statusbar { gap:10px; padding:0 16px }`. The height is a profile token -
+// the design states 32 for NovuSpace, 26 for NovuAI and 24 for NovuExplorer,
+// and a constant here meant the other two could not have theirs.
 constexpr int kGap = 10;
 constexpr int kPaddingH = 16;
 
@@ -84,7 +85,7 @@ StatusBar::StatusBar(QWidget* parent)
     : QWidget(parent)
 {
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    setFixedHeight(kHeight);
+    setFixedHeight(themeFor(this).window.statusBarHeight);
 }
 
 int StatusBar::addText(const QString& text, Slot slot)
@@ -320,12 +321,12 @@ QSize StatusBar::sizeHint() const
     if (m_leading) {
         width += kGap + m_leading->sizeHint().width();
     }
-    return QSize(width, kHeight);
+    return QSize(width, themeFor(this).window.statusBarHeight);
 }
 
 QSize StatusBar::minimumSizeHint() const
 {
-    return QSize(120, kHeight);
+    return QSize(120, themeFor(this).window.statusBarHeight);
 }
 
 void StatusBar::resizeEvent(QResizeEvent* event)

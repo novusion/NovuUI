@@ -24,7 +24,9 @@ namespace {
 constexpr int kRowGap = 6;
 constexpr int kRowPaddingLeft = 4;
 constexpr int kRowPaddingRight = 6;
-constexpr int kIndentStep = 16;
+// kIndentStep is gone: the step is profile.controls.treeStep, read at paint
+// and layout time. A constant here was a fourth tree step in a codebase whose
+// design had just finished collapsing three.
 
 // `.trow .cv { 14px }`, `.trow .ico { 14px }`, `.trow .tmarks svg { 12px }`.
 constexpr int kChevron = 14;
@@ -465,6 +467,13 @@ QRect TreeView::rowRect(int row) const
     return QRect(0, (row - firstVisibleRow()) * height, viewport()->width(), height);
 }
 
+// One nesting step, from the profile. Three call sites wanted it and only one
+// of them had a ThemeProfile already in hand.
+int TreeView::indentStep() const
+{
+    return themeFor(this).controls.treeStep;
+}
+
 QRect TreeView::chevronRect(int row) const
 {
     if (row < 0 || row >= m_rows.size()) {
@@ -475,7 +484,7 @@ QRect TreeView::chevronRect(int row) const
         return QRect();
     }
     const QRect box = rowRect(row);
-    const int left = kRowPaddingLeft + entry->depth * kIndentStep;
+    const int left = kRowPaddingLeft + entry->depth * indentStep();
     return QRect(left, box.top() + (box.height() - kChevron) / 2, kChevron, kChevron);
 }
 
@@ -740,7 +749,7 @@ void TreeView::paintEvent(QPaintEvent*)
         // plate so a selected row's tint sits over it rather than under it.
         painter.setPen(QPen(profile.colors.borderSubtle, 1));
         for (int level = 1; level <= entry->depth; ++level) {
-            const int x = kRowPaddingLeft + (level - 1) * kIndentStep + kGuideInset;
+            const int x = kRowPaddingLeft + (level - 1) * indentStep() + kGuideInset;
             painter.drawLine(x, box.top(), x, box.bottom());
         }
 
@@ -784,7 +793,7 @@ void TreeView::paintEvent(QPaintEvent*)
             ink = withAlpha(ink, kDisabledOpacity);
         }
 
-        int x = kRowPaddingLeft + entry->depth * kIndentStep;
+        int x = kRowPaddingLeft + entry->depth * indentStep();
 
         // The chevron, or the space it would take. A node with no children
         // still reserves it, or names at the same depth stagger by 14px

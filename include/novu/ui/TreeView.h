@@ -153,6 +153,7 @@ protected:
     bool event(QEvent* event) override;
 
 private:
+    int indentStep() const;
     struct Node
     {
         QString id;
