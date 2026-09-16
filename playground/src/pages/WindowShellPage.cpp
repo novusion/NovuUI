@@ -59,10 +59,23 @@ QWidget* barWithActions(QWidget* parent, const QString& title)
     bar->setMaximizable(true);
     bar->setWindowActive(true);
 
+    // `.winbtn{width:30px;height:24px}` in the approved design - the same box
+    // WindowControlButton already draws Minimize/Maximize/Close at, and every
+    // one of these three shares that CSS class with them. IconButton does not
+    // know this on its own: it is deliberately square, sized from the
+    // profile's own ControlSize scale, because that is right everywhere else
+    // it is used - a toolbar, a panel header. Only in a title bar's trailing
+    // row does it have to match a neighbour it was not designed next to, so
+    // the caller pins it to that neighbour's box rather than TitleBar
+    // reaching into a widget it does not own to resize it.
+    const WindowTokens& chromeTokens = themeFor(bar).window;
+    const QSize winbtnBox(chromeTokens.controlWidth, chromeTokens.controlHeight);
+
     // Ghost, not Outlined: chrome furniture takes no plate until the pointer
     // arrives, so the bar reads as one surface rather than a toolbar dropped
     // onto it. This is IconButton's own stated reason for the variant.
     auto* theme = new IconButton(Glyph::Sun, IconButton::Variant::Ghost, bar);
+    theme->setFixedSize(winbtnBox);
     theme->setToolTip(QStringLiteral("Toggle theme"));
     theme->setCheckable(true);
     QObject::connect(theme, &IconButton::toggled, theme, [theme](bool on) {
@@ -70,14 +83,20 @@ QWidget* barWithActions(QWidget* parent, const QString& title)
     });
 
     auto* menu = new IconButton(Glyph::More, IconButton::Variant::Ghost, bar);
+    menu->setFixedSize(winbtnBox);
     menu->setToolTip(QStringLiteral("Application menu"));
 
     auto* sidebar = new IconButton(Glyph::Sidebar, IconButton::Variant::Ghost, bar);
+    sidebar->setFixedSize(winbtnBox);
     sidebar->setToolTip(QStringLiteral("Show or hide the sidebar"));
     sidebar->setCheckable(true);
     sidebar->setChecked(true);
 
+    // `.tdiv{height:18px}` - shorter than the bar, same as the design. A
+    // length rather than a bare Separator(), so it is 18px on purpose and not
+    // however tall the row happened to stretch it.
     auto* divider = new Separator(Qt::Vertical, bar);
+    divider->setLength(18);
 
     bar->setTrailing({theme, menu, sidebar, divider});
     return bar;
