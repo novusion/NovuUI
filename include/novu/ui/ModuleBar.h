@@ -74,6 +74,12 @@ public:
     StyleSpec moduleStyleSpec(int index) const;
     ResolvedStyle resolvedStyle() const;
 
+    // What paintEvent actually draws for this module's label - elided if the
+    // module's own box turned out not to have room for it. Exposed so a
+    // caller (a test, in particular) can ask "does this module still say its
+    // whole name" without comparing pixels.
+    QString displayedLabel(int index) const;
+
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
 
@@ -94,6 +100,11 @@ protected:
     int stripItemHeight() const override;
 
 private:
+    // The box displayedLabel() elides against and paintEvent() draws the
+    // result into - one computation, asked twice, rather than two
+    // computations that are supposed to agree.
+    QRect labelTextBox(int index) const;
+
     struct Module
     {
         QString key;

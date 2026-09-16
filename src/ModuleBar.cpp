@@ -282,6 +282,46 @@ bool ModuleBar::event(QEvent* event)
     return ItemStrip::event(event);
 }
 
+QRect ModuleBar::labelTextBox(int index) const
+{
+    if (index < 0 || index >= m_modules.size()) {
+        return QRect();
+    }
+    const Module& module = m_modules.at(index);
+    const QRect box = itemRect(index);
+
+    int left = box.x() + kPaddingH;
+    if (module.glyph != Glyph::None) {
+        left += kGlyphSide + kGap;
+    }
+
+    // The exclusive right edge. box.right() on a QRect is INCLUSIVE
+    // (x + width - 1) and using it here reserved one pixel less than
+    // stripItemWidth() promised this module - enough, with a narrow module
+    // button and a relatively wide ellipsis glyph, to force most of the
+    // label out rather than the one character a one-pixel shortfall should
+    // cost.
+    int rightEdge = box.x() + box.width() - kPaddingH;
+    if (module.count >= 0) {
+        const QFontMetrics countMetrics(countFont(this));
+        const int pillWidth = countMetrics.horizontalAdvance(QString::number(module.count))
+            + 2 * kCountPaddingH;
+        rightEdge -= pillWidth + kGap;
+    }
+
+    return QRect(left, box.top(), qMax(0, rightEdge - left), box.height());
+}
+
+QString ModuleBar::displayedLabel(int index) const
+{
+    if (index < 0 || index >= m_modules.size()) {
+        return QString();
+    }
+    const Module& module = m_modules.at(index);
+    const QFontMetrics fm(moduleFont(this, index == currentIndex()));
+    return fm.elidedText(module.label, Qt::ElideRight, labelTextBox(index).width());
+}
+
 void ModuleBar::paintEvent(QPaintEvent*)
 {
     const ThemeProfile& profile = themeFor(this);
@@ -320,20 +360,18 @@ void ModuleBar::paintEvent(QPaintEvent*)
             const QRectF glyphBox(left, box.center().y() - kGlyphSide / 2.0,
                                   kGlyphSide, kGlyphSide);
             paintGlyph(&painter, module.glyph, glyphBox, ink);
-            left = static_cast<int>(glyphBox.right()) + kGap;
         }
 
         if (m_compact) {
             continue;
         }
 
-        int rightEdge = box.right() - kPaddingH;
         if (module.count >= 0) {
             const QString text = QString::number(module.count);
             const int pillWidth = countMetrics.horizontalAdvance(text) + 2 * kCountPaddingH;
             const int pillHeight = countMetrics.height() + 1;
-            const QRectF pill(rightEdge - pillWidth, box.center().y() - pillHeight / 2.0,
-                              pillWidth, pillHeight);
+            const QRectF pill(box.x() + box.width() - kPaddingH - pillWidth,
+                              box.center().y() - pillHeight / 2.0, pillWidth, pillHeight);
 
             QColor pillInk = profile.colors.textDisabled;
             QColor pillBorder = profile.colors.border;
@@ -354,16 +392,12 @@ void ModuleBar::paintEvent(QPaintEvent*)
             painter.setFont(counts);
             painter.setPen(pillInk);
             painter.drawText(pill, Qt::AlignCenter, text);
-            rightEdge = static_cast<int>(pill.left()) - kGap;
         }
 
-        const QFont font = moduleFont(this, current);
-        const QFontMetrics fm(font);
-        painter.setFont(font);
+        painter.setFont(moduleFont(this, current));
         painter.setPen(ink);
-        const QRect textBox(left, box.top(), qMax(0, rightEdge - left), box.height());
-        painter.drawText(textBox, Qt::AlignVCenter | Qt::AlignLeft,
-                         fm.elidedText(module.label, Qt::ElideRight, textBox.width()));
+        painter.drawText(labelTextBox(i), Qt::AlignVCenter | Qt::AlignLeft,
+                         displayedLabel(i));
     }
 
     if (hasFocus() && currentIndex() >= 0) {
