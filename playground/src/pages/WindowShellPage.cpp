@@ -5,7 +5,9 @@
 #include "novu/ui/Button.h"
 #include "novu/ui/Card.h"
 #include "novu/ui/Form.h"
+#include "novu/ui/IconButton.h"
 #include "novu/ui/Layout.h"
+#include "novu/ui/Separator.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
 #include "novu/ui/ThemeScope.h"
@@ -40,6 +42,44 @@ QWidget* barSample(QWidget* parent, const QString& title, bool minimizable,
     bar->setMinimizable(minimizable);
     bar->setMaximizable(maximizable);
     bar->setWindowActive(active);
+    return bar;
+}
+
+// The design's own trailing row - `btnTheme`, `btnMenu`, `btnSidebar`, then
+// `.tdiv` - built the way an application actually builds it: three IconButton
+// Ghost actions and a vertical Separator, handed to setTrailing() rather than
+// baked into TitleBar itself. The bar owns three controls and a drag gesture;
+// which actions sit in front of them is an application decision, the same
+// place NavList's setSectionAction() or Sidebar's own leading widget put it.
+QWidget* barWithActions(QWidget* parent, const QString& title)
+{
+    auto* bar = new TitleBar(parent);
+    bar->setTitle(title);
+    bar->setMinimizable(true);
+    bar->setMaximizable(true);
+    bar->setWindowActive(true);
+
+    // Ghost, not Outlined: chrome furniture takes no plate until the pointer
+    // arrives, so the bar reads as one surface rather than a toolbar dropped
+    // onto it. This is IconButton's own stated reason for the variant.
+    auto* theme = new IconButton(Glyph::Sun, IconButton::Variant::Ghost, bar);
+    theme->setToolTip(QStringLiteral("Toggle theme"));
+    theme->setCheckable(true);
+    QObject::connect(theme, &IconButton::toggled, theme, [theme](bool on) {
+        theme->setGlyph(on ? Glyph::Moon : Glyph::Sun);
+    });
+
+    auto* menu = new IconButton(Glyph::More, IconButton::Variant::Ghost, bar);
+    menu->setToolTip(QStringLiteral("Application menu"));
+
+    auto* sidebar = new IconButton(Glyph::Sidebar, IconButton::Variant::Ghost, bar);
+    sidebar->setToolTip(QStringLiteral("Show or hide the sidebar"));
+    sidebar->setCheckable(true);
+    sidebar->setChecked(true);
+
+    auto* divider = new Separator(Qt::Vertical, bar);
+
+    bar->setTrailing({theme, menu, sidebar, divider});
     return bar;
 }
 
@@ -203,6 +243,25 @@ QWidget* build(const PreviewContext& ctx)
         column->addWidget(card);
     }
 
+    // -- title bar actions ---------------------------------------------------
+    {
+        Card* card = exampleCard(page, QStringLiteral("Title bar actions"),
+                                 QStringLiteral("What sits in front of the three controls is "
+                                                "an application decision - setTrailing(), not "
+                                                "a fourth control TitleBar invents."));
+        QVBoxLayout* body = card->body();
+        body->addWidget(barWithActions(card, QStringLiteral("NovuSpace")));
+        note(body, card,
+             QStringLiteral("The approved design's own trailing row: theme toggle, application "
+                            "menu, sidebar toggle, then a divider before Minimize. Each is a "
+                            "plain IconButton in Ghost variant - the same component a toolbar "
+                            "or a panel header reaches for - handed to setTrailing() rather "
+                            "than owned by TitleBar. Try the theme and sidebar buttons: both "
+                            "are ordinary checkable IconButtons, going to the accent on check "
+                            "the same way an active module or a selected row does."));
+        column->addWidget(card);
+    }
+
     // -- capabilities ------------------------------------------------------
     {
         Card* card = exampleCard(page, QStringLiteral("Capabilities"),
@@ -344,7 +403,10 @@ ComponentSpec windowShellComponent()
                      QStringLiteral("chrome"), QStringLiteral("frame"),
                      QStringLiteral("dialog"), QStringLiteral("popup"),
                      QStringLiteral("minimize"), QStringLiteral("maximize"),
-                     QStringLiteral("close"), QStringLiteral("frameless")};
+                     QStringLiteral("close"), QStringLiteral("frameless"),
+                     QStringLiteral("actions"), QStringLiteral("trailing"),
+                     QStringLiteral("leading"), QStringLiteral("sidebar toggle"),
+                     QStringLiteral("theme toggle"), QStringLiteral("menu")};
     spec.properties = {
         {QStringLiteral("title"), QStringLiteral("QString"), {}, QString(),
          QStringLiteral("Caption and the OS window title together. Elides; never widens the "
