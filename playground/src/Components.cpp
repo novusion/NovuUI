@@ -16,6 +16,7 @@ void registerBuiltinComponents(ComponentRegistry& registry)
         // Foundation
         &pages::typographyComponent,
         &pages::motionComponent,
+        &pages::dropTargetComponent,
         &pages::iconComponent,
         &pages::separatorComponent,
         &pages::themeStylingComponent,

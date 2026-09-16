@@ -16,6 +16,7 @@ namespace novu::playground::pages {
 // Foundation
 ComponentSpec typographyComponent();
 ComponentSpec motionComponent();
+ComponentSpec dropTargetComponent();
 ComponentSpec iconComponent();
 ComponentSpec separatorComponent();
 ComponentSpec settingsShellComponent();

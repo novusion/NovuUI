@@ -41,6 +41,7 @@ add_library(NovuUI STATIC
     include/novu/ui/StyleSheet.h
     include/novu/ui/Text.h
     include/novu/ui/FlowLayout.h
+    include/novu/ui/DropTarget.h
     include/novu/ui/Swatch.h
     include/novu/ui/TabBar.h
     include/novu/ui/TabStrip.h
@@ -105,6 +106,7 @@ add_library(NovuUI STATIC
     src/StyleSheet.cpp
     src/Text.cpp
     src/FlowLayout.cpp
+    src/DropTarget.cpp
     src/Swatch.cpp
     src/TabBar.cpp
     src/TabStrip.cpp

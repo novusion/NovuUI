@@ -44,6 +44,7 @@ add_library(NovuUIPlaygroundLib STATIC
     src/pages/KeysPage.cpp
     src/pages/LoadingPage.cpp
     src/pages/LogViewPage.cpp
+    src/pages/DropTargetPage.cpp
     src/pages/MotionPage.cpp
     src/pages/OverlayPage.cpp
     src/pages/PopoverPage.cpp

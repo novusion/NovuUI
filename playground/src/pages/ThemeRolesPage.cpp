@@ -6,11 +6,13 @@
 #include "novu/ui/Badge.h"
 #include "novu/ui/Button.h"
 #include "novu/ui/Card.h"
+#include "novu/ui/DropTarget.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
 #include "novu/ui/ThemeScope.h"
 
 #include <QGridLayout>
+#include <QPainter>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QVBoxLayout>
@@ -48,6 +50,37 @@ void colourRow(QGridLayout* grid, int row, QWidget* parent, const QString& name,
     grid->addWidget(swatch(parent, colour), row, 1);
     grid->addWidget(label(colour.name().toUpper(), parent, TypeRole::Mono, Ink::Muted), row, 2);
 }
+
+// A fixed strip standing in for one tree row / one panel, painted through the
+// same two functions a real drop handler calls. Not a mock of the contract -
+// the contract.
+class DropPreview : public QWidget
+{
+public:
+    DropPreview(DropZone zone, QWidget* parent)
+        : QWidget(parent)
+        , m_zone(zone)
+    {
+        setFixedHeight(m_zone == DropZone::Row ? 30 : 64);
+        setMinimumWidth(220);
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override
+    {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        const QRect area = rect().adjusted(0, 0, -1, -1);
+        if (m_zone == DropZone::Row) {
+            paintDropRow(&painter, area, this);
+        } else {
+            paintDropRegion(&painter, area, this);
+        }
+    }
+
+private:
+    DropZone m_zone;
+};
 
 struct SurfaceRow
 {
@@ -124,10 +157,12 @@ QWidget* build(const PreviewContext& ctx)
     // Switch the profile above it and the four status rows must not move.
     {
         const SemanticHues& shared = sharedSemanticHues();
-        const bool overridden = profile.colors.success != shared.success
-                             || profile.colors.warning != shared.warning
-                             || profile.colors.danger != shared.danger
-                             || profile.colors.info != shared.info;
+        // `.ink` on each: a shared hue is an ink and a plate now, and the
+        // question this asks is whether the profile rewrote the ink.
+        const bool overridden = profile.colors.success != shared.success.ink
+                             || profile.colors.warning != shared.warning.ink
+                             || profile.colors.danger != shared.danger.ink
+                             || profile.colors.info != shared.info.ink;
 
         Card* card = exampleCard(page, QStringLiteral("Semantic palette"),
                                  QStringLiteral("Status is shared across every Novusion "
@@ -331,6 +366,125 @@ QWidget* build(const PreviewContext& ctx)
                  .arg(profile.icons.small)
                  .arg(profile.icons.medium)
                  .arg(profile.icons.large));
+        column->addWidget(card);
+    }
+
+    // ── ink and plate ────────────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Status ink and plate"),
+                                 QStringLiteral("Two colours per status, stated separately by "
+                                                "the approved design — never one derived from "
+                                                "the other."));
+        QVBoxLayout* body = card->body();
+        auto* grid = new QGridLayout();
+        grid->setHorizontalSpacing(profile.space(SpacingRole::ToolbarGap));
+        grid->setVerticalSpacing(4);
+        grid->addWidget(label(QStringLiteral("role"), card, TypeRole::Caption, Ink::Muted), 0, 0);
+        grid->addWidget(label(QStringLiteral("ink"), card, TypeRole::Caption, Ink::Muted), 0, 1);
+        grid->addWidget(label(QStringLiteral("plate"), card, TypeRole::Caption, Ink::Muted), 0, 3);
+        const struct { const char* name; SemanticRole role; QColor plate; } rows[] = {
+            {"success", SemanticRole::Success, c.successPlate},
+            {"warning", SemanticRole::Warning, c.warningPlate},
+            {"danger", SemanticRole::Danger, c.dangerPlate},
+            {"info", SemanticRole::Info, c.infoPlate},
+        };
+        int r = 1;
+        for (const auto& entry : rows) {
+            const SemanticColor& sc = profile.semantic.role(entry.role);
+            grid->addWidget(label(QString::fromLatin1(entry.name), card, TypeRole::Body), r, 0);
+            grid->addWidget(swatch(card, sc.text), r, 1);
+            grid->addWidget(label(sc.text.name().toUpper(), card, TypeRole::Mono, Ink::Muted), r, 2);
+            grid->addWidget(swatch(card, entry.plate), r, 3);
+            grid->addWidget(label(entry.plate.name().toUpper(), card, TypeRole::Mono, Ink::Muted), r, 4);
+            ++r;
+        }
+        grid->setColumnStretch(4, 1);
+        body->addLayout(grid);
+        note(body, card,
+             QStringLiteral("A Badge reads the ink for its text and mixes its plate from the "
+                            "plate colour at the role's own alpha — %1's success plate is "
+                            "%2, not a lightened %3.")
+                 .arg(profile.id, c.successPlate.name(), c.success.name()));
+        column->addWidget(card);
+    }
+
+    // ── the family palette ───────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Family palette"),
+                                 QStringLiteral("Ten named hues, the same value in every "
+                                                "product. Shared colour, not shared meaning — "
+                                                "purple is agents in NovuAI and a product mark "
+                                                "in NovuSpace."));
+        QVBoxLayout* body = card->body();
+        auto* grid = new QGridLayout();
+        grid->setHorizontalSpacing(profile.space(SpacingRole::ToolbarGap));
+        grid->setVerticalSpacing(6);
+        int i = 0;
+        for (const FamilyHue& hue : familyHues()) {
+            const int col = i % 5;
+            const int row = i / 5;
+            auto* cell = new QVBoxLayout();
+            cell->setSpacing(2);
+            cell->addWidget(swatch(card, hue.color));
+            cell->addWidget(label(hue.name, card, TypeRole::Caption, Ink::Muted));
+            grid->addLayout(cell, row, col);
+            ++i;
+        }
+        body->addLayout(grid);
+        note(body, card, QStringLiteral("Swatch's tagPalette() offers exactly this set — a tag "
+                                        "is a label a person picks, never the colour that means "
+                                        "a status failed."));
+        column->addWidget(card);
+    }
+
+    // ── drop target ──────────────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Drop target"),
+                                 QStringLiteral("Two outcomes, two weights, never both at once "
+                                                "— \"a row lights when the folder will be bound "
+                                                "to that workspace, the region lights when it "
+                                                "will make a new one.\""));
+        QVBoxLayout* body = card->body();
+        auto* row = exampleRow(body, card, QStringLiteral("Row target — one exact destination"));
+        row->addWidget(new DropPreview(DropZone::Row, card));
+        auto* row2 = exampleRow(body, card, QStringLiteral("Region target — anywhere in here"));
+        row2->addWidget(new DropPreview(DropZone::Region, card));
+        note(body, card,
+             QStringLiteral("Both painted from dropRowSpec() / dropRegionSpec() — the tokens "
+                            "a real drop handler resolves, not a copy of them."));
+        column->addWidget(card);
+    }
+
+    // ── chrome and density ───────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Chrome and density"),
+                                 QStringLiteral("Stated per product, not shared — the "
+                                                "authoritative mockups disagree on all four."));
+        QVBoxLayout* body = card->body();
+        auto* grid = new QGridLayout();
+        grid->setHorizontalSpacing(profile.space(SpacingRole::ToolbarGap));
+        grid->setVerticalSpacing(4);
+        int r = 0;
+        const struct { const char* name; int value; } metrics[] = {
+            {"window.titleBarHeight", profile.window.titleBarHeight},
+            {"window.statusBarHeight", profile.window.statusBarHeight},
+            {"controls.rowHeight", profile.controls.rowHeight},
+            {"controls.navRowHeight", profile.controls.navRowHeight},
+            {"controls.treeStep", profile.controls.treeStep},
+        };
+        for (const auto& m : metrics) {
+            grid->addWidget(label(QString::fromLatin1(m.name), card, TypeRole::Mono, Ink::Muted), r, 0);
+            grid->addWidget(label(QString::number(m.value) + QStringLiteral("px"), card,
+                                  TypeRole::Body), r, 1);
+            ++r;
+        }
+        grid->setColumnStretch(1, 1);
+        body->addLayout(grid);
+        note(body, card,
+             QStringLiteral("Switch profile: NovuAI reads 26 / 26 / 26, NovuExplorer 24 / 24, "
+                            "NovuSpace's title bar reads 44 like the other three even though "
+                            "its own mockup states 42 — recorded as unreconciled in "
+                            "docs/DESIGN_CONTRACT.md §4, not silently kept or dropped."));
         column->addWidget(card);
     }
 
