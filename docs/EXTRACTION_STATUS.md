@@ -133,11 +133,11 @@ classes — `Feedback.h` holds seven — is credited to an application that
 includes the header and names any one of them. The measurement errs towards
 over-reporting within a header, never across one.
 
-**Five product accents are unresolved.** `novuai`, `novuexplorer`, `novuadmin`,
-`novuhub` and `novuvoice` wear the family cyan because no approved product
-accent was found for them. The architecture supports one per product and
-settling one is a single argument in `AppProfiles.cpp` —
-[THEMING §4](THEMING.md#4-application-accents).
+**One product accent is unresolved.** `novuai`, `novuexplorer`, `novuadmin` and
+`novuhub` each have an approved accent now, read from their own mockup's
+tokens rather than guessed — [DESIGN_CONTRACT §2](DESIGN_CONTRACT.md#2-product-theme-profile--stated-per-product).
+Only `novuvoice` wears the family cyan, because it is the one product with no
+approved mockup to read a value from.
 
 **`NovusionUI` is still a second shared library.** Fifteen components exist
 twice, and NovuHub and NovuExplorer link the other one.

@@ -218,9 +218,9 @@ integration starts.
 
 The area-by-area mapping is prepared: [NOVUAI_UI_PORT](ports/NOVUAI_UI_PORT.md).
 
-NovuAI's accent is **unresolved** — it will wear the family cyan until a product
-accent is approved. That is a one-line change when it is, and no screen code
-changes with it.
+NovuAI's accent is **`#4DA3FF`**, stated in the mockup's own token sheet —
+`NovuAI/mockups/assets/css/00-tokens.css`, `--acc`. Not a guess and not the
+family stand-in.
 
 ---
 

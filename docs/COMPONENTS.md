@@ -17,8 +17,8 @@ deliberately missing.
 
 | | |
 |---|---|
-| components | 66 |
-| Foundation | 13 |
+| components | 67 |
+| Foundation | 14 |
 | Input | 13 |
 | Navigation | 16 |
 | Data display | 12 |
@@ -47,6 +47,29 @@ The rule every component that draws a selection follows: a panel that is not the
 | property | type | notes |
 |---|---|---|
 | `novuActivePanel` | `bool` | Set on the panel. Unset means always active, which is what a dialog wants. |
+
+### Drop target
+
+The drag-and-drop highlight contract every tree and list shares: a row target for one exact destination, a region target for "anywhere in here", and the state machine that keeps the two from lighting at once.
+
+```cpp
+#include "novu/ui/DropTarget.h"
+```
+
+| | |
+|---|---|
+| Variants | `Row`, `Region` |
+| States | `None`, `Row`, `Region` |
+| API | `zone`, `row` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuai, novuexplorer |
+| Playground | `run.bat drop-target` |
+| Source | `src/DropTarget.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `zone` | `DropZone` | None, Row or Region. Never more than one at once. |
+| `row` | `int` | The lit row, or -1 whenever the zone is not Row. |
 
 ### FloatingPanel
 

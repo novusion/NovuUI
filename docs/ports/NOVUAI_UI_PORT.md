@@ -40,11 +40,12 @@ applyStyleSheet(mainWindow, QStringLiteral("novuai"));
 ```
 
 Surfaces, text and status come from the shared palette. The accent is
-**unresolved** — the approved mockups draw NovuAI in a cyan/teal of the same
-family as the shared palette's `#2FC6D8`, but no hex is stated anywhere in the
-material, so the profile keeps the family accent rather than a value read off a
-screenshot. Settling it is one line in `AppProfiles.cpp` and changes no screen
-code. See [THEMING §4](../THEMING.md#4-application-accents).
+**`#4DA3FF`**, stated in the mockup's own tokens rather than read off a
+screenshot — `assets/css/00-tokens.css`: `--acc:#4DA3FF; --acc-l:#7DBEFF;
+--acc-d:#2B7FD4; --ink-on-accent:#0C151F`. This was recorded unresolved once,
+for the wrong reason: the earlier search was for a hex in the PNG screens, and
+the value was in the CSS the whole time. See
+[THEMING §4](../THEMING.md#4-application-accents).
 
 ---
 

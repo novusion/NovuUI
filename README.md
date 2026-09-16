@@ -6,7 +6,7 @@ A control exists here once, or it does not exist. Nothing in this library knows
 which application is consuming it: there is one `Button`, and NovuSpace's amber
 and NovuAI's cyan are two `ThemeProfile`s rather than two classes.
 
-**Status: feature extraction is frozen.** 66 components, 157 tests, clean build.
+**Status: feature extraction is frozen.** 67 components, 164 tests, clean build.
 The library is ready; the applications have not migrated onto it yet. Those are
 two different statements and this repository keeps them apart —
 [EXTRACTION_STATUS](docs/EXTRACTION_STATUS.md) has the numbers.
@@ -14,6 +14,7 @@ two different statements and this repository keeps them apart —
 | | |
 |---|---|
 | [docs/COMPONENTS.md](docs/COMPONENTS.md) | every component, generated from the gallery |
+| [docs/DESIGN_CONTRACT.md](docs/DESIGN_CONTRACT.md) | every token, sourced against the four authoritative mockups |
 | [docs/THEMING.md](docs/THEMING.md) | how a component gets its colours |
 | [docs/PORTING_GUIDE.md](docs/PORTING_GUIDE.md) | building an application on this |
 | [docs/EXTRACTION_STATUS.md](docs/EXTRACTION_STATUS.md) | coverage, deferrals, known limitations |

@@ -117,66 +117,99 @@ profile.space(SpacingRole::CardGap);   // 14 here, 16 there
 profile.text(TypeRole::CardTitle);     // {14, 600} here, {13, 700} there
 ```
 
-### Status is derived, not listed
+### Status is two colours per role, derived from both
 
-A profile states four hues. `semanticColorFrom()` turns each into the five
-values a component actually needs — text, fill, border, hover, pressed — so a
-Danger badge and a Danger button cannot drift apart:
+A profile states four **pairs** — `success`/`successPlate`,
+`warning`/`warningPlate`, and so on. The approved design states them as two
+different values because that is what it draws:
+
+```css
+.badge.ok { color:#6ADB9E; background:rgba(60,203,127,.10); border-color:rgba(60,203,127,.40); }
+```
+
+The word is written in a light ink; the plate behind it is mixed from a
+deeper hue, and neither is derivable from the other — a badge plated by
+lightening its own ink comes out one step too pale, which is what this
+library did before the ink/plate split. `semanticColorFrom()` turns the pair
+into the five values a component actually needs, at the role's own alphas:
 
 ```cpp
 SemanticColor c;
-c.text    = hue;
-c.fill    = withAlpha(hue, 0.16);
-c.border  = withAlpha(hue, 0.40);
-c.hover   = withAlpha(hue, 0.24);
-c.pressed = withAlpha(hue, 0.32);
+c.text    = ink;
+c.fill    = withAlpha(plate, fillAlpha);    // .10 for Success, .12 for Danger
+c.border  = withAlpha(plate, borderAlpha);  // .40 for Success, .45 for Danger
+c.hover   = withAlpha(plate, fillAlpha * 2.0);
+c.pressed = withAlpha(plate, fillAlpha * 2.8);
 ```
+
+The alphas are not uniform across roles — Danger sits heavier than Success on
+purpose, because a pink plate at .10 disappears where a green one reads. See
+[DESIGN_CONTRACT §1](DESIGN_CONTRACT.md#1-shared-contract--identical-in-every-authority)
+for the full per-role table and its sourcing.
+
+### Family hues are palette, not meaning
+
+`familyHues()` is a separate, ten-colour set — Rose, Amber, Lime, Green, Teal,
+Cyan, Blue, Indigo, Purple, Slate — stated once at the values NovuExplorer's
+own colour picker uses. They are **not** `SemanticRole`s: the same hue means
+different things in different products (purple is *agents* in NovuAI and
+NovuSpace's own product-identity mark), so promoting one to a shared role
+would write one product's vocabulary into every other. A product assigns the
+meaning; the library only promises the hue itself does not drift.
+`Swatch::tagPalette()` is this set — a tag is a label a person picks, and must
+never coincide with the ink that means a status failed.
 
 ---
 
 ## 4. Application accents
 
-The approved shared palette — `design/Shared/design-system/Novu_Palette.png` —
-fixes the surfaces, the text ramp and the four status colours **for the whole
-family**. A product is identified by exactly one colour on top of them: its
-accent.
+Each product states its own accent in its own approved mockup — there is no
+family accent to fall back to. `novusionBaseProfile()`'s cyan is a stand-in
+palette for a product that has not been designed yet, not a default any
+product is meant to keep.
 
-`novusionBaseProfile()` is that palette. Every application profile is built
-from it by `applicationProfile()`, which takes an optional accent:
+`novusionBaseProfile()` supplies the shared surfaces and status hues. Every
+application profile is built from it by `applicationProfile()`, which takes
+the accent its own mockup states:
 
 ```cpp
 ThemeProfile novuSpaceProfile();   // amber #D49335 — approved, frozen
-ThemeProfile novuAiProfile();      // family accent — UNRESOLVED
+ThemeProfile novuAiProfile();      // blue #4DA3FF — approved, frozen
 ```
 
 ### What is settled, and what is not
 
+Full sourcing for each: [DESIGN_CONTRACT §2](DESIGN_CONTRACT.md#2-product-theme-profile--stated-per-product).
+
 | profile | accent | authority |
 |---|---|---|
-| `novusion` (baseline) | `#2FC6D8` | `Novu_Palette.png` — ACCENT & BRAND |
+| `novusion` (baseline / stand-in) | `#2FC6D8` | `Novu_Palette.png` — no product claims this value |
 | `novuspace` | `#D49335` | the approved NovuSpace mockup, *"chosen in the preset evaluation and frozen"* |
+| `novuai` | `#4DA3FF` | `NovuAI/mockups/assets/css/00-tokens.css` — `--acc` |
+| `novuexplorer` | `#58B09E` | `NovuExplorer-brand-mockup-v2.html` — `--acc` |
+| `novuadmin` | `#3CCB7F` | `NovuAdmin-brand-mockup.html` — `--acc` |
+| `novuhub` | `#3CCB7F` | `NovuHub-brand-mockup.html` — `--acc` |
 | `novutrade` | `#10B981` | mirrors the trading web app; a deliberate whole-palette exception |
-| `novuai` | family | **UNRESOLVED** |
-| `novuexplorer` | family | **UNRESOLVED** |
-| `novuadmin` | family | **UNRESOLVED** |
-| `novuhub` | family | **UNRESOLVED** |
-| `novuvoice` | family | **UNRESOLVED** |
+| `novuvoice` | family (stand-in) | **UNRESOLVED** — the only product with no approved mockup |
 
-**Unresolved means unresolved.** Those five keep the family cyan because no
-approved product accent was found for them, and a colour that looks plausible
-is not an approval. Two near-misses, both rejected on purpose:
+These five were recorded UNRESOLVED for one bad reason: the search was for a
+hex value in the approved PNG *screens*, and every one of them was a stated
+token in the mockup's own CSS the whole time. Two near-misses had been
+rejected on the way there, correctly:
 
-- The NovuHub prototype gives each product an **app-mark** colour (NovuAI blue,
-  NovuHub green, NovuExplorer teal). A mark colour is not a UI accent.
-- `Novu_App_Design.png` draws NovuAI's own navigation in the family cyan — but
-  it is the shared reference sheet, and everything on it is one accent.
+- The NovuHub prototype's **app-mark** colour is not its UI accent — a mark and
+  an accent are different things even when, as here, they turn out to agree.
+- `Novu_App_Design.png` draws NovuAI's navigation in the family cyan, but it is
+  the shared reference sheet and everything on it wears one accent — evidence
+  the value is plausible, not a statement that it is NovuAI's.
 
-Settling one is a one-line change:
+Settling NovuVoice's, when it has an approved mockup, is the same one-line
+change these five already went through:
 
 ```cpp
 // src/AppProfiles.cpp
-return applicationProfile(QStringLiteral("novuai"), QStringLiteral("NovuAI"),
-                          QColor("#4DA3FF"), QColor("#7CBEFF"), QColor("#0B1420"));
+return applicationProfile(QStringLiteral("novuvoice"), QStringLiteral("NovuVoice"),
+                          hex("#..."), hex("#..."), hex("#..."));
 ```
 
 `applyDerivedTokens()` then re-derives the chart series and the window chrome,
@@ -275,6 +308,7 @@ infrastructure in this repository and none is wanted.
 ## Related
 
 - [README](../README.md) — the library's rules
+- [DESIGN_CONTRACT](DESIGN_CONTRACT.md) — every token, sourced against the four authoritative mockups
 - [COMPONENTS](COMPONENTS.md) — generated catalogue
 - [PORTING_GUIDE](PORTING_GUIDE.md) — using this from an application
 - [EXTRACTION_STATUS](EXTRACTION_STATUS.md) — coverage, deferrals, limitations
