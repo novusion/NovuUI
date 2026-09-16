@@ -28,6 +28,14 @@ constexpr int kGlyphSide = 15;
 // `.modbtn .cnt { padding:0 5px }`.
 constexpr int kCountPaddingH = 5;
 
+// QFontMetrics::horizontalAdvance() rounds to a whole pixel; the internal
+// text layout elidedText() measures against can land fractionally wider for
+// the same string (kerning/shaping arithmetic done in float, not int), so a
+// label box sized to exactly the reported advance can still make
+// elidedText() decide the text does not fit. A couple of spare pixels
+// absorbs that rounding gap without being visible as extra padding.
+constexpr int kLabelSlack = 2;
+
 // `[disabled]` is not in the design's module bar, but a module that is not
 // licensed or not yet loaded has to be shown somehow. The rail's own disabled
 // opacity, so the two agree.
@@ -213,8 +221,9 @@ int ModuleBar::stripItemWidth(int index) const
         if (module.glyph != Glyph::None) {
             width += kGap;
         }
-        width += QFontMetrics(moduleFont(this, index == currentIndex()))
-                     .horizontalAdvance(module.label);
+        width += kLabelSlack
+            + QFontMetrics(moduleFont(this, index == currentIndex()))
+                  .horizontalAdvance(module.label);
         if (module.count >= 0) {
             width += kGap + 2 * kCountPaddingH
                 + QFontMetrics(countFont(this))
