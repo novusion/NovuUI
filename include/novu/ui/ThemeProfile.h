@@ -173,6 +173,16 @@ struct ControlMetrics
     // approved NovuSpace design draws `.navbtn` at 30 and its table rows at
     // 34, and NovuAI draws its module rows at 27. NavList reads this.
     int navRowHeight = 30;
+
+    // One nesting step, for every tree in the application.
+    //
+    // A token because it had already drifted: NovuAI's own sheet records that
+    // its workspace tree, Coding's files and UI Designer's structure had each
+    // grown a step of their own - 17, 20 and 13 - before `--tree-step` was
+    // introduced to collapse them. TreeView had a fourth, a hard-coded 16.
+    //
+    // 17 is the only value any authority states.
+    int treeStep = 17;
 };
 
 enum class ControlSize { Small, Medium, Large };
@@ -266,8 +276,17 @@ struct WindowTokens
     // The approved NovuSpace design's `.titlebar` and `.winbtn`. Systemic
     // rather than per profile: controlGeometryIsIdenticalAcrossProfiles() in
     // the tests is what stops a fourth application inventing a fourth size.
-    int titleBarHeight = 42;
+    // 44, which is what three of the four authoritative mockups state -
+    // NovuAI, NovuAdmin and NovuExplorer. It was 42 here, which is NovuSpace's,
+    // and NovuSpace is the outlier: see docs/DESIGN_CONTRACT.md, where the 2px
+    // is recorded as unreconciled rather than quietly kept or quietly dropped.
+    // Its own token header says it lifts chrome from the other three.
+    int titleBarHeight = 44;
     int controlWidth = 30;
+    // The status bar, which - unlike the title bar - the design does vary per
+    // product and states as such: NovuSpace 32, NovuAI 26, NovuExplorer 24.
+    // StatusBar had 32 compiled in, so the other two could not have it.
+    int statusBarHeight = 32;
     int controlHeight = 24;
 
     // Leading inset before the window icon, and the gap between icon, title

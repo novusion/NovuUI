@@ -93,10 +93,15 @@ void applyWindowTokens(ThemeProfile& p)
 // in the tests is the guard that catches it.
 void applyDerivedTokens(ThemeProfile& p)
 {
-    p.semantic.success = semanticColorFrom(p.colors.success);
-    p.semantic.warning = semanticColorFrom(p.colors.warning);
-    p.semantic.danger = semanticColorFrom(p.colors.danger);
-    p.semantic.info = semanticColorFrom(p.colors.info);
+    const SemanticHues& hues = sharedSemanticHues();
+    p.semantic.success = semanticColorFrom(p.colors.success, p.colors.successPlate,
+                                           hues.success.fillAlpha, hues.success.borderAlpha);
+    p.semantic.warning = semanticColorFrom(p.colors.warning, p.colors.warningPlate,
+                                           hues.warning.fillAlpha, hues.warning.borderAlpha);
+    p.semantic.danger = semanticColorFrom(p.colors.danger, p.colors.dangerPlate,
+                                          hues.danger.fillAlpha, hues.danger.borderAlpha);
+    p.semantic.info = semanticColorFrom(p.colors.info, p.colors.infoPlate,
+                                        hues.info.fillAlpha, hues.info.borderAlpha);
     // Neutral is the profile's own secondary ink: it is the absence of a
     // status, not a status of its own, so it has to follow the surface it sits
     // on rather than be shared.
@@ -111,12 +116,25 @@ void applyDerivedTokens(ThemeProfile& p)
 
     p.chart.grid = p.colors.border;
     p.chart.axis = p.colors.textDisabled;
-    p.chart.bullish = p.colors.success;
-    p.chart.bearish = p.colors.danger;
+    // Plates, not inks: a candle is a filled body, and the NovuSpace mockup
+    // draws its own at #3CCB7F / #E0909B rather than at the badge ink.
+    p.chart.bullish = p.colors.successPlate;
+    p.chart.bearish = p.colors.dangerPlate;
     p.chart.volume = p.colors.accentLight;
     p.chart.crosshair = p.colors.textSecondary;
-    p.chart.series = {p.colors.accent, p.colors.accentLight, p.colors.warning,
-                      p.colors.success, p.colors.danger};
+    // Stated as a general rule, not a NovuSpace one - "the first slice of any
+    // chart is the product accent; the rest are the ecosystem palette",
+    // "ecosystem colours, not status colours".
+    //
+    // This used to be {accent, accentLight, warning, success, danger}: three of
+    // five slices in the colours that mean pending, running and failed, so a
+    // pie of storage categories reported a fault it did not have.
+    p.chart.series = {p.colors.accent,
+                      QColor(QStringLiteral("#4DA3FF")),   // Blue
+                      QColor(QStringLiteral("#2FC6D8")),   // Cyan
+                      QColor(QStringLiteral("#58B09E")),   // Teal
+                      QColor(QStringLiteral("#A987E8")),   // Purple, light
+                      QColor(QStringLiteral("#8793A3"))};  // Slate
 
     applyWindowTokens(p);
 }
@@ -132,9 +150,19 @@ void applyDerivedTokens(ThemeProfile& p)
 // and one accent; the NovuSpace, NovuHub, NovuExplorer and NovuAdmin mockups
 // are all drawn on top of it.
 //
-// The accent here is the *family's* cyan. A product with an approved accent of
-// its own overrides exactly that one value - see applicationProfile() in
-// AppProfiles.cpp. A product without one keeps this, and says so.
+// The accent here is a STAND-IN, not a family accent. There is no family
+// accent: all four authoritative mockups state their own and NovuSpace's says
+// why - "surfaces, hairlines and the type scale are lifted verbatim from the
+// NovuHub / NovuExplorer / NovuAdmin brand mockups... the one thing that
+// identifies the product is --acc".
+//
+//     NovuAI #4DA3FF   NovuSpace #D49335   NovuAdmin, NovuHub #3CCB7F
+//     NovuExplorer #58B09E
+//
+// The cyan kept here is the shared palette's, and it is the right stand-in for
+// exactly the reason it is not an accent: no product claims it, so a profile
+// still waiting for its own is visibly borrowing rather than impersonating.
+// Only NovuVoice is in that position now.
 //
 // Geometry is NovuSpace's, and deliberately: the approved NovuSpace design is
 // the only one that states radii, spacing, control heights and a type scale in
@@ -147,11 +175,11 @@ ThemeProfile novusionBaseProfile()
     p.id = QStringLiteral("novusion");
     p.displayName = QStringLiteral("Novusion");
 
-    // ACCENT & BRAND, from the shared palette.
+    // The stand-in accent - see above. Not a product identity.
     p.colors.accent      = QColor(QStringLiteral("#2FC6D8"));
     p.colors.accentLight = QColor(QStringLiteral("#4DD4E6"));
-    // Measured rather than chosen: dark ink clears 8.4:1 on the family cyan
-    // where white manages 2.1:1. The same reasoning as NovuSpace's amber.
+    // Measured rather than chosen: dark ink clears 8.4:1 on the cyan where
+    // white manages 2.1:1. The same reasoning as NovuSpace's amber.
     p.colors.textOnAccent = QColor(QStringLiteral("#10171A"));
 
     applyDerivedTokens(p);
@@ -380,8 +408,19 @@ ThemeProfile novuTradeProfile()
     p.chart.bearish = QColor(QStringLiteral("#ef4444"));
     p.chart.volume = p.colors.accentLight;
     p.chart.crosshair = p.colors.textSecondary;
-    p.chart.series = {p.colors.accent, p.colors.accentLight, p.colors.warning,
-                      p.colors.success, p.colors.danger};
+    // Stated as a general rule, not a NovuSpace one - "the first slice of any
+    // chart is the product accent; the rest are the ecosystem palette",
+    // "ecosystem colours, not status colours".
+    //
+    // This used to be {accent, accentLight, warning, success, danger}: three of
+    // five slices in the colours that mean pending, running and failed, so a
+    // pie of storage categories reported a fault it did not have.
+    p.chart.series = {p.colors.accent,
+                      QColor(QStringLiteral("#4DA3FF")),   // Blue
+                      QColor(QStringLiteral("#2FC6D8")),   // Cyan
+                      QColor(QStringLiteral("#58B09E")),   // Teal
+                      QColor(QStringLiteral("#A987E8")),   // Purple, light
+                      QColor(QStringLiteral("#8793A3"))};  // Slate
 
     applyCommonRoles(p);
     // The trading UI is denser than the shell: cards sit closer together and

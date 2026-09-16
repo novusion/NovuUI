@@ -32,15 +32,20 @@ Swatch::Swatch(QWidget* parent)
 
 QList<QColor> tagPalette(const QWidget* context)
 {
-    // The profile's own categorical series, extended with the two hues a tag
-    // set needs that a chart does not. Taken from the theme rather than listed
-    // here, so a product with its own palette tags in its own colours.
-    const ThemeProfile& profile = themeFor(context);
-    QList<QColor> out = profile.chart.series;
-    out.append(profile.colors.info);
-    out.append(profile.colors.success);
-    out.append(profile.colors.warning);
-    out.append(profile.colors.danger);
+    // The family's named hues, which is what a tag palette *is* in the approved
+    // design: NovuExplorer states this exact set, in this order, as the choices
+    // in its folder-colour picker.
+    //
+    // It used to be the profile's chart series plus the four status colours -
+    // so tagging was done in the product accent and in the colours that mean
+    // "failed" and "warning". A tag is a label a person picks, not a status the
+    // application reports, and the two must not be confusable.
+    Q_UNUSED(context);
+    QList<QColor> out;
+    out.reserve(familyHues().size());
+    for (const FamilyHue& hue : familyHues()) {
+        out.append(hue.color);
+    }
     return out;
 }
 

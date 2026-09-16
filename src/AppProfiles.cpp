@@ -96,14 +96,25 @@ QColor hex(const char* value)
 
 ThemeProfile novuAiProfile()
 {
-    // UNRESOLVED accent. `design/Shared/references/Novu_App_Design.png` draws
-    // NovuAI's own navigation with the family cyan, which is evidence that it
-    // is at least *correct*, but it is the shared reference rather than a
-    // decision about NovuAI - the sheet shows one accent for everything on it.
+    // Stated, not guessed. The approved mockup's token sheet says so outright:
     //
-    // So it keeps the family accent and nothing is invented. When a product
-    // accent is approved, it is one argument here.
-    return applicationProfile(QStringLiteral("novuai"), QStringLiteral("NovuAI"));
+    //     g:\Design\design\NovuAI\mockups\assets\css\00-tokens.css
+    //     --acc:#4DA3FF;  --acc-l:#7DBEFF;  --acc-d:#2B7FD4;
+    //     --ink-on-accent:#0C151F;
+    //
+    // and its header names the other two in the same breath - "NovuAI is blue
+    // (#4DA3FF) where Hub is green (#3CCB7F) and Explorer is teal (#58B09E)".
+    //
+    // This was recorded as unresolved for one bad reason: the search was for a
+    // hex in the PNG screens, and the value was in the CSS all along.
+    ThemeProfile p = applicationProfile(QStringLiteral("novuai"), QStringLiteral("NovuAI"),
+                                        hex("#4DA3FF"), hex("#7DBEFF"), hex("#0C151F"));
+    // Its own density, stated: `--row-h:26px`, `--statusbar-h:26px`,
+    // `--side-w:236px`. The sheet says it inherits NovuExplorer's density and
+    // then states different numbers, so both are kept as what each says.
+    p.controls.rowHeight = 26;
+    p.window.statusBarHeight = 26;
+    return p;
 }
 
 ThemeProfile novuVoiceProfile()
@@ -112,34 +123,50 @@ ThemeProfile novuVoiceProfile()
     // furthest of any of them - a cyan accent, its own surfaces, its own status
     // colours. All of it is dropped.
     //
-    // UNRESOLVED accent: it keeps the family's. The cyan it had drifted to is
-    // now the family accent anyway, which makes this the one product whose old
-    // colour and the shared decision happen to agree.
+    // UNRESOLVED, and now the only one: NovuVoice has no approved mockup under
+    // g:\Design\design\, so there is no token sheet to read an accent from. It
+    // keeps the base palette's until there is. Settling it is one argument here
+    // and no screen code changes with it.
     return applicationProfile(QStringLiteral("novuvoice"), QStringLiteral("NovuVoice"));
 }
 
 ThemeProfile novuExplorerProfile()
 {
-    // UNRESOLVED accent. Its graphite surfaces were the family's all along;
-    // no approved product accent has been found for it.
-    return applicationProfile(QStringLiteral("novuexplorer"),
-                              QStringLiteral("NovuExplorer"));
+    // NovuExplorer-brand-mockup-v2.html: --acc:#58B09E, --acc-l:#77CCB9,
+    // --acc-d:#3F8F80, --ink-on-accent:#10171A. NovuAI's sheet names the same
+    // teal as Explorer's, and NovuSpace and NovuAdmin both carry it as
+    // `--explorer` for when they draw the product.
+    ThemeProfile p = applicationProfile(QStringLiteral("novuexplorer"),
+                                        QStringLiteral("NovuExplorer"),
+                                        hex("#58B09E"), hex("#77CCB9"), hex("#10171A"));
+    // `--row-h:24px`, `--side-w:216px`, and a 24px status strip: the densest
+    // of the four, which is what a file manager is.
+    p.controls.rowHeight = 24;
+    p.window.statusBarHeight = 24;
+    return p;
 }
 
 ThemeProfile novuAdminProfile()
 {
-    // UNRESOLVED accent. NovuAdmin has a brand mockup and no approved screen
-    // design, so production is its reference - and production consumes this
-    // library, which means it currently wears whatever this profile says.
-    return applicationProfile(QStringLiteral("novuadmin"), QStringLiteral("NovuAdmin"));
+    // NovuAdmin-brand-mockup.html: --acc:#3CCB7F, --acc-l:#6ADB9E,
+    // --ink-on-accent:#151A20. It shares NovuHub's green, which is a decision
+    // the design made and not a collision - the two are the same operator's
+    // tools. The green is also the Success plate; a product is allowed to wear
+    // a status hue as its accent, and the two layers stay separate because the
+    // accent moves per profile while Success does not.
+    return applicationProfile(QStringLiteral("novuadmin"), QStringLiteral("NovuAdmin"),
+                              hex("#3CCB7F"), hex("#6ADB9E"), hex("#151A20"));
 }
 
 ThemeProfile novuHubProfile()
 {
-    // UNRESOLVED accent. The NovuHub prototype draws its *app mark* in green,
-    // but a mark colour is not a UI accent and promoting one to the other is
-    // exactly the kind of guess this architecture is meant to stop.
-    return applicationProfile(QStringLiteral("novuhub"), QStringLiteral("NovuHub"));
+    // Resolved, and the earlier objection here was right on the principle and
+    // wrong on the fact: it is not the mark colour promoted to an accent. The
+    // NovuHub brand mockup states `--acc:#3CCB7F` and `--ink-on-accent:#151A20`
+    // as tokens, and NovuAI's sheet independently calls Hub green. The light
+    // step is NovuAdmin's, which shares the accent.
+    return applicationProfile(QStringLiteral("novuhub"), QStringLiteral("NovuHub"),
+                              hex("#3CCB7F"), hex("#6ADB9E"), hex("#151A20"));
 }
 
 ThemeProfile midnightBlueProfile()

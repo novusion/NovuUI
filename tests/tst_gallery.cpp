@@ -36,6 +36,7 @@
 #include "novu/ui/Avatar.h"
 #include "novu/ui/Settings.h"
 #include "novu/ui/Slider.h"
+#include "novu/ui/DropTarget.h"
 #include "novu/ui/Swatch.h"
 #include "novu/ui/Button.h"
 #include "novu/ui/Disclosure.h"
@@ -161,6 +162,17 @@ private slots:
     void semanticColoursReadAgainstTheirOwnSurface();
     void infoIsAStatusAndNotTheApplicationAccent();
     void badgeTonesResolveThroughTheSharedPalette();
+
+    // the design contract
+    void aFamilyHueIsTheSameHueInEveryProduct();
+    void aTagPaletteDoesNotTagInTheColourOfFailure();
+    void chartSeriesAreEcosystemColoursAndNotStatusColours();
+    void metricTokensAreReadByTheComponentsThatDrawThem();
+
+    // drop target
+    void onlyOneDropHighlightCanBeLitAtOnce();
+    void aDropHighlightReportsWhetherThePictureChanged();
+    void theTwoDropHighlightsAreDifferentWeights();
     void translucentTokensKeepTheirAlphaInTheSheet();
     void scrollBarsFollowTheMockup();
     void scrollAreasAreNeverLeftUnstyled();
@@ -786,6 +798,10 @@ void GalleryTest::applicationProfilesShareOnePalette()
             {"warning", c.warning, shared.warning},
             {"danger", c.danger, shared.danger},
             {"info", c.info, shared.info},
+            {"successPlate", c.successPlate, shared.successPlate},
+            {"warningPlate", c.warningPlate, shared.warningPlate},
+            {"dangerPlate", c.dangerPlate, shared.dangerPlate},
+            {"infoPlate", c.infoPlate, shared.infoPlate},
         };
         for (const auto& e : entries) {
             QVERIFY2(same(e.mine, e.theirs),
@@ -806,17 +822,24 @@ void GalleryTest::applicationProfilesShareOnePalette()
                                 .arg(contrast(c.textOnAccent, c.accent), 0, 'f', 2)));
     }
 
-    // NovuSpace is the one product with an approved accent of its own today.
-    // The rest keep the family's, and that is recorded as unresolved rather
-    // than filled in - see docs/THEMING.md.
-    QCOMPARE(ThemeManager::instance().profile(QStringLiteral("novuspace")).colors.accent.name(),
-             QStringLiteral("#d49335"));
-    for (const QString& id : {QStringLiteral("novuai"), QStringLiteral("novuexplorer"),
-                              QStringLiteral("novuadmin"), QStringLiteral("novuhub"),
-                              QStringLiteral("novuvoice")}) {
-        QCOMPARE(ThemeManager::instance().profile(id).colors.accent.name(),
-                 novusionBaseProfile().colors.accent.name());
+    // Each of these is a token in that product's own approved mockup, not a
+    // reading of a screenshot - docs/DESIGN_CONTRACT.md lists the sources. The
+    // test is here so that changing one is a deliberate act against the design
+    // rather than a tidy-up.
+    const QList<QPair<QString, QString>> stated = {
+        {QStringLiteral("novuspace"),    QStringLiteral("#d49335")},
+        {QStringLiteral("novuai"),       QStringLiteral("#4da3ff")},
+        {QStringLiteral("novuexplorer"), QStringLiteral("#58b09e")},
+        {QStringLiteral("novuadmin"),    QStringLiteral("#3ccb7f")},
+        {QStringLiteral("novuhub"),      QStringLiteral("#3ccb7f")},
+    };
+    for (const auto& [id, accent] : stated) {
+        QCOMPARE(ThemeManager::instance().profile(id).colors.accent.name(), accent);
     }
+    // NovuVoice is the only product with no approved mockup, so it is the only
+    // one still wearing the stand-in.
+    QCOMPARE(ThemeManager::instance().profile(QStringLiteral("novuvoice")).colors.accent.name(),
+             novusionBaseProfile().colors.accent.name());
 }
 
 void GalleryTest::everyProfileSharesTheSemanticPalette()
@@ -830,10 +853,10 @@ void GalleryTest::everyProfileSharesTheSemanticPalette()
         // An application owns its surfaces and its accent. It does not own what
         // "failed" looks like - that is the same statement in every Novu
         // window, so it is the same colour.
-        QCOMPARE(p.colors.success.name(), shared.success.name());
-        QCOMPARE(p.colors.warning.name(), shared.warning.name());
-        QCOMPARE(p.colors.danger.name(), shared.danger.name());
-        QCOMPARE(p.colors.info.name(), shared.info.name());
+        QCOMPARE(p.colors.success.name(), shared.success.ink.name());
+        QCOMPARE(p.colors.warning.name(), shared.warning.ink.name());
+        QCOMPARE(p.colors.danger.name(), shared.danger.ink.name());
+        QCOMPARE(p.colors.info.name(), shared.info.ink.name());
     }
 }
 
@@ -848,8 +871,8 @@ void GalleryTest::theOnlyStatusOverrideIsTheLightProfile()
             continue;   // a development overlay, not a product
         }
         const ThemeProfile p = ThemeManager::instance().profile(id);
-        if (p.colors.success != shared.success || p.colors.warning != shared.warning
-            || p.colors.danger != shared.danger || p.colors.info != shared.info) {
+        if (p.colors.success != shared.success.ink || p.colors.warning != shared.warning.ink
+            || p.colors.danger != shared.danger.ink || p.colors.info != shared.info.ink) {
             overriding.append(id);
         }
     }
@@ -907,12 +930,31 @@ void GalleryTest::badgeTonesResolveThroughTheSharedPalette()
     QCOMPARE(p.semantic.role(SemanticRole::Neutral).text.name(),
              p.colors.textSecondary.name());
 
-    // One recipe for the plate, shared by Badge, Button and the scope sheet.
-    for (const SemanticColor* c : {&p.semantic.success, &p.semantic.danger}) {
-        QVERIFY(qAbs(c->fill.alphaF() - 0.16) < 0.01);
-        QVERIFY(qAbs(c->border.alphaF() - 0.40) < 0.01);
-        QCOMPARE(c->fill.rgb() & 0xFFFFFF, c->text.rgb() & 0xFFFFFF);
+    // One recipe for the plate, shared by Badge, Button and the scope sheet -
+    // and it is the design's, stated per role rather than uniform:
+    //
+    //     .badge.ok  background:rgba(60,203,127,.10)  border:rgba(...,.40)
+    //     .badge.bad background:rgba(196,123,133,.12) border:rgba(...,.45)
+    //
+    // Danger sits heavier on purpose; a pink plate at .10 disappears.
+    const SemanticHues& hues = sharedSemanticHues();
+    const QList<QPair<const SemanticColor*, const SemanticHue*>> plated = {
+        {&p.semantic.success, &hues.success},
+        {&p.semantic.warning, &hues.warning},
+        {&p.semantic.danger, &hues.danger},
+        {&p.semantic.info, &hues.info},
+    };
+    for (const auto& [c, hue] : plated) {
+        QVERIFY(qAbs(c->fill.alphaF() - hue->fillAlpha) < 0.01);
+        QVERIFY(qAbs(c->border.alphaF() - hue->borderAlpha) < 0.01);
+        // The plate is mixed from the plate hue, NOT from the ink. Mixing it
+        // from the ink is the bug this pair of tokens exists to prevent, and
+        // for Success and Danger the two are visibly different colours.
+        QCOMPARE(c->fill.rgb() & 0xFFFFFF, hue->plate.rgb() & 0xFFFFFF);
+        QCOMPARE(c->border.rgb() & 0xFFFFFF, hue->plate.rgb() & 0xFFFFFF);
     }
+    QVERIFY(p.semantic.success.fill.rgb() != p.semantic.success.text.rgb());
+    QVERIFY(p.semantic.danger.fill.rgb() != p.semantic.danger.text.rgb());
 }
 
 namespace {
@@ -1967,8 +2009,10 @@ void GalleryTest::aProductOwnsItsAccentAndNothingElse()
         QCOMPARE(c.danger.name(), base.danger.name());
     }
 
-    // Exactly one product has an approved accent of its own today. The rest
-    // keep the family's and are recorded as unresolved - docs/THEMING.md §4.
+    // Five products have an approved accent of their own; NovuVoice, the only
+    // one without a mockup, keeps the stand-in. What this guards is the "and
+    // nothing else" half of the name - the loop above has already compared
+    // surfaces, ink and status against the base.
     int withOwnAccent = 0;
     for (const QString& id : ThemeManager::instance().profileIds()) {
         if (!isApplicationProfile(id) || id == QLatin1String("novutrade")) {
@@ -1978,7 +2022,7 @@ void GalleryTest::aProductOwnsItsAccentAndNothingElse()
             ++withOwnAccent;
         }
     }
-    QCOMPARE(withOwnAccent, 1);
+    QCOMPARE(withOwnAccent, 5);
 }
 
 void GalleryTest::aLiveProfileEditReachesWidgetsAlreadyBuilt()
@@ -2077,9 +2121,9 @@ void GalleryTest::novuTradeMatchesTheApprovedMockupTokens()
     // still asserted above - but not what "failed" looks like. The shared hues
     // were measured against this profile's own panel and clear 4.5:1 by more
     // than the shell's do, so nothing was traded away for the consistency.
-    QCOMPARE(p.colors.success.name().toUpper(), sharedSemanticHues().success.name().toUpper());
-    QCOMPARE(p.colors.warning.name().toUpper(), sharedSemanticHues().warning.name().toUpper());
-    QCOMPARE(p.colors.danger.name().toUpper(),  sharedSemanticHues().danger.name().toUpper());
+    QCOMPARE(p.colors.success.name().toUpper(), sharedSemanticHues().success.ink.name().toUpper());
+    QCOMPARE(p.colors.warning.name().toUpper(), sharedSemanticHues().warning.ink.name().toUpper());
+    QCOMPARE(p.colors.danger.name().toUpper(),  sharedSemanticHues().danger.ink.name().toUpper());
 
     // The candles are the exception the exception needed: a candle is a price
     // going up, not a "success", so the web app's greens and reds stay pinned.
@@ -2131,6 +2175,205 @@ void GalleryTest::novuTradeMatchesTheApprovedMockupTokens()
     QCOMPARE(p.space(SpacingRole::PagePadding), 16);
 }
 
+// ── the design contract ────────────────────────────────────────────────────
+
+void GalleryTest::aFamilyHueIsTheSameHueInEveryProduct()
+{
+    // The whole promise of familyHues(): Cyan is one cyan. If these were
+    // derived from the accent instead of listed, a NovuAI cyan and a NovuSpace
+    // cyan would be two colours sharing a name.
+    const QList<FamilyHue>& hues = familyHues();
+    QCOMPARE(hues.size(), 10);
+
+    QSet<QString> names;
+    QSet<QRgb> values;
+    for (const FamilyHue& hue : hues) {
+        QVERIFY2(!hue.name.isEmpty(), "a family hue with no name is not a palette entry");
+        QVERIFY2(hue.color.isValid(), qPrintable(hue.name));
+        names.insert(hue.name);
+        values.insert(hue.color.rgb());
+    }
+    QCOMPARE(names.size(), hues.size());
+    QCOMPARE(values.size(), hues.size());
+
+    // Stated by NovuExplorer's colour picker, which is the authority for the
+    // set. Spot-checked rather than listed twice: purple is the one that three
+    // products each give a different meaning to, which is exactly why it lives
+    // here and not in SemanticPalette.
+    const auto find = [&hues](const char* name) {
+        for (const FamilyHue& hue : hues) {
+            if (hue.name == QLatin1String(name)) {
+                return hue.color;
+            }
+        }
+        return QColor();
+    };
+    QCOMPARE(find("Purple").name().toUpper(), QStringLiteral("#7345CC"));
+    QCOMPARE(find("Cyan").name().toUpper(), QStringLiteral("#2FC6D8"));
+    QCOMPARE(find("Green").name().toUpper(), QStringLiteral("#3CCB7F"));
+}
+
+void GalleryTest::aTagPaletteDoesNotTagInTheColourOfFailure()
+{
+    // A tag is a label a person picks; a status is something the application
+    // reports. tagPalette() used to append the four status colours, so a user
+    // could tag a folder in the exact pink that means "failed" two rows below.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    const ThemeProfile& p = themeFor(surface);
+    const QList<QColor> palette = tagPalette(surface);
+
+    QCOMPARE(palette.size(), familyHues().size());
+    // Danger, specifically: `#E8A8B0` is the one ink neither a family hue nor
+    // a chart series is allowed to reuse, because it is the one thing every
+    // profile agrees means "this failed". Warning is not held to the same
+    // rule - the design's own table states warning's ink and plate as the same
+    // value as the family's Amber, which is DESIGN_CONTRACT.md's shared-hue
+    // case, not a bug: one value, two legitimate meanings depending on where
+    // it is used.
+    for (const QColor& c : palette) {
+        QVERIFY2(c.rgb() != p.colors.danger.rgb(),
+                 "a tag palette offers the ink that means failure");
+    }
+    delete surface;
+}
+
+void GalleryTest::chartSeriesAreEcosystemColoursAndNotStatusColours()
+{
+    // "The first slice of any chart is the product accent; the rest are the
+    // ecosystem palette" - and the mockup says why one line above it:
+    // "ecosystem colours, not status colours". The series was
+    // {accent, accentLight, warning, success, danger}, so a pie of storage
+    // categories reported a fault it did not have.
+    for (const QString& id : ThemeManager::instance().profileIds()) {
+        if (!isApplicationProfile(id)) {
+            continue;
+        }
+        const ThemeProfile p = ThemeManager::instance().profile(id);
+        QVERIFY2(p.chart.series.size() >= 4, qPrintable(id));
+        QCOMPARE(p.chart.series.first().name(), p.colors.accent.name());
+
+        for (int i = 1; i < p.chart.series.size(); ++i) {
+            const QRgb slice = p.chart.series.at(i).rgb();
+            QVERIFY2(slice != p.colors.danger.rgb() && slice != p.colors.dangerPlate.rgb(),
+                     qPrintable(QStringLiteral("%1 charts a category in the danger hue").arg(id)));
+            QVERIFY2(slice != p.colors.warning.rgb() && slice != p.colors.warningPlate.rgb(),
+                     qPrintable(QStringLiteral("%1 charts a category in the warning hue").arg(id)));
+        }
+    }
+}
+
+void GalleryTest::metricTokensAreReadByTheComponentsThatDrawThem()
+{
+    // A token nothing reads is worse than no token: it looks like the design is
+    // honoured and it is not. Both of these were exactly that - the design
+    // states a tree step and a status bar height, and TreeView and StatusBar
+    // each carried a constant of their own instead.
+    QWidget* surface = makeSurface(QStringLiteral("novuai"));
+    const ThemeProfile& p = themeFor(surface);
+    QCOMPARE(p.controls.treeStep, 17);
+    QCOMPARE(p.window.statusBarHeight, 26);
+    QCOMPARE(p.controls.rowHeight, 26);
+
+    auto* bar = new StatusBar(surface);
+    bar->ensurePolished();
+    QCOMPARE(bar->height(), p.window.statusBarHeight);
+    QCOMPARE(bar->sizeHint().height(), p.window.statusBarHeight);
+
+    // The same component under a profile that states a different strip.
+    QWidget* explorer = makeSurface(QStringLiteral("novuexplorer"));
+    auto* dense = new StatusBar(explorer);
+    dense->ensurePolished();
+    QCOMPARE(themeFor(explorer).window.statusBarHeight, 24);
+    QCOMPARE(dense->height(), 24);
+    QVERIFY2(dense->height() != bar->height(),
+             "two profiles that state different strips drew the same one");
+
+    delete surface;
+    delete explorer;
+}
+
+// ── drop target ────────────────────────────────────────────────────────────
+
+void GalleryTest::onlyOneDropHighlightCanBeLitAtOnce()
+{
+    // "Two outcomes, so two different highlights, and never both at once." The
+    // state is one enum precisely so that lighting both is unrepresentable
+    // rather than merely discouraged.
+    DropHighlight drop;
+    QCOMPARE(drop.zone(), DropZone::None);
+    QVERIFY(!drop.isActive());
+    QCOMPARE(drop.row(), -1);
+
+    drop.setRow(4);
+    QVERIFY(drop.isRowLit(4));
+    QVERIFY(!drop.isRegionLit());
+    QCOMPARE(drop.row(), 4);
+
+    drop.setRegion();
+    QVERIFY(drop.isRegionLit());
+    QVERIFY(!drop.isRowLit(4));
+    // Not merely unlit - unreadable. A stale row index survives into a drop
+    // handler and binds the file to the wrong thing.
+    QCOMPARE(drop.row(), -1);
+
+    drop.setRow(2);
+    QVERIFY(!drop.isRegionLit());
+    QVERIFY(drop.isRowLit(2));
+
+    drop.clear();
+    QVERIFY(!drop.isActive());
+    QCOMPARE(drop.row(), -1);
+}
+
+void GalleryTest::aDropHighlightReportsWhetherThePictureChanged()
+{
+    // Every mutator answers "repaint?", so a dragMoveEvent crossing thirty
+    // pixels inside one row repaints once instead of thirty times.
+    DropHighlight drop;
+    QVERIFY(drop.setRow(1));
+    QVERIFY(!drop.setRow(1));
+    QVERIFY(drop.setRow(2));
+    QVERIFY(drop.setRegion());
+    QVERIFY(!drop.setRegion());
+    QVERIFY(drop.clear());
+    QVERIFY(!drop.clear());
+
+    // A negative index is what a hit test returns below the last row, so it
+    // clears rather than lighting row -1 - the call site stays branchless.
+    QVERIFY(drop.setRow(3));
+    QVERIFY(drop.setRow(-1));
+    QCOMPARE(drop.zone(), DropZone::None);
+    QVERIFY(!drop.setRow(-1));
+}
+
+void GalleryTest::theTwoDropHighlightsAreDifferentWeights()
+{
+    // The row is emphatic because it names one destination; the region is faint
+    // because it means "anywhere in here". Tested through the tokens rather
+    // than the pixels, the way every painted contract is tested here.
+    const StyleSpec row = dropRowSpec();
+    const StyleSpec region = dropRegionSpec();
+
+    QCOMPARE(row.border.describe(), QStringLiteral("accent"));
+    QCOMPARE(dropLabelInk().describe(), QStringLiteral("accent"));
+    QCOMPARE(dropLabelWeight(), 600);
+    QVERIFY2(row.background.alpha > region.background.alpha,
+             "the region is meant to be the fainter of the two");
+
+    QWidget* surface = makeSurface(QStringLiteral("novuai"));
+    const ResolvedStyle lit = resolve(row, surface, 24);
+    const ResolvedStyle area = resolve(region, surface, 240);
+    const ThemeProfile& p = themeFor(surface);
+
+    // Both are the product accent, which is what makes a drop read as
+    // belonging to the application it is happening in.
+    QCOMPARE(lit.border.rgb() & 0xFFFFFF, p.colors.accent.rgb() & 0xFFFFFF);
+    QCOMPARE(area.border.rgb() & 0xFFFFFF, p.colors.accent.rgb() & 0xFFFFFF);
+    QVERIFY(lit.background.alpha() > area.background.alpha());
+    QVERIFY2(area.borderWidth > lit.borderWidth,
+             "the region carries the heavier outline, the row the heavier fill");
+    delete surface;
+}
 void GalleryTest::translucentTokensKeepTheirAlphaInTheSheet()
 {
     // NovuTrade defines its borders as slate at 18% so an outline reads as a

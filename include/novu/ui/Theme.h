@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QColor>
+#include <QList>
 #include <QString>
 
 class QWidget;
@@ -60,6 +61,15 @@ struct ThemeColors
     // was therefore sky blue in NovuTrade, gold in Warm Gray and violet in Dark
     // Purple - the same status wearing three identities.
     QColor info{QStringLiteral("#4DA3FF")};
+
+    // The plate each status is tinted from - a deeper hue than the ink above,
+    // and a separate token because the design states it separately. A profile
+    // that lightens its ink for a pale surface does not thereby lighten its
+    // plates. See SemanticHue.
+    QColor successPlate{QStringLiteral("#3CCB7F")};
+    QColor warningPlate{QStringLiteral("#FFB14D")};
+    QColor dangerPlate{QStringLiteral("#C47B85")};
+    QColor infoPlate{QStringLiteral("#4DA3FF")};
 };
 
 // The status hues every Novusion application shares.
@@ -76,25 +86,88 @@ struct ThemeColors
 //
 // which states this layer outright - "trading semantics are a SEPARATE layer
 // and never borrow the accent: green running, red error, amber warning, blue
-// informational". They are the design's *ink* values rather than its plate
-// values, because semanticColorFrom() derives the plate and the border from the
-// ink; reading them off the ink puts the word in a badge at exactly the colour
-// the design specifies.
+// informational".
+//
+// Confirmed since against all four authoritative mockups, which agree on every
+// value: NovuSpace and NovuAdmin state `.badge.ok/.warn/.bad/.info` verbatim
+// identically, NovuExplorer the same, and NovuAI's `.tag` differs only in two
+// border alphas. Whatever else a product owns, it does not own what "failed"
+// looks like - and now it does not own what "failed" is plated with either.
 //
 // They replaced NovuAI's darker set (#2EA043 / #D29922 / #F85149 / #58A6FF),
 // which in turn had replaced four versions of the same four meanings - an olive
 // #98C379 in the shell, a mint #3CCB7F in NovuVoice, a darker #16A34A in
 // NovuTrade. The direction of travel has not changed: one status palette, and
 // it is the approved design's.
+// A status is two colours in the approved design, never one.
+//
+//     .badge.ok  { color:#6ADB9E; background:rgba(60,203,127,.10);
+//                  border-color:rgba(60,203,127,.40); }
+//
+// The word is written in a light, legible ink; the plate behind it is mixed
+// from a deeper hue. They are not the same value and neither is derivable from
+// the other. This struct used to hold the ink alone and mix the plate from it,
+// which lightened every tint by a step - a Danger badge was plated in
+// rgba(#E8A8B0) where the design plates it in rgba(#C47B85).
+//
+// The alphas belong here for the same reason: the design states them per role
+// and they are not uniform. Danger sits heavier than Success on purpose - a
+// pink plate at .10 disappears where a green one reads.
+//
+// Byte-identical in the NovuSpace and NovuAdmin mockups, and within 0.03 of
+// NovuAI's `.tag`. See docs/DESIGN_CONTRACT.md for the cross-product table.
+struct SemanticHue
+{
+    QColor ink;
+    QColor plate;
+    double fillAlpha;
+    double borderAlpha;
+};
+
 struct SemanticHues
 {
-    QColor success{QStringLiteral("#6ADB9E")};   // --green-l
-    QColor warning{QStringLiteral("#FFB14D")};   // --amber
-    QColor danger{QStringLiteral("#E8A8B0")};    // .badge.bad / .btn.danger ink
-    QColor info{QStringLiteral("#4DA3FF")};      // --blue
+    //                    ink        plate      fill  border
+    SemanticHue success{QColor(QStringLiteral("#6ADB9E")),   // --green-l
+                        QColor(QStringLiteral("#3CCB7F")),   // --green
+                        0.10, 0.40};
+    SemanticHue warning{QColor(QStringLiteral("#FFB14D")),   // --amber / --orange
+                        QColor(QStringLiteral("#FFB14D")),
+                        0.10, 0.40};
+    SemanticHue danger{QColor(QStringLiteral("#E8A8B0")),    // .badge.bad ink
+                       QColor(QStringLiteral("#C47B85")),    // --pink
+                       0.12, 0.45};
+    SemanticHue info{QColor(QStringLiteral("#4DA3FF")),      // --blue
+                     QColor(QStringLiteral("#4DA3FF")),
+                     0.10, 0.38};
 };
 
 const SemanticHues& sharedSemanticHues();
+
+// The family's named hues.
+//
+// Ten colours, stated as a named set by NovuExplorer's folder-colour picker
+// and drawn as a ring by its colour wheel. Every product declares the ones it
+// uses at exactly these values, which is what makes them shared - but they are
+// shared *palette*, not shared *meaning*:
+//
+//     purple   NovuAI agents | NovuExplorer "Review" | NovuSpace's product mark
+//     cyan     NovuAI knowledge | NovuExplorer "Test" | a NovuSpace chart series
+//     yellow   declared by NovuAI and NovuExplorer, drawn by neither
+//
+// Three meanings for one hue is why these are not SemanticRoles. Promoting
+// "agents" or "knowledge" into the shared palette would write one product's
+// vocabulary into every other. A product assigns the meaning; the library only
+// promises that Cyan is the same cyan everywhere.
+//
+// Rose, Amber, Green, Cyan, Blue and Purple double as the status and accent
+// hues - the same set, used for a different purpose.
+struct FamilyHue
+{
+    QString name;
+    QColor color;
+};
+
+const QList<FamilyHue>& familyHues();
 
 // What a component actually needs from a status colour.
 //
@@ -140,6 +213,8 @@ struct SemanticPalette
 
 // The five values, built from one hue. The single recipe that replaced three.
 SemanticColor semanticColorFrom(const QColor& hue);
+SemanticColor semanticColorFrom(const QColor& ink, const QColor& plate,
+                                double fillAlpha, double borderAlpha);
 
 // Spacing / metric tokens. Components consume these; pages never do arithmetic
 // with them to size a widget.
