@@ -6,8 +6,10 @@ QString categoryLabel(Category category)
 {
     switch (category) {
     case Category::Foundation:  return QStringLiteral("Foundation");
-    case Category::Input:       return QStringLiteral("Input");
+    case Category::TitleBar:    return QStringLiteral("Window title bar");
     case Category::Navigation:  return QStringLiteral("Navigation");
+    case Category::Footer:      return QStringLiteral("Footer");
+    case Category::Input:       return QStringLiteral("Input");
     case Category::DataDisplay: return QStringLiteral("Data display");
     case Category::Feedback:    return QStringLiteral("Feedback");
     }
@@ -18,8 +20,10 @@ QString categoryKey(Category category)
 {
     switch (category) {
     case Category::Foundation:  return QStringLiteral("foundation");
-    case Category::Input:       return QStringLiteral("input");
+    case Category::TitleBar:    return QStringLiteral("title-bar");
     case Category::Navigation:  return QStringLiteral("navigation");
+    case Category::Footer:      return QStringLiteral("footer");
+    case Category::Input:       return QStringLiteral("input");
     case Category::DataDisplay: return QStringLiteral("data-display");
     case Category::Feedback:    return QStringLiteral("feedback");
     }
@@ -29,9 +33,14 @@ QString categoryKey(Category category)
 QVector<Category> allCategories()
 {
     // Navigation order. Foundation first because a developer checking a token
-    // change looks there before anything else.
-    return {Category::Foundation, Category::Input, Category::Navigation,
-            Category::DataDisplay, Category::Feedback};
+    // change looks there before anything else. Title bar and Footer sit next
+    // to Navigation because together they are the window's own scaffold - top
+    // chrome, the nav surfaces inside it, bottom chrome - and a reviewer
+    // auditing chrome against the approved HTML wants the three adjacent
+    // rather than scattered among Input and DataDisplay.
+    return {Category::Foundation, Category::TitleBar, Category::Navigation,
+            Category::Footer, Category::Input, Category::DataDisplay,
+            Category::Feedback};
 }
 
 bool ComponentSpec::isValid() const

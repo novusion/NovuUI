@@ -317,7 +317,7 @@ ComponentSpec statusBarComponent()
     ComponentSpec spec;
     spec.id = QStringLiteral("status-bar");
     spec.name = QStringLiteral("StatusBar");
-    spec.category = Category::Navigation;
+    spec.category = Category::Footer;
     spec.description = QStringLiteral(
         "The strip along the bottom of a window: session, context and transport, painted "
         "as addressable items rather than built from labels.");

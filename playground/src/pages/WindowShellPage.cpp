@@ -322,7 +322,7 @@ ComponentSpec windowShellComponent()
     ComponentSpec spec;
     spec.id = QStringLiteral("window-shell");
     spec.name = QStringLiteral("WindowShell");
-    spec.category = Category::Foundation;
+    spec.category = Category::TitleBar;
     spec.description = QStringLiteral(
         "The frame every Novu window and dialog wears: title bar, three controls, border, "
         "radius, drag and resize. Applications choose semantics, never chrome.");

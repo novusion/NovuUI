@@ -18,9 +18,9 @@ deliberately missing.
 | | |
 |---|---|
 | components | 67 |
-| Foundation | 14 |
+| Foundation | 15 |
 | Input | 13 |
-| Navigation | 16 |
+| Navigation | 15 |
 | Data display | 12 |
 | Feedback | 12 |
 
@@ -258,6 +258,29 @@ The handle between two panels, with a collapse arrow at each end — and Collaps
 |---|---|---|
 | `collapseArrows` | `bool` | Off leaves a plain drag handle. |
 | `panelCollapsed` | `bool` | Sets a size to zero; restoring returns the size it had. |
+
+### StatusBar
+
+The strip along the bottom of a window: session, context and transport, painted as addressable items rather than built from labels.
+
+```cpp
+#include "novu/ui/StatusBar.h"
+```
+
+| | |
+|---|---|
+| Variants | `Text`, `Value`, `Mono`, `Status`, `Separator` |
+| States | `Online`, `Offline` |
+| API | `slot`, `offline` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuspace |
+| Playground | `run.bat status-bar` |
+| Source | `src/StatusBar.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `slot` | `enum` | Which end an item packs against. |
+| `offline` | `bool` | Every transport light goes to danger at once. |
 
 ### Theme & Styling
 
@@ -934,29 +957,6 @@ The left rail: an identity head, a connection strip, a scrolling navigation regi
 |---|---|---|
 | `collapsed` | `bool` | Folds the rail to a strip of icons, lists included. |
 | `expandedWidth` | `int` | The collapsed width is derived from the mark, not set. |
-
-### StatusBar
-
-The strip along the bottom of a window: session, context and transport, painted as addressable items rather than built from labels.
-
-```cpp
-#include "novu/ui/StatusBar.h"
-```
-
-| | |
-|---|---|
-| Variants | `Text`, `Value`, `Mono`, `Status`, `Separator` |
-| States | `Online`, `Offline` |
-| API | `slot`, `offline` |
-| Currently used by | *nothing yet — built, not adopted* |
-| Designed for | novuspace |
-| Playground | `run.bat status-bar` |
-| Source | `src/StatusBar.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `slot` | `enum` | Which end an item packs against. |
-| `offline` | `bool` | Every transport light goes to danger at once. |
 
 ### TabBar
 

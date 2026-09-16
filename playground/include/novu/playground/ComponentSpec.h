@@ -19,8 +19,10 @@ class SampleData;
 // are Foundation even though they live beside `Button` in src/.
 enum class Category {
     Foundation,
-    Input,
+    TitleBar,
     Navigation,
+    Footer,
+    Input,
     DataDisplay,
     Feedback,
 };
