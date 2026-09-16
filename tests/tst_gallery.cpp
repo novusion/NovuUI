@@ -20,6 +20,8 @@
 #include "novu/playground/ThemeCatalog.h"
 
 #include "novu/ui/Theme.h"
+#include "novu/ui/Icon.h"
+#include <QPainterPath>
 
 #include "novu/ui/AppMark.h"
 #include "novu/ui/CommandPalette.h"
@@ -43,6 +45,7 @@
 #include "novu/ui/Keys.h"
 #include "novu/ui/LogView.h"
 #include "novu/ui/ModuleBar.h"
+#include "novu/ui/Text.h"
 #include "novu/ui/NavList.h"
 #include "novu/ui/PageHeader.h"
 #include "novu/ui/Popover.h"
@@ -106,6 +109,10 @@ class GalleryTest : public QObject
 
 private slots:
     void initTestCase();
+
+    // icon glyphs
+    void everyGlyphStaysInsideItsViewBox();
+    void curvedGlyphsResolveTheirCoordinatesInOrder();
 
     // registry
     void registryIsPopulated();
@@ -206,6 +213,7 @@ private slots:
     void aNavRowsTwistyIsADifferentTargetFromTheRow();
     void navigationSkipsCaptionsAndDisabledRows();
     void bothStripsShareOneHitTestImplementation();
+    void moduleBarReservesEnoughWidthForItsOwnLabel();
     void aDisclosureHidesItsBodyWithoutForgettingIt();
     void anActionInsideABlockDoesNotCollapseIt();
     void chordsSplitIntoCapsAndLoneSeparatorsSurvive();
@@ -2820,6 +2828,41 @@ void GalleryTest::bothStripsShareOneHitTestImplementation()
     QCOMPARE(modules->currentKey(), QStringLiteral("web"));
 }
 
+void GalleryTest::moduleBarReservesEnoughWidthForItsOwnLabel()
+{
+    // NovuSpace, the bar's first real consumer, found every module's label
+    // cut down to a single letter and an ellipsis ("Web" to "W...", "Trade"
+    // to "Tra..."), on a window twice the width the design needs. The box
+    // each module reserves for its own text (stripItemWidth(), exercised via
+    // sizeHint()/itemRect()) was correct; what paintEvent handed the text to
+    // fit into was one pixel narrower, because it read a QRect's right()
+    // (x + width - 1, the right-most pixel) as if it were the exclusive right
+    // edge (x + width). With a relatively wide ellipsis glyph and a compact
+    // module button, that one pixel was enough to force out most of the
+    // label rather than the single character a real one-pixel shortfall
+    // should have cost.
+    //
+    // displayedLabel() is what this asks: not the box's width, but the exact
+    // string paintEvent draws into it. Four ordinary product names - none of
+    // them close to the bar's own glyph-and-badge chrome in width - must
+    // still read in full.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* modules = new ModuleBar(surface);
+    modules->addModule(QStringLiteral("web"), QStringLiteral("Web"), Glyph::Globe);
+    modules->addModule(QStringLiteral("mail"), QStringLiteral("Mail"), Glyph::Mail);
+    modules->setCount(QStringLiteral("mail"), 5);
+    modules->addModule(QStringLiteral("vault"), QStringLiteral("Vault"), Glyph::Vault);
+    modules->addModule(QStringLiteral("trade"), QStringLiteral("Trade"), Glyph::Trades);
+    modules->setCount(QStringLiteral("trade"), 1, ModuleBar::CountTone::Alert);
+    modules->setCurrentKey(QStringLiteral("trade"));
+    modules->resize(modules->sizeHint());
+
+    QCOMPARE(modules->displayedLabel(0), QStringLiteral("Web"));
+    QCOMPARE(modules->displayedLabel(1), QStringLiteral("Mail"));
+    QCOMPARE(modules->displayedLabel(2), QStringLiteral("Vault"));
+    QCOMPARE(modules->displayedLabel(3), QStringLiteral("Trade"));
+}
+
 void GalleryTest::aDisclosureHidesItsBodyWithoutForgettingIt()
 {
     // The design says it outright: collapsing WORKSPACES does not forget which
@@ -4343,6 +4386,67 @@ void GalleryTest::everyExtractedComponentIsInTheGallery()
         QVERIFY2(m_registry.find(id) != nullptr,
                  qPrintable(QStringLiteral("%1 was lost").arg(id)));
     }
+}
+
+void GalleryTest::everyGlyphStaysInsideItsViewBox()
+{
+    // C++ never promised that `f(a(), b())` calls a() before b() - argument
+    // evaluation order between them is unspecified. appendPathData() used to
+    // read every curve and arc endpoint as
+    // `QPointF(reader.takeNumber(), reader.takeNumber())`, trusting left-to-
+    // right order for two calls that share one cursor. On this compiler the
+    // second takeNumber() ran first, so every 'C', 'S' and 'A' endpoint came
+    // out with x and y swapped - "history" became an unrecognisable knot,
+    // "eye" a house shape, "globe" a ringed planet the bug report called
+    // Saturn. M and L were never affected because they already read into two
+    // named locals across two statements, which is what forces the order the
+    // expression form only implied.
+    //
+    // The regression is structural rather than a wrong pixel: a swapped
+    // coordinate routinely throws the path outside the 24x24 viewBox every
+    // glyph is drawn in - the corrupted "globe" reached x=29.85. So rather
+    // than hand-comparing pixels, this holds every glyph - the 39 that use A,
+    // C or S and the rest alike - to the box the design draws in.
+    for (Glyph g : allGlyphs()) {
+        const QRectF b = glyphPath(g).boundingRect();
+        if (b.isEmpty()) {
+            continue;
+        }
+        const QString name = glyphName(g);
+        QVERIFY2(b.left() > -1.0 && b.right() < 25.0,
+                 qPrintable(QStringLiteral("%1 leaves the viewBox on x: %2")
+                                .arg(name, QStringLiteral("%1..%2").arg(b.left()).arg(b.right()))));
+        QVERIFY2(b.top() > -1.0 && b.bottom() < 25.0,
+                 qPrintable(QStringLiteral("%1 leaves the viewBox on y: %2")
+                                .arg(name, QStringLiteral("%1..%2").arg(b.top()).arg(b.bottom()))));
+    }
+}
+
+void GalleryTest::curvedGlyphsResolveTheirCoordinatesInOrder()
+{
+    // Named, worked examples of the invariant above - the exact three glyphs
+    // the bug report flagged first, pinned to their actual geometry so a
+    // change that happens to keep every glyph inside the viewBox but still
+    // swaps an axis cannot pass unnoticed.
+    const QRectF eye = glyphPath(Glyph::Eye).boundingRect();
+    QVERIFY2(qAbs(eye.left() - 2.5) < 0.3, "eye: left tip at x=2.5");
+    QVERIFY2(qAbs(eye.right() - 21.5) < 0.3, "eye: right tip at x=21.5");
+    QVERIFY2(qAbs(eye.top() - 5.8) < 0.3, "eye: brow at y=5.8");
+    QVERIFY2(qAbs(eye.bottom() - 18.2) < 0.3, "eye: lower lid at y=18.2");
+
+    // history: one large clockwise arc from (3.8,12) to (6.4,6). Swapped, the
+    // endpoint's delta becomes (-6,2.6) instead of (2.6,-6) and the ring is
+    // thrown off to the left.
+    const QRectF history = glyphPath(Glyph::History).boundingRect();
+    QVERIFY2(history.left() > 3.0 && history.left() < 4.5, "history: left edge near x=3.8");
+    QVERIFY2(history.right() > 19.5 && history.right() < 21.0, "history: right edge near x=20.2");
+
+    // globe: the meridian lens is drawn by two 'A' arcs and sits inside the
+    // outer circle. Swapped, it stopped being a lens and became the
+    // off-centre loop that gave this bug its name.
+    const QRectF globe = glyphPath(Glyph::Globe).boundingRect();
+    QVERIFY2(qAbs(globe.center().x() - 12.0) < 0.3, "globe: stays centred on the circle");
+    QVERIFY2(globe.right() < 21.0, "globe: the lens does not blow out past the ring");
 }
 
 QTEST_MAIN(GalleryTest)

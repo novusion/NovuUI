@@ -303,9 +303,24 @@ void appendPathData(QPainterPath& path, QStringView data)
             break;
         }
         case 'C': {
-            const QPointF c1 = origin + QPointF(reader.takeNumber(), reader.takeNumber());
-            const QPointF c2 = origin + QPointF(reader.takeNumber(), reader.takeNumber());
-            const QPointF end = origin + QPointF(reader.takeNumber(), reader.takeNumber());
+            // Each pair is read into named locals rather than straight into
+            // QPointF(reader.takeNumber(), reader.takeNumber()): C++ does not
+            // sequence a function call's arguments left-to-right, so that
+            // expression is free to evaluate its second takeNumber() before
+            // its first - and on this compiler it does, which silently
+            // swapped x and y for every curve endpoint. M and L already read
+            // into named locals for the same reason; this makes C, S and A
+            // consistent with them rather than the one place still trusting
+            // an order the language never promised.
+            const double c1x = reader.takeNumber();
+            const double c1y = reader.takeNumber();
+            const double c2x = reader.takeNumber();
+            const double c2y = reader.takeNumber();
+            const double endx = reader.takeNumber();
+            const double endy = reader.takeNumber();
+            const QPointF c1 = origin + QPointF(c1x, c1y);
+            const QPointF c2 = origin + QPointF(c2x, c2y);
+            const QPointF end = origin + QPointF(endx, endy);
             path.cubicTo(c1, c2, end);
             lastControl = c2;
             current = end;
@@ -316,8 +331,12 @@ void appendPathData(QPainterPath& path, QStringView data)
             // The first control point is the reflection of the previous one,
             // or the current point when the previous command was not a cubic.
             const QPointF c1 = lastWasCubic ? 2.0 * current - lastControl : current;
-            const QPointF c2 = origin + QPointF(reader.takeNumber(), reader.takeNumber());
-            const QPointF end = origin + QPointF(reader.takeNumber(), reader.takeNumber());
+            const double c2x = reader.takeNumber();
+            const double c2y = reader.takeNumber();
+            const double endx = reader.takeNumber();
+            const double endy = reader.takeNumber();
+            const QPointF c2 = origin + QPointF(c2x, c2y);
+            const QPointF end = origin + QPointF(endx, endy);
             path.cubicTo(c1, c2, end);
             lastControl = c2;
             current = end;
@@ -330,7 +349,9 @@ void appendPathData(QPainterPath& path, QStringView data)
             const double rotation = reader.takeNumber();
             const bool largeArc = reader.takeFlag() != 0.0;
             const bool sweep = reader.takeFlag() != 0.0;
-            const QPointF end = origin + QPointF(reader.takeNumber(), reader.takeNumber());
+            const double endx = reader.takeNumber();
+            const double endy = reader.takeNumber();
+            const QPointF end = origin + QPointF(endx, endy);
             appendArc(path, current, rx, ry, rotation, largeArc, sweep, end);
             current = end;
             break;
