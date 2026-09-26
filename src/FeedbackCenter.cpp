@@ -9,6 +9,7 @@
 #include "novu/ui/ThemeManager.h"
 
 #include <QAbstractListModel>
+#include <QHBoxLayout>
 #include <QListView>
 #include <QPainter>
 #include <QResizeEvent>
@@ -288,13 +289,35 @@ FeedbackCenterView::FeedbackCenterView(QWidget* parent)
 
     // ── list page ──
     m_listPage = new QWidget(m_stack);
+    const ThemeProfile& profile = ThemeManager::instance().defaultProfile();
     auto* listLayout = new QVBoxLayout(m_listPage);
     listLayout->setContentsMargins(14, 12, 14, 12);
-    listLayout->setSpacing(8);
+    listLayout->setSpacing(0);
 
-    listLayout->addWidget(label(tr("Your reports"), m_listPage,
-                                TypeRole::Eyebrow, Ink::Muted));
+    // The heading and the primary action share one line. Putting Send at the
+    // top is what makes it read as the thing to do here rather than as a
+    // footnote under an empty list - and it means the action sits in the same
+    // place whether there are no reports or two hundred.
+    auto* headerRow = new QWidget(m_listPage);
+    auto* headerLayout = new QHBoxLayout(headerRow);
+    headerLayout->setContentsMargins(0, 0, 0, 0);
+    headerLayout->setSpacing(profile.space(SpacingRole::ToolbarGap));
+    headerLayout->addWidget(label(tr("Your reports"), headerRow,
+                                  TypeRole::Eyebrow, Ink::Muted));
+    headerLayout->addStretch(1);
 
+    m_send = primaryButton(tr("Send feedback"), headerRow);
+    m_send->setGlyph(Glyph::Plus);
+    m_send->setControlSize(ControlSize::Small);
+    headerLayout->addWidget(m_send);
+    connect(m_send, &QAbstractButton::clicked, this,
+            &FeedbackCenterView::sendFeedbackRequested);
+
+    listLayout->addWidget(headerRow);
+    listLayout->addSpacing(profile.space(SpacingRole::SectionGap));
+
+    // Directly under the header, with no spacer between them: the filter
+    // belongs to the heading above it, not to the list below.
     m_filterRow = new QWidget(m_listPage);
     auto* filterLayout = new QVBoxLayout(m_filterRow);
     filterLayout->setContentsMargins(0, 0, 0, 0);
@@ -309,8 +332,17 @@ FeedbackCenterView::FeedbackCenterView(QWidget* parent)
         }
     });
 
+    listLayout->addSpacing(profile.space(SpacingRole::CardGap));
+
+    // One content area holding either the list or the empty state, so the
+    // header and the filter keep their position however much is in it.
+    auto* content = new QWidget(m_listPage);
+    auto* contentLayout = new QVBoxLayout(content);
+    contentLayout->setContentsMargins(0, 0, 0, 0);
+    contentLayout->setSpacing(0);
+
     m_model = new Model(this);
-    m_list = new QListView(m_listPage);
+    m_list = new QListView(content);
     m_list->setModel(m_model);
     m_list->setItemDelegate(new RowDelegate(m_model, m_list));
     m_list->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -318,7 +350,7 @@ FeedbackCenterView::FeedbackCenterView(QWidget* parent)
     m_list->setFrameShape(QFrame::NoFrame);
     m_list->setMouseTracking(true);
     m_list->setUniformItemSizes(true);
-    listLayout->addWidget(m_list, 1);
+    contentLayout->addWidget(m_list, 1);
 
     // Enter opens, which is what a keyboard user expects of a list.
     connect(m_list, &QListView::activated, this, [this](const QModelIndex& index) {
@@ -329,17 +361,15 @@ FeedbackCenterView::FeedbackCenterView(QWidget* parent)
         }
     });
 
+    // Centred in the content area, and carrying no action of its own: the
+    // only Send button is the one in the header.
     m_empty = new EmptyState(Glyph::Chat, tr("No reports yet"),
                              tr("Send feedback and it will appear here."),
-                             m_listPage);
+                             content);
     m_empty->hide();
-    listLayout->addWidget(m_empty);
+    contentLayout->addWidget(m_empty, 1);
 
-    m_send = primaryButton(tr("Send feedback"), m_listPage);
-    m_send->setGlyph(Glyph::Plus);
-    listLayout->addWidget(m_send);
-    connect(m_send, &QAbstractButton::clicked, this,
-            &FeedbackCenterView::sendFeedbackRequested);
+    listLayout->addWidget(content, 1);
 
     m_stack->addWidget(m_listPage);
 
