@@ -664,6 +664,7 @@ ThemeProfile novuTradeProfile();   // slate/emerald, rounded — mirrors the web
 // filters components by. An application folded into another's profile cannot be
 // asked which components it uses.
 ThemeProfile novuAiProfile();
+ThemeProfile novuAiLightProfile();   // the same table, light
 ThemeProfile novuVoiceProfile();
 ThemeProfile novuExplorerProfile();
 ThemeProfile novuHubProfile();

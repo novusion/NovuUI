@@ -94,34 +94,6 @@ QColor hex(const char* value)
 
 } // namespace
 
-ThemeProfile novuAiProfile()
-{
-    // Stated, not guessed. The approved mockup's token sheet says so outright:
-    //
-    //     g:\Design\design\NovuAI\mockups\assets\css\00-tokens.css
-    //     --acc:#4DA3FF;  --acc-l:#7DBEFF;  --acc-d:#2B7FD4;
-    //     --ink-on-accent:#0C151F;
-    //
-    // and its header names the other two in the same breath - "NovuAI is blue
-    // (#4DA3FF) where Hub is green (#3CCB7F) and Explorer is teal (#58B09E)".
-    //
-    // This was recorded as unresolved for one bad reason: the search was for a
-    // hex in the PNG screens, and the value was in the CSS all along.
-    ThemeProfile p = applicationProfile(QStringLiteral("novuai"), QStringLiteral("NovuAI"),
-                                        hex("#4DA3FF"), hex("#7DBEFF"), hex("#0C151F"));
-    // Its own density, stated: `--row-h:26px`, `--statusbar-h:26px`,
-    // `--side-w:236px`. The sheet says it inherits NovuExplorer's density and
-    // then states different numbers, so both are kept as what each says.
-    p.controls.rowHeight = 26;
-    p.window.statusBarHeight = 26;
-    // The browser baseline uses 12.5px body type. Native hinting makes the
-    // rounded 13px step visibly larger, so the desktop profile takes the
-    // adjacent 12px raster size while headings keep their stated scale.
-    p.setRoleType(TypeRole::Body, TypeStyle{12, 400, false});
-    p.setRoleType(TypeRole::Label, TypeStyle{12, 600, false});
-    return p;
-}
-
 ThemeProfile novuVoiceProfile()
 {
     // NovuVoice-brand-mockup.html states the product identity explicitly:
@@ -314,6 +286,7 @@ QList<ThemeProfile> builtinProfiles()
     return {novuSpaceProfile(),
             novuTradeProfile(),
             novuAiProfile(),
+            novuAiLightProfile(),
             novuExplorerProfile(),
             novuHubProfile(),
             novuAdminProfile(),

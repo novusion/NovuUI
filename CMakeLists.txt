@@ -91,6 +91,7 @@ add_library(NovuUI STATIC
     src/Theme.cpp
     src/ThemeProfile.cpp
     src/AppProfiles.cpp
+    src/NovuAiProfile.cpp
     src/ThemeManager.cpp
     src/ThemeScope.cpp
     src/Card.cpp
