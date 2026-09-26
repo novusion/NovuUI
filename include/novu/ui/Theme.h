@@ -1,10 +1,13 @@
 #pragma once
 
 #include <QColor>
+#include <QPoint>
 #include <QList>
 #include <QString>
 
 class QWidget;
+
+class QPainter;
 
 namespace novu::ui {
 
@@ -40,6 +43,8 @@ struct ThemeColors
     QColor textSecondary{QStringLiteral("#8B929A")};
     QColor textDisabled{QStringLiteral("#545B64")};
     QColor textOnAccent{QStringLiteral("#FFFFFF")};
+    // Optional third ink. Invalid preserves the existing muted fallback.
+    QColor textTertiary;
 
     // The application accent - the one colour that is *about* the product
     // rather than about a meaning, and it is shared anyway: Novu is one product
@@ -53,23 +58,39 @@ struct ThemeColors
     // is already consistent with every other product. A profile overrides one
     // of these only when its *surface* forces it to, never to have a look of
     // its own.
-    QColor success{QStringLiteral("#6ADB9E")};
+    QColor success{QStringLiteral("#3CCB7F")};
     QColor warning{QStringLiteral("#FFB14D")};
-    QColor danger{QStringLiteral("#E8A8B0")};
+    QColor danger{QStringLiteral("#C47B85")};
     // Info used to have no colour at all: every component that needed one
     // reached for accentLight, which is the *application* accent. An Info badge
     // was therefore sky blue in NovuTrade, gold in Warm Gray and violet in Dark
     // Purple - the same status wearing three identities.
     QColor info{QStringLiteral("#4DA3FF")};
 
-    // The plate each status is tinted from - a deeper hue than the ink above,
-    // and a separate token because the design states it separately. A profile
-    // that lightens its ink for a pale surface does not thereby lighten its
-    // plates. See SemanticHue.
+    // The plate each status is tinted from. It stays a separate token because
+    // a light profile may darken its ink for contrast without changing the
+    // plate family. See SemanticHue.
     QColor successPlate{QStringLiteral("#3CCB7F")};
     QColor warningPlate{QStringLiteral("#FFB14D")};
     QColor dangerPlate{QStringLiteral("#C47B85")};
     QColor infoPlate{QStringLiteral("#4DA3FF")};
+    // ── declared last ────────────────────────────────────────────────────
+    //
+    // The rail's ground. Two designs, two shapes: NovuSpace runs the rail
+    // between two surfaces over its whole height, which is what a zero fade
+    // means here; NovuAI lays a tint over `windowBg` that is gone by
+    // `railTintFade` pixels -- `.sidebar{background:linear-gradient(180deg,
+    // rgba(0,0,0,.06),transparent 120px), var(--window)}`. Run over the whole
+    // height instead, the middle of the rail comes out visibly lighter.
+    //
+    // At the end of the struct on purpose: the profiles initialise this one
+    // positionally, so a field added anywhere else silently shifts every
+    // colour after it.
+    QColor railTint{QColor(0, 0, 0, 0)};
+    int railTintFade = 0;
+    // Optional input-specific tokens; invalid colours keep the legacy roles.
+    QColor inputBorder,inputHoverBorder,inputFocusBg,inputInk;
+
 };
 
 // The status hues every Novusion application shares.
@@ -88,11 +109,10 @@ struct ThemeColors
 // and never borrow the accent: green running, red error, amber warning, blue
 // informational".
 //
-// Confirmed since against all four authoritative mockups, which agree on every
-// value: NovuSpace and NovuAdmin state `.badge.ok/.warn/.bad/.info` verbatim
-// identically, NovuExplorer the same, and NovuAI's `.tag` differs only in two
-// border alphas. Whatever else a product owns, it does not own what "failed"
-// looks like - and now it does not own what "failed" is plated with either.
+// The NovuAI reference is authoritative for the richer shared presentation:
+// its `.tag.ok/.warn/.err` uses the saturated family hue as the ink and the
+// plate source. Whatever else a product owns, it does not own what "failed"
+// looks like, so this remains one shared semantic palette.
 //
 // They replaced NovuAI's darker set (#2EA043 / #D29922 / #F85149 / #58A6FF),
 // which in turn had replaced four versions of the same four meanings - an olive
@@ -101,21 +121,19 @@ struct ThemeColors
 // it is the approved design's.
 // A status is two colours in the approved design, never one.
 //
-//     .badge.ok  { color:#6ADB9E; background:rgba(60,203,127,.10);
+//     .tag.ok  { color:#3CCB7F; background:rgba(60,203,127,.10);
 //                  border-color:rgba(60,203,127,.40); }
 //
-// The word is written in a light, legible ink; the plate behind it is mixed
-// from a deeper hue. They are not the same value and neither is derivable from
-// the other. This struct used to hold the ink alone and mix the plate from it,
-// which lightened every tint by a step - a Danger badge was plated in
-// rgba(#E8A8B0) where the design plates it in rgba(#C47B85).
+// Ink and plate stay independent so light profiles can choose a darker ink
+// without changing the semantic tint. On the shared dark palette NovuAI uses
+// the saturated family hue for both channels.
 //
 // The alphas belong here for the same reason: the design states them per role
 // and they are not uniform. Danger sits heavier than Success on purpose - a
 // pink plate at .10 disappears where a green one reads.
 //
-// Byte-identical in the NovuSpace and NovuAdmin mockups, and within 0.03 of
-// NovuAI's `.tag`. See docs/DESIGN_CONTRACT.md for the cross-product table.
+// The alphas stay within the small per-role range stated by the NovuAI tags.
+// See docs/DESIGN_CONTRACT.md for the cross-product table.
 struct SemanticHue
 {
     QColor ink;
@@ -127,13 +145,13 @@ struct SemanticHue
 struct SemanticHues
 {
     //                    ink        plate      fill  border
-    SemanticHue success{QColor(QStringLiteral("#6ADB9E")),   // --green-l
+    SemanticHue success{QColor(QStringLiteral("#3CCB7F")),   // --green
                         QColor(QStringLiteral("#3CCB7F")),   // --green
                         0.10, 0.40};
     SemanticHue warning{QColor(QStringLiteral("#FFB14D")),   // --amber / --orange
                         QColor(QStringLiteral("#FFB14D")),
                         0.10, 0.40};
-    SemanticHue danger{QColor(QStringLiteral("#E8A8B0")),    // .badge.bad ink
+    SemanticHue danger{QColor(QStringLiteral("#C47B85")),    // --pink
                        QColor(QStringLiteral("#C47B85")),    // --pink
                        0.12, 0.45};
     SemanticHue info{QColor(QStringLiteral("#4DA3FF")),      // --blue
@@ -263,6 +281,68 @@ inline constexpr const char* activePanelProperty = "novuActivePanel";
 // the alternative is every dialog in the system drawing a dimmed selection.
 bool selectionIsActive(const QWidget* widget);
 
+// The property an application sets on an ancestor (its top-level window, or
+// any narrower container) to say that nothing under it ever draws a focus
+// ring — not the mouse's, which every conforming component already
+// suppresses, and not the keyboard's either.
+//
+// This is an opt-out for the one application that asked, not a change to the
+// design system's own default: the keyboard ring stays the library's answer
+// everywhere this property is unset. NovuAdmin's navigation chrome decided a
+// background-only keyboard indication was enough for it and does not want to
+// carry that decision for every other product built on this library, so it
+// declares the property on its own window rather than the default moving for
+// everyone.
+inline constexpr const char* focusRingSuppressedProperty = "novuFocusRingSuppressed";
+
+// Whether `widget` or an ancestor has set focusRingSuppressedProperty. Every
+// component that draws a focus ring — through FocusRing::visibleOn() or,
+// for the few that predate it, its own `hasFocus()` check — asks this so the
+// opt-out reaches every ring from the one place a caller sets it.
+bool focusRingSuppressed(const QWidget* widget);
+
+// ── the focus ring ──────────────────────────────────────────────────────
+//
+// Whether a widget should draw its keyboard focus outline *now*. This is CSS
+// `:focus-visible`, not `:focus`, and the difference is the whole point.
+//
+// The design draws exactly one treatment on an active chrome control - a tint
+// and the accent ink, `.modbtn.on{background:rgba(--rl,.17);color:--acc-l}` -
+// and no outline anywhere. An outline on top of that is a second highlight
+// saying the same thing twice, and on a clicked control it says it to someone
+// who already knows where they clicked. A browser does not draw one there
+// either: it rings a control reached with Tab and leaves a clicked one alone.
+//
+// So the ring is for the keyboard, and only the keyboard. Every component that
+// draws one asks this rather than `hasFocus()`, so the rule is one rule.
+//
+// `noteFocusIn` and `noteKeyPress`/`noteMousePress` below are how a component
+// keeps the state; a component that forgets to call them simply never shows a
+// ring, which is the safe failure.
+class FocusRing
+{
+public:
+    // `:focus-visible`, stated precisely rather than by exclusion: only Tab
+    // and Backtab are someone driving the control from the keyboard. A
+    // window activating, a page being built and shown, a shortcut, a popup
+    // closing - excluding only mouse and popup reasons treated every one of
+    // those as "keyboard" too, so a control could open already wearing a
+    // ring nobody had tabbed to yet.
+    void noteFocusIn(Qt::FocusReason reason)
+    {
+        m_visible = reason == Qt::TabFocusReason || reason == Qt::BacktabFocusReason;
+    }
+    // Driving the control from the keyboard is exactly when the ring is for.
+    void noteKeyPress() { m_visible = true; }
+    void noteMousePress() { m_visible = false; }
+
+    // Out of line: this header only forward-declares QWidget.
+    bool visibleOn(const QWidget* widget) const;
+
+private:
+    bool m_visible = false;
+};
+
 // How far a selection is dimmed when its panel is not the active one. Used by
 // every component that draws a selection, so two lists side by side dim by the
 // same amount.
@@ -278,5 +358,23 @@ QString rgba(const QColor& color, double alpha);
 // hand it to a painter instead of to a style sheet. Without it every caller
 // writes the same three-line copy-and-set-alpha dance.
 QColor withAlpha(const QColor& color, double alpha);
+
+
+// A hairline that lands on a pixel.
+//
+// A 1px rule stroked through an antialiased painter is centred on the pixel
+// *boundary*, so it comes out as two rows at half strength: the design's
+// `1px solid var(--hair)` renders as two rows of a colour halfway between the
+// rule and the surface under it, and every divider in the product reads a
+// shade too faint without any one of them looking obviously wrong.
+//
+// Filling the rectangle the rule occupies is the whole fix. Every divider in
+// this library goes through here so the answer is stated once - and so that a
+// component cannot quietly go back to stroking one.
+//
+// `from` and `to` are the ends of the rule; it must be horizontal or vertical,
+// which every divider in the design is.
+void paintHairline(QPainter* painter, const QPoint& from, const QPoint& to,
+                   const QColor& colour, int weight = 1);
 
 } // namespace novu::ui

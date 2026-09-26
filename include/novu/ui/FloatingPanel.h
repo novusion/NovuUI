@@ -9,6 +9,7 @@
 #include <QWidget>
 
 class QHBoxLayout;
+class QScrollArea;
 class QVBoxLayout;
 
 namespace novu::ui {
@@ -54,6 +55,8 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+    void updateInputRegion();
+
     QPointer<QWidget> m_host;
 };
 
@@ -97,6 +100,32 @@ public:
     void setGlyph(Glyph glyph);
 
     QWidget* bodyWidget() const { return m_body; }
+
+    // `<button data-fw-min>` and `<button data-fw-max>` - the other two
+    // window controls the design puts on a floating window, in that order
+    // before the close. A panel that carries only a close box is a popover
+    // wearing a title bar: these are *windows*, and the two things one can do
+    // to a window other than close it are get it out of the way and make it
+    // as big as the space allows.
+    QRect minimiseRect() const;
+    QRect maximiseRect() const;
+    // The third of the same set. Public for the same reason the other two are:
+    // where a window control *is* belongs to the window, not to its painter.
+    QRect closeRect() const;
+    bool isMaximised() const { return !m_restore.isNull(); }
+    // Fills the layer inset by 40, or puts the window back where it was.
+    void toggleMaximised();
+
+
+    // `.fw-foot{display:flex;align-items:center;gap:8px;padding:11px 14px;
+    // border-top:1px solid var(--hair);flex-shrink:0}` — the row the window's
+    // own buttons stand in.
+    //
+    // A row of its own because `.fw-body` scrolls and this must not: a Create
+    // button that scrolls out of the window with the form above it is a window
+    // whose action cannot be reached. It costs nothing until something is put
+    // in it.
+    QHBoxLayout* footer() const;
     QVBoxLayout* body() const;
     void setBodyWidget(QWidget* widget);
 
@@ -114,6 +143,12 @@ public:
     // panel keeps its size and its contents and unrolls to exactly what it was.
     bool isRolled() const { return m_rolled; }
     void setRolled(bool rolled);
+
+    // Ask to close, from anywhere, without answering inside the event that
+    // asked. The bar's own close button and Escape both go through this; a
+    // caller with its own Close button should too, rather than emitting the
+    // signal by hand. See the implementation for why it matters.
+    void requestClose();
 
     bool isResizable() const { return m_resizable; }
     void setResizable(bool resizable);
@@ -138,6 +173,8 @@ public:
 
 signals:
     void closeRequested();
+    // The bar's minimise: the design hides the window outright.
+    void minimiseRequested();
     void rolledChanged(bool rolled);
     void barActionTriggered(const QString& key);
     void movedOrResized();
@@ -147,6 +184,8 @@ protected:
     void resizeEvent(QResizeEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseDoubleClickEvent(QMouseEvent* event) override;
     void leaveEvent(QEvent* event) override;
@@ -164,7 +203,6 @@ private:
 
     int barHeight() const;
     QRect actionRect(int index) const;
-    QRect closeRect() const;
     void relayout();
     void clampIntoParent();
 
@@ -176,9 +214,20 @@ private:
     QVector<BarAction> m_actions;
 
     QWidget* m_body = nullptr;
+    // The body's own viewport. `.fw-body{flex:1;min-height:0;overflow:auto}`:
+    // a form taller than the window scrolls rather than squashing its fields
+    // into each other, which is what a three-row note field did to every
+    // field above it.
+    QScrollArea* m_scroll = nullptr;
+    QWidget* m_foot = nullptr;
     QWidget* m_task = nullptr;
 
     bool m_rolled = false;
+    bool m_hoveredMinimise = false;
+    bool m_hoveredMaximise = false;
+    // Where it was before it filled the layer. Null means it is not maximised,
+    // which is also what tells the button which way it goes.
+    QRect m_restore;
     bool m_resizable = true;
     bool m_front = false;
 

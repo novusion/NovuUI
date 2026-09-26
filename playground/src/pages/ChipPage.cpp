@@ -5,6 +5,8 @@
 
 #include "novu/ui/Card.h"
 #include "novu/ui/Chip.h"
+#include "novu/ui/Icon.h"
+#include "novu/ui/Text.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
@@ -53,6 +55,7 @@ QWidget* build(const PreviewContext& ctx)
 {
     auto* page = new QWidget(ctx.parent);
     QVBoxLayout* column = previewPage(page);
+    auto* documentTag=new Chip("getting-started",page,false);documentTag->setTagStyle(true);column->addWidget(documentTag);
     const QStringList items = itemsFor(ctx);
     const bool enabled = ctx.scenario != Scenario::Disabled;
 
@@ -73,6 +76,47 @@ QWidget* build(const PreviewContext& ctx)
             row->addWidget(chip);
         }
         row->addStretch(1);
+        column->addWidget(card);
+    }
+
+    // ── the token ────────────────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Chip as a token"),
+                                 QStringLiteral("A chip that names a thing rather than a "
+                                                "state: an attachment, a recipient, a filter "
+                                                "you can take off again."));
+        QVBoxLayout* body = card->body();
+
+        QHBoxLayout* row = exampleRow(body, card, QStringLiteral("Attachments"));
+        auto* file = new Chip(QStringLiteral("task_system.py"), card);
+        file->setGlyph(Glyph::File);
+        file->setRemovable(true);
+        auto* folder = new Chip(QStringLiteral("src/agents"), card);
+        folder->setGlyph(Glyph::Folder);
+        folder->setRemovable(true);
+        auto* glyphOnly = new Chip(QStringLiteral("No remove"), card);
+        glyphOnly->setGlyph(Glyph::Link);
+        auto* removeOnly = new Chip(QStringLiteral("No glyph"), card);
+        removeOnly->setRemovable(true);
+        for (Chip* chip : {file, folder, glyphOnly, removeOnly}) {
+            row->addWidget(chip);
+        }
+        row->addStretch(1);
+
+        auto* said = label(QStringLiteral("Nothing removed yet"), card, TypeRole::Mono,
+                           Ink::Muted);
+        for (Chip* chip : {file, folder, removeOnly}) {
+            QObject::connect(chip, &Chip::removed, said, [said, chip] {
+                said->setText(QStringLiteral("removed: %1").arg(chip->text()));
+            });
+        }
+        body->addWidget(said);
+
+        note(body, card,
+             QStringLiteral("A token is present or gone, not on or off, so it stops being "
+                            "checkable the moment it carries a glyph or an x. The chip does "
+                            "not remove itself: it reports that the x was pressed and what "
+                            "the token belongs to decides."));
         column->addWidget(card);
     }
 
@@ -124,9 +168,14 @@ ComponentSpec chipComponent()
     spec.headerPath = QStringLiteral("include/novu/ui/Chip.h");
     spec.sourcePath = QStringLiteral("src/Chip.cpp");
     spec.designedFor = {QStringLiteral("novuspace"),
-                   QStringLiteral("novutrade")};
+                   QStringLiteral("novutrade"),
+                   // The token variant was cut for NovuAI's composer, which
+                   // attaches files and folders to a message.
+                   QStringLiteral("novuai")};
     spec.usedBy = {QStringLiteral("novuspace")};
     spec.variants = {QStringLiteral("On"), QStringLiteral("Off"),
+                     QStringLiteral("Token with glyph"),
+                     QStringLiteral("Token, removable"),
                      QStringLiteral("Bar with caption"), QStringLiteral("Bar without caption")};
     spec.states = {QStringLiteral("On"), QStringLiteral("Off"), QStringLiteral("Disabled"),
                    QStringLiteral("Hover")};

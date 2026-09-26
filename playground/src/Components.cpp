@@ -14,6 +14,7 @@ void registerBuiltinComponents(ComponentRegistry& registry)
     // missing from exactly the build nobody checks.
     const QVector<ComponentSpec (*)()> factories = {
         // Foundation
+        &pages::applicationRulesComponent,
         &pages::typographyComponent,
         &pages::motionComponent,
         &pages::dropTargetComponent,
@@ -25,6 +26,7 @@ void registerBuiltinComponents(ComponentRegistry& registry)
         &pages::flowLayoutComponent,
         &pages::windowShellComponent,
         &pages::floatingPanelComponent,
+        &pages::splashScreenComponent,
         &pages::splitterComponent,
         &pages::gateCardComponent,
         &pages::activePanelComponent,
@@ -55,6 +57,7 @@ void registerBuiltinComponents(ComponentRegistry& registry)
         &pages::statusBarComponent,
         &pages::pageHeaderComponent,
         &pages::treeViewComponent,
+        &pages::filePickerComponent,
         &pages::tabBarComponent,
         &pages::drawerComponent,
         &pages::commandPaletteComponent,
@@ -66,6 +69,7 @@ void registerBuiltinComponents(ComponentRegistry& registry)
         &pages::statCardComponent,
         &pages::statusDotComponent,
         &pages::propertyRowComponent,
+        &pages::itemListComponent,
         &pages::tableViewComponent,
         &pages::appMarkComponent,
         &pages::productMarkComponent,

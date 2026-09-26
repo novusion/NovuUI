@@ -53,6 +53,23 @@ class TabBar : public QWidget
 public:
     // What a tab is doing. Only one at a time — a tab that is both loading and
     // failed is a tab whose state machine has a bug, not a tab with two marks.
+    // The two tab strips the approved design draws, which are not the same
+    // control wearing different colours.
+    //
+    // Browser is `.btab`: a plate with rounded top corners, a close box, a
+    // mark and a state light. It is a *document* - something you opened, that
+    // can be closed, that can be loading or asleep.
+    //
+    // Underline is `.tab`: no plate and no close box, the accent ink and a
+    // 2px accent rule under the current one, with a hairline along the whole
+    // strip. It is a *face of one surface* - the four tabs of a settings card,
+    // the four views of a market panel. Drawing those as documents said they
+    // could be closed, and gave four faces of one card four separate plates.
+    enum class Variant { Browser, Underline };
+
+    Variant variant() const { return m_variant; }
+    void setVariant(Variant variant);
+
     enum class State {
         Idle,
         Loading,   // a spinner in place of the mark
@@ -85,6 +102,18 @@ public:
     void setLabel(const QString& key, const QString& label);
     QString label(const QString& key) const;
     void setGlyph(const QString& key, Glyph glyph);
+    // A short mark drawn in a tile where the glyph would go: the page's own
+    // initial, for documents that have no icon to give. A browser tab is the
+    // case this exists for - `novuai.app` has no glyph in any icon set, but
+    // the letter N tells the twelfth tab from the eleventh at a glance.
+    //
+    // A lettered mark is the document's identity, so it is not overwritten by
+    // the document's state: a tab that has one shows Failed and Asleep as a
+    // dot after the label instead of in place of its mark. Loading is the
+    // exception, and stays a spinner in the mark's place - a page that is
+    // still arriving has no identity to protect yet.
+    void setMarkText(const QString& key, const QString& text);
+    QString markText(const QString& key) const;
     void setState(const QString& key, State state);
     State state(const QString& key) const;
     // The design's per-tab underline. Held on the tab, so a reorder carries it.
@@ -101,6 +130,16 @@ public:
     // The trailing "+". Off by default: not every tab bar opens things.
     bool hasNewTabButton() const { return m_newTab; }
     void setNewTabButton(bool enabled);
+
+    // `.btabs-row .bacts` - what belongs to the *set* of tabs rather than to
+    // any one of them, pinned to the trailing edge of the strip.
+    //
+    // It rides here rather than on a bar of its own because a second
+    // horizontal band between the tabs and the page is a layer that says
+    // nothing. The tabs lay out in what is left, so they shrink around it
+    // instead of sliding underneath it. Takes ownership; nullptr removes it.
+    void setTrailingWidget(QWidget* widget);
+    QWidget* trailingWidget() const { return m_trailing; }
 
     // Geometry, so a test can click a tab or its close box without guessing.
     QRect tabRect(int index) const;
@@ -131,25 +170,34 @@ protected:
     void mouseMoveEvent(QMouseEvent* event) override;
     void leaveEvent(QEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
+    // The ring is the keyboard's, not the mouse's - see FocusRing in Theme.h.
+    void focusInEvent(QFocusEvent* event) override;
     void showEvent(QShowEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
     void hideEvent(QHideEvent* event) override;
     bool event(QEvent* event) override;
 
 private:
+    FocusRing m_ring;
+
     struct Tab
     {
         QString key;
         QString label;
         Glyph glyph = Glyph::None;
+        QString mark;
         State state = State::Idle;
         QColor color;
         bool closable = true;
     };
 
     int tabWidth(const Tab& tab) const;
+    // What every tab is actually drawn at, in order.
     // Tabs shrink together when the bar runs out of room, down to a floor -
     // which is what a browser does, and what stops the thirtieth tab being
     // unreachable. Returns the width every tab is actually drawn at.
+    QVector<int> laidOutWidths() const;
+    // The first tab's width, for the callers that only need a scale.
     int laidOutWidth() const;
     void updateMotion();
     const Tab* find(const QString& key) const;
@@ -157,6 +205,7 @@ private:
 
     QVector<Tab> m_tabs;
     int m_current = -1;
+    Variant m_variant = Variant::Browser;
     int m_hovered = -1;
     bool m_hoveredClose = false;
     bool m_hoveredNew = false;
@@ -169,6 +218,9 @@ private:
     int m_dragIndex = -1;
     QPoint m_dragOrigin;
 
+    void placeTrailing();
+
+    QWidget* m_trailing = nullptr;
     bool m_reorderable = true;
     bool m_newTab = false;
     // Whether any tab is loading, so the clock is held open only while one is.

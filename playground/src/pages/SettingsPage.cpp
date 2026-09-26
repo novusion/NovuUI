@@ -175,6 +175,19 @@ QWidget* build(const PreviewContext& ctx)
         body->addSpacing(10);
         body->addWidget(showing);
 
+        QHBoxLayout* collapseRow = exampleRow(body, card, QStringLiteral("Navigation"));
+        auto* collapseToggle = new Button(QStringLiteral("Collapse"), Button::Variant::Secondary,
+                                          card);
+        collapseToggle->setControlSize(ControlSize::Small);
+        QObject::connect(collapseToggle, &Button::clicked, shell, [shell, collapseToggle] {
+            const bool collapsed = !shell->isNavigationCollapsed();
+            shell->setNavigationCollapsed(collapsed);
+            collapseToggle->setText(collapsed ? QObject::tr("Expand")
+                                              : QObject::tr("Collapse"));
+        });
+        collapseRow->addWidget(collapseToggle);
+        collapseRow->addStretch(1);
+
         note(body, card,
              QStringLiteral("Click through the navigation; type in the search box to filter "
                             "it. The shell owns the shape and which page is showing — a pure "
@@ -183,6 +196,13 @@ QWidget* build(const PreviewContext& ctx)
                             "nothing: the pages above are built by this page out of "
                             "SettingRow, Field, Toggle, Slider, Segmented and Swatch, exactly "
                             "as an application would build them."));
+        note(body, card,
+             QStringLiteral("Collapse turns the navigation into the same icon rail every "
+                            "NovuUI sidebar collapses to — NavList::setCollapsed(), not a "
+                            "second mechanism grown for Settings. The search field hides "
+                            "with it, since a text field has no icon to shrink to; the "
+                            "selected page and the hierarchy underneath every group are "
+                            "exactly where they were when it expands again."));
         column->addWidget(card);
     }
 

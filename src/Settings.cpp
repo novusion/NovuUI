@@ -100,6 +100,9 @@ void SettingsSection::relayout()
 SettingRow* SettingsSection::addRow(const QString& name, const QString& hint)
 {
     auto* row = new SettingRow(name, hint, this);
+    // Settings uses the frozen `.set-row` grid: compact vertical padding and
+    // a fixed label column. Standalone `.kv` rows retain their own geometry.
+    row->setProperty("novuSettingsRow", true);
     addRow(row);
     return row;
 }
@@ -212,6 +215,9 @@ SettingsPage::SettingsPage(const QString& title, const QString& description,
                                profile.space(SpacingRole::PagePadding),
                                profile.space(SpacingRole::PagePadding));
     m_body->setSpacing(profile.space(SpacingRole::CardGap) * 2);
+    // Keep short settings pages pinned to the top. Without a trailing stretch,
+    // QVBoxLayout distributes spare viewport height between fixed sections.
+    m_body->addStretch(1);
     column->addWidget(host, 1);
 }
 
@@ -405,7 +411,30 @@ void SettingsShell::setNavigationWidth(int px)
         return;
     }
     m_navWidth = px;
-    m_navColumn->setFixedWidth(px);
+    if (!m_navCollapsed) {
+        m_navColumn->setFixedWidth(px);
+    }
+}
+
+void SettingsShell::setNavigationCollapsed(bool collapsed)
+{
+    if (m_navCollapsed == collapsed) {
+        return;
+    }
+    m_navCollapsed = collapsed;
+    // Hides labels, section captions, counts and twisties and centres the
+    // glyphs - the list's own contract, not this shell's to re-implement.
+    m_nav->setCollapsed(collapsed);
+    // Not NavList's: a text field has no icon-rail form to shrink to, so it
+    // goes with the rest of what a rail hides rather than staying behind as
+    // a lone control with nothing to filter into view.
+    if (m_search) {
+        m_search->setVisible(!collapsed);
+    }
+    m_navColumn->setFixedWidth(collapsed
+        ? m_nav->sizeHint().width() + 2 * themeFor(this).spacing.sm
+        : m_navWidth);
+    emit navigationCollapsedChanged(collapsed);
 }
 
 bool SettingsShell::event(QEvent* event)

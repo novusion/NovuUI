@@ -7,8 +7,11 @@
 #include <QWidget>
 
 class QHBoxLayout;
+class QPainter;
 
 namespace novu::ui {
+
+struct ThemeProfile;
 
 // Where you are, as a trail of places.
 //
@@ -68,8 +71,25 @@ class PageHeader : public QWidget
     Q_OBJECT
 
 public:
+    // How the trail, the title and the description are arranged.
+    //
+    // The two are both in the approved designs and neither is a preference:
+    // NovuExplorer stacks them, and NovuSpace's own `.page-head` is one flex
+    // row - `.ttl{display:flex;align-items:baseline;gap:10px}` puts the trail,
+    // the heading and the description on a single baseline, and the band is
+    // `padding:10px 20px` tall because of it. A stacked header in that design
+    // is three rows where the reference draws one, which moves every pixel of
+    // the page below it.
+    enum class Layout {
+        Stacked,  // trail above the title, description under it
+        Inline,   // all three on one baseline, wrapping only when out of room
+    };
+
     explicit PageHeader(const QString& title, QWidget* parent = nullptr);
     PageHeader(const QString& title, const QString& description, QWidget* parent);
+
+    Layout layout() const { return m_layout; }
+    void setLayout(Layout layout);
 
     QString title() const { return m_title; }
     void setTitle(const QString& title);
@@ -80,6 +100,11 @@ public:
     // Empty hides the trail entirely rather than leaving its line height.
     void setPath(const QStringList& path);
     QStringList path() const { return m_path; }
+
+    // Optional compact context shown above the title. The caller supplies
+    // the shared widget (typically a Badge); PageHeader owns its placement.
+    void setEyebrowWidget(QWidget* widget);
+    QWidget* eyebrowWidget() const { return m_eyebrow; }
 
     // The trailing controls. Empty by default, and takes no width until
     // something is put in it.
@@ -105,6 +130,13 @@ protected:
     bool event(QEvent* event) override;
 
 private:
+    // The one-row arrangement: trail, title and description on a shared
+    // baseline. `top` is where the row's box starts and `available` the room
+    // the three of them have to share before the actions.
+    void paintInline(QPainter* painter, const ThemeProfile& profile, int top,
+                     int available) const;
+    bool inlineDescriptionWraps(int width) const;
+
     // The text block's height at `width`, which is what heightForWidth() and
     // the paint pass both need and must not compute differently.
     int textHeight(int width) const;
@@ -114,7 +146,9 @@ private:
     QString m_title;
     QString m_description;
     QStringList m_path;
+    Layout m_layout = Layout::Stacked;
     bool m_divider = true;
+    QWidget* m_eyebrow = nullptr;
     QWidget* m_actions = nullptr;
 };
 

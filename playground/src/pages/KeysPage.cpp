@@ -25,7 +25,7 @@ namespace {
 void fillReference(ShortcutList* list)
 {
     list->addGroup(QStringLiteral("Navigation"));
-    list->addShortcut(QStringLiteral("Command palette"), QStringLiteral("Ctrl+K"));
+    list->addShortcut(QStringLiteral("Command palette"), QStringLiteral("Ctrl+K"),QStringLiteral("Find actions in the current workspace"));
     list->addShortcut(QStringLiteral("Go to workspace"), QStringLiteral("Ctrl+P"));
     list->addShortcut(QStringLiteral("Next module"), QStringLiteral("Ctrl+Tab"));
     list->addShortcut(QStringLiteral("Toggle sidebar"), QStringLiteral("Ctrl+B"));

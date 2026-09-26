@@ -17,11 +17,13 @@ deliberately missing.
 
 | | |
 |---|---|
-| components | 67 |
+| components | 72 |
 | Foundation | 15 |
+| Window title bar | 2 |
+| Navigation | 16 |
+| Footer | 1 |
 | Input | 13 |
-| Navigation | 15 |
-| Data display | 12 |
+| Data display | 13 |
 | Feedback | 12 |
 
 
@@ -47,6 +49,23 @@ The rule every component that draws a selection follows: a panel that is not the
 | property | type | notes |
 |---|---|---|
 | `novuActivePanel` | `bool` | Set on the panel. Unset means always active, which is what a dialog wants. |
+
+### Application rules
+
+The Novusion Application Architecture Rules - modular architecture, strict frontend/backend separation, and the Hub-owned Data Root / Cache Root storage boundary every application must stay inside. Mandatory, not a suggestion.
+
+```cpp
+#include "docs/APPLICATION_RULES.md"
+```
+
+| | |
+|---|---|
+| Variants | `Normal` |
+| States | `Normal` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuspace, novuai, novuexplorer, novuadmin, novuhub |
+| Playground | `run.bat application-rules` |
+| Source | `playground/src/pages/ApplicationRulesPage.cpp` |
 
 ### Drop target
 
@@ -236,6 +255,30 @@ The hairline. Painted, with no children and no stylesheet, at the two weights th
 | `inset` | `int` | How far it stops short of each end. |
 | `length` | `int` | A fixed run; 0 takes the space it is given. |
 
+### SplashScreen
+
+The window every Novu application opens before it opens: the family mark, the product's own name and tagline, a version/build pair, and a status line over a progress track.
+
+```cpp
+#include "novu/ui/SplashScreen.h"
+```
+
+| | |
+|---|---|
+| Variants | `Normal` |
+| States | `0%`, `Mid-progress`, `Complete` |
+| API | `title`, `subtitle`, `percent` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuspace, novuai, novuexplorer, novuadmin |
+| Playground | `run.bat splash-screen` |
+| Source | `src/SplashScreen.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `title` | `QString` | The application's own name - changes per application. |
+| `subtitle` | `QString` | One line under the name. |
+| `percent` | `int` | 0-100. Drives the track's fill and the percent label together. |
+
 ### Splitter
 
 The handle between two panels, with a collapse arrow at each end — and CollapseDivider, for a fixed strip that folds but does not resize.
@@ -258,29 +301,6 @@ The handle between two panels, with a collapse arrow at each end — and Collaps
 |---|---|---|
 | `collapseArrows` | `bool` | Off leaves a plain drag handle. |
 | `panelCollapsed` | `bool` | Sets a size to zero; restoring returns the size it had. |
-
-### StatusBar
-
-The strip along the bottom of a window: session, context and transport, painted as addressable items rather than built from labels.
-
-```cpp
-#include "novu/ui/StatusBar.h"
-```
-
-| | |
-|---|---|
-| Variants | `Text`, `Value`, `Mono`, `Status`, `Separator` |
-| States | `Online`, `Offline` |
-| API | `slot`, `offline` |
-| Currently used by | *nothing yet — built, not adopted* |
-| Designed for | novuspace |
-| Playground | `run.bat status-bar` |
-| Source | `src/StatusBar.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `slot` | `enum` | Which end an item packs against. |
-| `offline` | `bool` | Every transport light goes to danger at once. |
 
 ### Theme & Styling
 
@@ -333,7 +353,7 @@ Text by role, never by number: label(), caption(), applyText(), setInk(), and th
 
 | | |
 |---|---|
-| Variants | `PageTitle`, `SectionTitle`, `CardTitle`, `Body`, `Caption`, `Label`, `Metric`, `Mono`, `Eyebrow` |
+| Variants | `Paragraph`, `PageTitle`, `SectionTitle`, `CardTitle`, `Body`, `Caption`, `Label`, `Metric`, `Mono`, `Eyebrow` |
 | States | `Default`, `Secondary`, `Muted`, `Accent`, `Success`, `Warning`, `Danger`, `Info` |
 | API | `role`, `ink`, `bold` |
 | Currently used by | novuspace |
@@ -346,6 +366,31 @@ Text by role, never by number: label(), caption(), applyText(), setInk(), and th
 | `role` | `enum` | Size and weight together. |
 | `ink` | `enum` | Semantic colour. |
 | `bold` | `bool` | Overrides the role's weight. |
+
+
+## Window title bar
+
+### Product mark
+
+The isometric gem every window icon, every favicon and the title bar's own icon are drawn from — three filled polygons, no plate, no border. Left and bottom are the shared neutrals; only the right face is the product's own accent.
+
+```cpp
+#include "novu/ui/AppMark.h"
+```
+
+| | |
+|---|---|
+| Variants | `18px`, `22px`, `28px`, `40px` |
+| API | `accent`, `size` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuspace, novuai, novuexplorer, novuadmin, novuhub |
+| Playground | `run.bat product-mark` |
+| Source | `src/AppMark.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `accent` | `QColor` | Resolved from the context's own profile — never passed in. |
+| `size` | `int` | The box the mark is scaled into. One drawing, any size. |
 
 ### WindowShell
 
@@ -375,6 +420,418 @@ The frame every Novu window and dialog wears: title bar, three controls, border,
 | `kind` | `enum` | Sets the default capabilities and the radius role. |
 
 
+## Navigation
+
+### BottomPanel
+
+The console strip across the bottom of a window. Holds tabs and pages; owns neither whether it is open nor what is in it — the host answers both.
+
+```cpp
+#include "novu/ui/BottomPanel.h"
+```
+
+| | |
+|---|---|
+| Variants | `Expanded`, `Collapsed` |
+| States | `Normal`, `Modified tab` |
+| API | `expanded`, `expandedHeight`, `currentKey` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuexplorer, novuai |
+| Playground | `run.bat bottom-panel` |
+| Source | `src/BottomPanel.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `expanded` | `bool` | An input. The panel applies it and never changes it. |
+| `expandedHeight` | `int` | How tall when open, not counting the strip. The host's number. |
+| `currentKey` | `QString` | Which page is showing, by the caller's own identifier. |
+
+### CommandPalette
+
+Every action the application has, reached by name. Subsequence matching with a ranking, so the command Return runs is the one you meant.
+
+```cpp
+#include "novu/ui/CommandPalette.h"
+```
+
+| | |
+|---|---|
+| Variants | `Grouped`, `Ranked` |
+| States | `Empty filter`, `Filtered`, `No match` |
+| API | `commands`, `filter` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuexplorer, novuvoice |
+| Playground | `run.bat command-palette` |
+| Source | `src/CommandPalette.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `commands` | `QVector<Command>` | Given, not discovered: the application knows what it can do. |
+| `filter` | `QString` | Matches a subsequence of the name, or the group. |
+
+### Disclosure
+
+A header that puts its content away: an outlined Advanced row inside a form, or a sidebar group with a count and an action that does not collapse it.
+
+```cpp
+#include "novu/ui/Disclosure.h"
+```
+
+| | |
+|---|---|
+| Variants | `Inline`, `Block` |
+| States | `Open`, `Shut`, `Hover`, `Focused` |
+| API | `variant`, `open`, `count`, `hint` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuspace |
+| Playground | `run.bat disclosure` |
+| Source | `src/Disclosure.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `variant` | `enum` | An outlined form row, or a sidebar caption. |
+| `open` | `bool` | Hides the body; never clears it. |
+| `count` | `int` | -1 draws nothing. 0 draws a zero, which says something else. |
+| `hint` | `QString` | Inline only: what is inside, without opening it. |
+
+### Drawer
+
+The detail view that opens over a list instead of navigating away from it, so the table keeps its filters and its scroll position.
+
+```cpp
+#include "novu/ui/Drawer.h"
+```
+
+| | |
+|---|---|
+| Variants | `Trailing`, `Leading`, `With actions` |
+| States | `Open`, `Closed`, `Guarded` |
+| API | `edge`, `maximumWidth`, `closesOnScrimClick` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuspace |
+| Playground | `run.bat drawer` |
+| Source | `src/Drawer.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `edge` | `enum` | Which side it is anchored to. |
+| `maximumWidth` | `int` | Capped in pixels and as a fraction: both matter. |
+| `closesOnScrimClick` | `bool` | False for a drawer holding an edit a stray click would lose. |
+
+### FilePicker
+
+An open/save dialog's own shape in NovuUI's style: a location tree, a content table, a name field and a confirm action. Owns no filesystem access.
+
+```cpp
+#include "novu/ui/FilePicker.h"
+```
+
+| | |
+|---|---|
+| Variants | `Folder`, `File` |
+| States | `Normal`, `Selected` |
+| API | `currentLocation`, `selectedName` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuexplorer |
+| Playground | `run.bat file-picker` |
+| Source | `src/FilePicker.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `currentLocation` | `QString` | Which tree node is open. The caller's own id, usually a path. |
+| `selectedName` | `QString` | What the bottom field holds - what Select confirms. |
+
+### ModuleBar
+
+Top-level navigation in the title bar: the modules an application is made of, with the active one in the accent — the only accented thing in the chrome.
+
+```cpp
+#include "novu/ui/ModuleBar.h"
+```
+
+| | |
+|---|---|
+| Variants | `Full`, `Compact` |
+| States | `Normal`, `Hover`, `Current`, `Disabled` |
+| API | `currentKey`, `compact`, `countTone` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuspace |
+| Playground | `run.bat module-bar` |
+| Source | `src/ModuleBar.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `currentKey` | `QString` | What moduleChosen() carries. |
+| `compact` | `bool` | Glyphs only, with the label moved onto the tooltip. |
+| `countTone` | `enum` | Amber when the count needs a person. |
+
+### NavList
+
+A whole sidebar navigation tree in one painted widget: glyphs, labels, counts, status dots, twisties, sections and a collapsed icon mode.
+
+```cpp
+#include "novu/ui/NavList.h"
+```
+
+| | |
+|---|---|
+| Variants | `Item`, `Child`, `Section` |
+| States | `Normal`, `Hover`, `Current`, `Disabled`, `Expanded`, `Collapsed rail` |
+| API | `currentKey`, `countTone`, `collapsed` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuspace |
+| Playground | `run.bat nav-list` |
+| Source | `src/NavList.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `currentKey` | `QString` | Caller's own identifier; never shown, so it survives translation. |
+| `countTone` | `enum` | Amber for a count that needs a person — the design's rule. |
+| `collapsed` | `bool` | Hides labels, counts and twisties; centres the glyphs. |
+
+### PageHeader
+
+The band across the top of a page: a breadcrumb, a title, a wrapping description and the page's actions. The most repeated shape in the system.
+
+```cpp
+#include "novu/ui/PageHeader.h"
+```
+
+| | |
+|---|---|
+| Variants | `Title only`, `With description`, `With trail`, `Breadcrumb alone` |
+| States | `Divider`, `No divider` |
+| API | `path`, `description`, `divider` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuspace |
+| Playground | `run.bat page-header` |
+| Source | `src/PageHeader.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `path` | `QStringList` | The full path; the last segment is dropped as redundant. |
+| `description` | `QString` | Wraps, and the header grows to fit it. |
+| `divider` | `bool` | Off for a header inside a card. |
+
+### Popover
+
+The menu that drops out of a button: captions, glyphs, a right-aligned meta column, checked and dangerous entries — painted, because QMenu cannot be this.
+
+```cpp
+#include "novu/ui/Popover.h"
+```
+
+| | |
+|---|---|
+| Variants | `Item`, `Group`, `Separator`, `Dangerous` |
+| States | `Normal`, `Hover`, `Checked`, `Disabled` |
+| API | `meta`, `checked`, `dangerous` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuspace |
+| Playground | `run.bat popover` |
+| Source | `src/Popover.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `meta` | `QString` | The right-aligned note: a shortcut, a count, a version. |
+| `checked` | `bool` | The accent, for an option in force. Not a radio group. |
+| `dangerous` | `bool` | Ink and hover both go red, for the one entry to avoid. |
+
+### SelectionBar
+
+The tinted strip under a list saying how much is selected and what can be done with it. Hides itself at zero, which is the state every hand-rolled one got wrong.
+
+```cpp
+#include "novu/ui/SelectionBar.h"
+```
+
+| | |
+|---|---|
+| States | `Hidden`, `One`, `Many` |
+| API | `count`, `noun` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuai |
+| Playground | `run.bat selection-bar` |
+| Source | `src/SelectionBar.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `count` | `int` | Zero hides the bar entirely. |
+| `noun` | `QString` | "file" becomes "3 files selected"; the plural is derived. |
+
+### SettingsShell
+
+The settings window as a shape: navigation, page host, headings, grouping and spacing. Owns no setting, no value and no persistence.
+
+```cpp
+#include "novu/ui/Settings.h"
+```
+
+| | |
+|---|---|
+| Variants | `With search`, `Grouped`, `Section only` |
+| States | `Normal`, `Filtered`, `Invalid field` |
+| API | `currentKey`, `searchEnabled`, `navigationWidth` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuai, novuexplorer, novuspace, novuadmin |
+| Playground | `run.bat settings-shell` |
+| Source | `src/Settings.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `currentKey` | `QString` | Which page is showing. View state, so the shell keeps it. |
+| `searchEnabled` | `bool` | A filter over the navigation by page title. |
+| `navigationWidth` | `int` | One number, so nineteen pages agree. |
+
+### Sidebar
+
+The left rail: an identity head, a connection strip, a scrolling navigation region and a pinned action column. Only the navigation scrolls.
+
+```cpp
+#include "novu/ui/Sidebar.h"
+```
+
+| | |
+|---|---|
+| Variants | `Expanded`, `Collapsed`, `With blocks` |
+| States | `Online`, `Degraded`, `Offline` |
+| API | `collapsed`, `expandedWidth` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuspace |
+| Playground | `run.bat sidebar` |
+| Source | `src/Sidebar.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `collapsed` | `bool` | Folds the rail to a strip of icons, lists included. |
+| `expandedWidth` | `int` | The collapsed width is derived from the mark, not set. |
+
+### TabBar
+
+Open documents across the top of a window: per-tab colour and state, drag to reorder, a close box that is its own target, and a new-tab button.
+
+```cpp
+#include "novu/ui/TabBar.h"
+```
+
+| | |
+|---|---|
+| Variants | `Idle`, `Loading`, `Failed`, `Modified`, `Asleep` |
+| States | `Current`, `Hover`, `Dragging`, `Shrunken` |
+| API | `state`, `color`, `reorderable`, `newTabButton` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuexplorer, novuai, novuspace |
+| Playground | `run.bat tab-bar` |
+| Source | `src/TabBar.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `state` | `enum` | One at a time. Two marks is a bug. |
+| `color` | `QColor` | Held on the tab, so a reorder carries it. |
+| `reorderable` | `bool` | Drag past a threshold, so a click is not a one-pixel drag. |
+| `newTabButton` | `bool` | Not every tab bar opens things. |
+
+### TabStrip
+
+A row of buttons where exactly one is active. Not QTabWidget: a strip reports which item is current and leaves the layout to the page.
+
+```cpp
+#include "novu/ui/TabStrip.h"
+```
+
+| | |
+|---|---|
+| Variants | `Pill`, `Segment`, `Accent`, `Warning` |
+| States | `Active`, `Inactive`, `Hover`, `Disabled` |
+| API | `items`, `variant`, `tone`, `current` |
+| Currently used by | novuspace |
+| Designed for | novuspace, novuai, novuexplorer, novuhub, novuvoice, novutrade |
+| Playground | `run.bat tab-strip` |
+| Source | `src/TabStrip.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `items` | `QStringList` | Captions, in order. |
+| `variant` | `enum` | Pill is control height; Segment is compact. |
+| `tone` | `enum` | Warning is for a switcher above accent-coloured chips. |
+| `current` | `int` | Active index. |
+
+### Tile
+
+A selectable two-line tile: title, subtitle, optional badge. Self-painted, so the selected state is one fill and one border from the profile.
+
+```cpp
+#include "novu/ui/Tile.h"
+```
+
+| | |
+|---|---|
+| Variants | `Plain`, `Badged` |
+| States | `Unchecked`, `Checked`, `Hover`, `Disabled (badged)` |
+| API | `title`, `subtitle`, `checked`, `badge` |
+| Currently used by | novuspace |
+| Designed for | novuspace, novutrade |
+| Playground | `run.bat tile` |
+| Source | `src/Tile.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `title` | `QString` | First line. |
+| `subtitle` | `QString` | Second line, muted. |
+| `checked` | `bool` | Selected state. |
+| `badge` | `QString` | Non-empty disables the tile — the badge says why. |
+
+### TreeView
+
+A structure of nested things at arbitrary depth, with indent guides, per-row chevrons, marks, counts and tags — flattened and virtualised into one widget.
+
+```cpp
+#include "novu/ui/TreeView.h"
+```
+
+| | |
+|---|---|
+| Variants | `Item`, `Group`, `Emphasis` |
+| States | `Current`, `Hover`, `Active`, `Detached`, `Dropping`, `Disabled` |
+| API | `kind`, `mark`, `compact` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuai |
+| Playground | `run.bat tree-view` |
+| Source | `src/TreeView.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `kind` | `enum` | Typography, and whether it is a caption. |
+| `mark` | `enum` | State that is not selection. |
+| `compact` | `bool` | A density for the whole tree; per-row heights would make every hit test a search. |
+
+
+## Footer
+
+### StatusBar
+
+The strip along the bottom of a window: session, context and transport, painted as addressable items rather than built from labels.
+
+```cpp
+#include "novu/ui/StatusBar.h"
+```
+
+| | |
+|---|---|
+| Variants | `Text`, `Value`, `Mono`, `Status`, `Separator` |
+| States | `Online`, `Offline` |
+| API | `slot`, `offline` |
+| Currently used by | *nothing yet — built, not adopted* |
+| Designed for | novuspace |
+| Playground | `run.bat status-bar` |
+| Source | `src/StatusBar.cpp` |
+
+| property | type | notes |
+|---|---|---|
+| `slot` | `enum` | Which end an item packs against. |
+| `offline` | `bool` | Every transport light goes to danger at once. |
+
+
 ## Input
 
 ### Button
@@ -387,7 +844,7 @@ The single button used across all Novu applications. Variant selects colour only
 
 | | |
 |---|---|
-| Variants | `Primary`, `Secondary`, `Ghost`, `Success`, `Warning`, `Danger` |
+| Variants | `Primary`, `Secondary`, `Outlined`, `Ghost`, `Success`, `Warning`, `Danger` |
 | States | `Normal`, `Hover`, `Pressed`, `Focused`, `Disabled` |
 | API | `text`, `variant`, `glyph`, `enabled`, `novuSize` |
 | Currently used by | novuadmin, novuspace |
@@ -413,11 +870,11 @@ A small on/off label, and the wrapping strip of them used to choose which column
 
 | | |
 |---|---|
-| Variants | `On`, `Off`, `Bar with caption`, `Bar without caption` |
+| Variants | `On`, `Off`, `Token with glyph`, `Token, removable`, `Bar with caption`, `Bar without caption` |
 | States | `On`, `Off`, `Disabled`, `Hover` |
 | API | `text`, `on`, `items`, `caption` |
 | Currently used by | novuspace |
-| Designed for | novuspace, novutrade |
+| Designed for | novuspace, novutrade, novuai |
 | Playground | `run.bat chip` |
 | Source | `src/Chip.cpp` |
 
@@ -695,369 +1152,6 @@ The switch: something is on, or it is off, and changing it takes effect at once.
 | `knobPosition` | `double` | Read-only: 0 off, 1 on. The seam a test asserts travel on. |
 
 
-## Navigation
-
-### BottomPanel
-
-The console strip across the bottom of a window. Holds tabs and pages; owns neither whether it is open nor what is in it — the host answers both.
-
-```cpp
-#include "novu/ui/BottomPanel.h"
-```
-
-| | |
-|---|---|
-| Variants | `Expanded`, `Collapsed` |
-| States | `Normal`, `Modified tab` |
-| API | `expanded`, `expandedHeight`, `currentKey` |
-| Currently used by | *nothing yet — built, not adopted* |
-| Designed for | novuexplorer, novuai |
-| Playground | `run.bat bottom-panel` |
-| Source | `src/BottomPanel.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `expanded` | `bool` | An input. The panel applies it and never changes it. |
-| `expandedHeight` | `int` | How tall when open, not counting the strip. The host's number. |
-| `currentKey` | `QString` | Which page is showing, by the caller's own identifier. |
-
-### CommandPalette
-
-Every action the application has, reached by name. Subsequence matching with a ranking, so the command Return runs is the one you meant.
-
-```cpp
-#include "novu/ui/CommandPalette.h"
-```
-
-| | |
-|---|---|
-| Variants | `Grouped`, `Ranked` |
-| States | `Empty filter`, `Filtered`, `No match` |
-| API | `commands`, `filter` |
-| Currently used by | *nothing yet — built, not adopted* |
-| Designed for | novuexplorer, novuvoice |
-| Playground | `run.bat command-palette` |
-| Source | `src/CommandPalette.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `commands` | `QVector<Command>` | Given, not discovered: the application knows what it can do. |
-| `filter` | `QString` | Matches a subsequence of the name, or the group. |
-
-### Disclosure
-
-A header that puts its content away: an outlined Advanced row inside a form, or a sidebar group with a count and an action that does not collapse it.
-
-```cpp
-#include "novu/ui/Disclosure.h"
-```
-
-| | |
-|---|---|
-| Variants | `Inline`, `Block` |
-| States | `Open`, `Shut`, `Hover`, `Focused` |
-| API | `variant`, `open`, `count`, `hint` |
-| Currently used by | *nothing yet — built, not adopted* |
-| Designed for | novuspace |
-| Playground | `run.bat disclosure` |
-| Source | `src/Disclosure.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `variant` | `enum` | An outlined form row, or a sidebar caption. |
-| `open` | `bool` | Hides the body; never clears it. |
-| `count` | `int` | -1 draws nothing. 0 draws a zero, which says something else. |
-| `hint` | `QString` | Inline only: what is inside, without opening it. |
-
-### Drawer
-
-The detail view that opens over a list instead of navigating away from it, so the table keeps its filters and its scroll position.
-
-```cpp
-#include "novu/ui/Drawer.h"
-```
-
-| | |
-|---|---|
-| Variants | `Trailing`, `Leading`, `With actions` |
-| States | `Open`, `Closed`, `Guarded` |
-| API | `edge`, `maximumWidth`, `closesOnScrimClick` |
-| Currently used by | *nothing yet — built, not adopted* |
-| Designed for | novuspace |
-| Playground | `run.bat drawer` |
-| Source | `src/Drawer.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `edge` | `enum` | Which side it is anchored to. |
-| `maximumWidth` | `int` | Capped in pixels and as a fraction: both matter. |
-| `closesOnScrimClick` | `bool` | False for a drawer holding an edit a stray click would lose. |
-
-### ModuleBar
-
-Top-level navigation in the title bar: the modules an application is made of, with the active one in the accent — the only accented thing in the chrome.
-
-```cpp
-#include "novu/ui/ModuleBar.h"
-```
-
-| | |
-|---|---|
-| Variants | `Full`, `Compact` |
-| States | `Normal`, `Hover`, `Current`, `Disabled` |
-| API | `currentKey`, `compact`, `countTone` |
-| Currently used by | *nothing yet — built, not adopted* |
-| Designed for | novuspace |
-| Playground | `run.bat module-bar` |
-| Source | `src/ModuleBar.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `currentKey` | `QString` | What moduleChosen() carries. |
-| `compact` | `bool` | Glyphs only, with the label moved onto the tooltip. |
-| `countTone` | `enum` | Amber when the count needs a person. |
-
-### NavList
-
-A whole sidebar navigation tree in one painted widget: glyphs, labels, counts, status dots, twisties, sections and a collapsed icon mode.
-
-```cpp
-#include "novu/ui/NavList.h"
-```
-
-| | |
-|---|---|
-| Variants | `Item`, `Child`, `Section` |
-| States | `Normal`, `Hover`, `Current`, `Disabled`, `Expanded`, `Collapsed rail` |
-| API | `currentKey`, `countTone`, `collapsed` |
-| Currently used by | *nothing yet — built, not adopted* |
-| Designed for | novuspace |
-| Playground | `run.bat nav-list` |
-| Source | `src/NavList.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `currentKey` | `QString` | Caller's own identifier; never shown, so it survives translation. |
-| `countTone` | `enum` | Amber for a count that needs a person — the design's rule. |
-| `collapsed` | `bool` | Hides labels, counts and twisties; centres the glyphs. |
-
-### PageHeader
-
-The band across the top of a page: a breadcrumb, a title, a wrapping description and the page's actions. The most repeated shape in the system.
-
-```cpp
-#include "novu/ui/PageHeader.h"
-```
-
-| | |
-|---|---|
-| Variants | `Title only`, `With description`, `With trail`, `Breadcrumb alone` |
-| States | `Divider`, `No divider` |
-| API | `path`, `description`, `divider` |
-| Currently used by | *nothing yet — built, not adopted* |
-| Designed for | novuspace |
-| Playground | `run.bat page-header` |
-| Source | `src/PageHeader.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `path` | `QStringList` | The full path; the last segment is dropped as redundant. |
-| `description` | `QString` | Wraps, and the header grows to fit it. |
-| `divider` | `bool` | Off for a header inside a card. |
-
-### Popover
-
-The menu that drops out of a button: captions, glyphs, a right-aligned meta column, checked and dangerous entries — painted, because QMenu cannot be this.
-
-```cpp
-#include "novu/ui/Popover.h"
-```
-
-| | |
-|---|---|
-| Variants | `Item`, `Group`, `Separator`, `Dangerous` |
-| States | `Normal`, `Hover`, `Checked`, `Disabled` |
-| API | `meta`, `checked`, `dangerous` |
-| Currently used by | *nothing yet — built, not adopted* |
-| Designed for | novuspace |
-| Playground | `run.bat popover` |
-| Source | `src/Popover.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `meta` | `QString` | The right-aligned note: a shortcut, a count, a version. |
-| `checked` | `bool` | The accent, for an option in force. Not a radio group. |
-| `dangerous` | `bool` | Ink and hover both go red, for the one entry to avoid. |
-
-### SelectionBar
-
-The tinted strip under a list saying how much is selected and what can be done with it. Hides itself at zero, which is the state every hand-rolled one got wrong.
-
-```cpp
-#include "novu/ui/SelectionBar.h"
-```
-
-| | |
-|---|---|
-| States | `Hidden`, `One`, `Many` |
-| API | `count`, `noun` |
-| Currently used by | *nothing yet — built, not adopted* |
-| Designed for | novuai |
-| Playground | `run.bat selection-bar` |
-| Source | `src/SelectionBar.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `count` | `int` | Zero hides the bar entirely. |
-| `noun` | `QString` | "file" becomes "3 files selected"; the plural is derived. |
-
-### SettingsShell
-
-The settings window as a shape: navigation, page host, headings, grouping and spacing. Owns no setting, no value and no persistence.
-
-```cpp
-#include "novu/ui/Settings.h"
-```
-
-| | |
-|---|---|
-| Variants | `With search`, `Grouped`, `Section only` |
-| States | `Normal`, `Filtered`, `Invalid field` |
-| API | `currentKey`, `searchEnabled`, `navigationWidth` |
-| Currently used by | *nothing yet — built, not adopted* |
-| Designed for | novuai, novuexplorer, novuspace, novuadmin |
-| Playground | `run.bat settings-shell` |
-| Source | `src/Settings.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `currentKey` | `QString` | Which page is showing. View state, so the shell keeps it. |
-| `searchEnabled` | `bool` | A filter over the navigation by page title. |
-| `navigationWidth` | `int` | One number, so nineteen pages agree. |
-
-### Sidebar
-
-The left rail: an identity head, a connection strip, a scrolling navigation region and a pinned action column. Only the navigation scrolls.
-
-```cpp
-#include "novu/ui/Sidebar.h"
-```
-
-| | |
-|---|---|
-| Variants | `Expanded`, `Collapsed`, `With blocks` |
-| States | `Online`, `Degraded`, `Offline` |
-| API | `collapsed`, `expandedWidth` |
-| Currently used by | *nothing yet — built, not adopted* |
-| Designed for | novuspace |
-| Playground | `run.bat sidebar` |
-| Source | `src/Sidebar.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `collapsed` | `bool` | Folds the rail to a strip of icons, lists included. |
-| `expandedWidth` | `int` | The collapsed width is derived from the mark, not set. |
-
-### TabBar
-
-Open documents across the top of a window: per-tab colour and state, drag to reorder, a close box that is its own target, and a new-tab button.
-
-```cpp
-#include "novu/ui/TabBar.h"
-```
-
-| | |
-|---|---|
-| Variants | `Idle`, `Loading`, `Failed`, `Modified`, `Asleep` |
-| States | `Current`, `Hover`, `Dragging`, `Shrunken` |
-| API | `state`, `color`, `reorderable`, `newTabButton` |
-| Currently used by | *nothing yet — built, not adopted* |
-| Designed for | novuexplorer, novuai, novuspace |
-| Playground | `run.bat tab-bar` |
-| Source | `src/TabBar.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `state` | `enum` | One at a time. Two marks is a bug. |
-| `color` | `QColor` | Held on the tab, so a reorder carries it. |
-| `reorderable` | `bool` | Drag past a threshold, so a click is not a one-pixel drag. |
-| `newTabButton` | `bool` | Not every tab bar opens things. |
-
-### TabStrip
-
-A row of buttons where exactly one is active. Not QTabWidget: a strip reports which item is current and leaves the layout to the page.
-
-```cpp
-#include "novu/ui/TabStrip.h"
-```
-
-| | |
-|---|---|
-| Variants | `Pill`, `Segment`, `Accent`, `Warning` |
-| States | `Active`, `Inactive`, `Hover`, `Disabled` |
-| API | `items`, `variant`, `tone`, `current` |
-| Currently used by | novuspace |
-| Designed for | novuspace, novuai, novuexplorer, novuhub, novuvoice, novutrade |
-| Playground | `run.bat tab-strip` |
-| Source | `src/TabStrip.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `items` | `QStringList` | Captions, in order. |
-| `variant` | `enum` | Pill is control height; Segment is compact. |
-| `tone` | `enum` | Warning is for a switcher above accent-coloured chips. |
-| `current` | `int` | Active index. |
-
-### Tile
-
-A selectable two-line tile: title, subtitle, optional badge. Self-painted, so the selected state is one fill and one border from the profile.
-
-```cpp
-#include "novu/ui/Tile.h"
-```
-
-| | |
-|---|---|
-| Variants | `Plain`, `Badged` |
-| States | `Unchecked`, `Checked`, `Hover`, `Disabled (badged)` |
-| API | `title`, `subtitle`, `checked`, `badge` |
-| Currently used by | novuspace |
-| Designed for | novuspace, novutrade |
-| Playground | `run.bat tile` |
-| Source | `src/Tile.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `title` | `QString` | First line. |
-| `subtitle` | `QString` | Second line, muted. |
-| `checked` | `bool` | Selected state. |
-| `badge` | `QString` | Non-empty disables the tile — the badge says why. |
-
-### TreeView
-
-A structure of nested things at arbitrary depth, with indent guides, per-row chevrons, marks, counts and tags — flattened and virtualised into one widget.
-
-```cpp
-#include "novu/ui/TreeView.h"
-```
-
-| | |
-|---|---|
-| Variants | `Item`, `Group`, `Emphasis` |
-| States | `Current`, `Hover`, `Active`, `Detached`, `Dropping`, `Disabled` |
-| API | `kind`, `mark`, `compact` |
-| Currently used by | *nothing yet — built, not adopted* |
-| Designed for | novuai |
-| Playground | `run.bat tree-view` |
-| Source | `src/TreeView.cpp` |
-
-| property | type | notes |
-|---|---|---|
-| `kind` | `enum` | Typography, and whether it is a caption. |
-| `mark` | `enum` | State that is not selection. |
-| `compact` | `bool` | A density for the whole tree; per-row heights would make every hit test a search. |
-
-
 ## Data display
 
 ### AppMark
@@ -1168,7 +1262,7 @@ A unified diff: tinted added and removed rows, hunk headers in the accent, both 
 
 | | |
 |---|---|
-| Variants | `Context`, `Added`, `Removed`, `Hunk`, `File` |
+| Variants | `Fit to content`, `Context`, `Added`, `Removed`, `Hunk`, `File` |
 | States | `With line numbers`, `Without` |
 | API | `showLineNumbers` |
 | Currently used by | *nothing yet — built, not adopted* |
@@ -1179,6 +1273,23 @@ A unified diff: tinted added and removed rows, hunk headers in the accent, both 
 | property | type | notes |
 |---|---|---|
 | `showLineNumbers` | `bool` | Off for a narrow panel, where the gutter costs more than it gives. |
+
+### ItemList
+
+The design's `.hlist` — rows divided by hairlines, filling a card. The second most repeated shape after the table, and the most reinvented.
+
+```cpp
+#include "novu/ui/ItemList.h"
+```
+
+| | |
+|---|---|
+| Variants | `Name and value`, `Trailing widget`, `Caller-built row` |
+| States | `Normal`, `Hovered`, `Clickable` |
+| Currently used by | novuspace |
+| Designed for | novuspace |
+| Playground | `run.bat item-list` |
+| Source | `src/ItemList.cpp` |
 
 ### KeyCap
 
@@ -1336,7 +1447,7 @@ The table used across all Novu applications. It owns column layout entirely: a p
 | States | `Empty`, `Populated`, `Error`, `Disabled row actions` |
 | API | `columns`, `ColumnRole` |
 | Currently used by | novuadmin, novuspace |
-| Designed for | novuspace, novuexplorer, novuhub, novutrade |
+| Designed for | novuspace, novuai, novuexplorer, novuhub, novutrade |
 | Playground | `run.bat table-view` |
 | Source | `src/TableView.cpp` |
 

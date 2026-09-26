@@ -29,7 +29,61 @@ QFont MonoLineView::rowFont() const
 
 int MonoLineView::rowHeight() const
 {
-    return qMax(1, qRound(QFontMetrics(rowFont()).height() * lineLeading()));
+    // A line-height is a multiple of the *font size*, which is what the
+    // design states: 1.65 for a diff, 1.75 for a log. Multiplying the font's
+    // metric height instead -- ascent plus descent plus leading -- adds about
+    // a third to every row, so both views came out that much airier than the
+    // design they were measured from, in every application at once.
+    const QFont font = rowFont();
+    const int line = qRound(font.pixelSize() * lineLeading());
+    // Never shorter than the glyphs themselves: a face with tall ascenders
+    // would otherwise clip against the row above it.
+    return qMax(QFontMetrics(font).height(), qMax(1, line));
+}
+
+int MonoLineView::contentHeight() const
+{
+    return rowCount() * rowHeight() + 2 * contentPaddingV();
+}
+
+void MonoLineView::setFitToContent(bool fit, int maxRows)
+{
+    if (m_fitToContent == fit && m_maxRows == maxRows) {
+        return;
+    }
+    m_fitToContent = fit;
+    m_maxRows = qMax(0, maxRows);
+    // A view that sizes to its rows must not also be stretched by the column
+    // it sits in, or the hint is the one thing the layout ignores.
+    setSizePolicy(sizePolicy().horizontalPolicy(),
+                  fit ? QSizePolicy::Fixed : QSizePolicy::Expanding);
+    updateGeometry();
+}
+
+QSize MonoLineView::sizeHint() const
+{
+    if (!m_fitToContent) {
+        return QAbstractScrollArea::sizeHint();
+    }
+    QSize hint = QAbstractScrollArea::sizeHint();
+    int height = contentHeight();
+    if (m_maxRows > 0) {
+        height = qMin(height, m_maxRows * rowHeight() + 2 * contentPaddingV());
+    }
+    hint.setHeight(height);
+    return hint;
+}
+
+QSize MonoLineView::minimumSizeHint() const
+{
+    if (!m_fitToContent) {
+        return QAbstractScrollArea::minimumSizeHint();
+    }
+    // The width stays the base class's -- a diff may be scrolled sideways --
+    // but the height is the one it will be given, so nothing can stretch it.
+    QSize hint = QAbstractScrollArea::minimumSizeHint();
+    hint.setHeight(sizeHint().height());
+    return hint;
 }
 
 int MonoLineView::firstVisibleRow() const
@@ -64,6 +118,9 @@ void MonoLineView::updateScrollRange(bool keepAtEnd)
 
 void MonoLineView::rowsChanged(bool keepAtEnd)
 {
+    if (m_fitToContent) {
+        updateGeometry();
+    }
     updateScrollRange(keepAtEnd);
     viewport()->update();
 }

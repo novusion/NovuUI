@@ -14,6 +14,8 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include <iterator>
+
 using namespace novu::ui;
 
 namespace novu::playground::pages {
@@ -47,6 +49,16 @@ QString cell(const QJsonObject& row, const QString& key)
         return QString::number(value.toDouble());
     }
     return value.toString();
+}
+
+QColor familyHueNamed(const QString& name)
+{
+    for (const FamilyHue& hue : familyHues()) {
+        if (hue.name == name) {
+            return hue.color;
+        }
+    }
+    return QColor();
 }
 
 QWidget* build(const PreviewContext& ctx)
@@ -157,7 +169,117 @@ QWidget* build(const PreviewContext& ctx)
         }
     }
 
-    column->addWidget(card, 1);
+    column->addWidget(card);
+
+    // â”€â”€ identity cells â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    {
+        Card* models = exampleCard(
+            page, QStringLiteral("Leading type in a Local model row"),
+            QStringLiteral("The Model Hub classification stays visible in Local."));
+        QVBoxLayout* body = models->body();
+        models->setBodyMetrics(QMargins(0, 0, 0, 0), 0);
+
+        auto* table = new TableView(models);
+        using Role = TableView::ColumnRole;
+        table->setColumns({{QStringLiteral("Name / file"), Role::Text},
+                           {QStringLiteral("Size"), Role::Numeric},
+                           {QStringLiteral("Status"), Role::Content},
+                           {QStringLiteral("Last used"), Role::Mono}});
+        const struct {
+            const char* code;
+            const char* hue;
+            const char* title;
+            const char* file;
+            const char* size;
+        } rows[] = {
+            {"LAN", "Blue", "Qwen2.5 Coder 14b Instruct", "unsloth.Q8_0.gguf", "14.6 GB"},
+            {"IMA", "Purple", "Gemma 4 Vision", "gemma-4-31b-it-q4_k_m.gguf", "17.4 GB"},
+            {"VID", "Cyan", "Wan 2.2 I2V", "wan2.2-i2v-fp8.safetensors", "18.0 GB"},
+            {"AUD", "Green", "Whisper large-v3", "whisper-large-v3.onnx", "3.1 GB"},
+        };
+        table->setRowCount(static_cast<int>(std::size(rows)));
+        for (int r = 0; r < static_cast<int>(std::size(rows)); ++r) {
+            auto* kind = new Badge(QString::fromLatin1(rows[r].code),
+                                   Badge::Tone::Neutral, table);
+            kind->setClassificationHue(familyHueNamed(QString::fromLatin1(rows[r].hue)));
+            table->setIdentity(r, 0, QString::fromLatin1(rows[r].title),
+                               QString::fromLatin1(rows[r].file), kind);
+            table->setText(r, 1, QString::fromLatin1(rows[r].size));
+            table->setWidget(r, 2, statusBadge(QStringLiteral("Ready"),
+                                                Badge::Tone::Success, table));
+            table->setText(r, 3, QStringLiteral("2026-09-21"));
+        }
+        table->relayoutColumns();
+        body->addWidget(table);
+        column->addWidget(models);
+    }
+
+    // ── the sheet's own column classes ───────────────────────────────────
+    {
+        Card* roles = exampleCard(page, QStringLiteral("What a column IS"),
+                                  QStringLiteral("Six roles, and every one of "
+                                                 "them a class the design "
+                                                 "actually writes."));
+        QVBoxLayout* body = roles->body();
+        roles->setBodyMetrics(QMargins(0, 0, 0, 0), 0);
+
+        auto* table = new TableView(roles);
+        using Role = TableView::ColumnRole;
+        table->setColumns({{QStringLiteral("Bot"), Role::Text},
+                           {QStringLiteral("State"), Role::Content},
+                           {QStringLiteral("Why"), Role::Flexible},
+                           {QStringLiteral("P&L"), Role::Numeric},
+                           {QStringLiteral("Since"), Role::Mono},
+                           {QString(), Role::Action}});
+        const struct { const char* bot; const char* why; const char* pnl;
+                       const char* since; } sample[] = {
+            {"Breakout Hunter",
+             "Exchange rejected order: insufficient margin (code -2019). "
+             "Retried 3 times, bot halted.",
+             "-77.50", "18 min ago"},
+            {"Kraken Spot",
+             "Exchange returned EAPI:Invalid key — the key was revoked or its "
+             "permissions changed.",
+             "—", "2026-09-13 06:01"},
+        };
+        table->setRowCount(2);
+        for (int r = 0; r < 2; ++r) {
+            table->setText(r, 0, QString::fromUtf8(sample[r].bot));
+            table->setWidget(r, 1, new Badge(QStringLiteral("error"),
+                                             Badge::Tone::Danger, table));
+            table->setText(r, 2, QString::fromUtf8(sample[r].why));
+            table->setText(r, 3, QString::fromUtf8(sample[r].pnl));
+            table->setText(r, 4, QString::fromUtf8(sample[r].since));
+            table->setWidgets(r, 5, {ghostButton(QStringLiteral("Restart"), table)});
+        }
+        table->relayoutColumns();
+        body->addWidget(table);
+
+        note(body, roles,
+             QStringLiteral("Narrow the window. `Bot`, `Why` and `Since` all give "
+                            "width back, together and in proportion to what each was "
+                            "holding — so the sentence keeps the width the timestamp "
+                            "has no use for, which is what `table-layout:auto` does. "
+                            "What they do with text that no longer fits on one line "
+                            "is wrap it: `td` states no `white-space`, so only `.num` "
+                            "and `.act` stay on one line. The row grows to hold the "
+                            "wrapped sentence; the price never moves."));
+        note(body, roles,
+             QStringLiteral("They differ in how far each may be taken, not in whether "
+                            "it is asked. A name column stops while it is still a "
+                            "name; a sentence column may go further; and no column is "
+                            "ever compressed past its own caption or past the minimum "
+                            "of a widget laid out inside it."));
+        note(body, roles,
+             QStringLiteral("`Since` is `td.mono`: the monospace face a step down in "
+                            "the muted ink, stated by the column rather than by a "
+                            "styled label the page puts in every cell. That is the "
+                            "difference — a label cannot wrap to a width the table "
+                            "has not decided yet."));
+        column->addWidget(roles);
+    }
+
+    column->addStretch(1);
     return page;
 }
 
@@ -175,6 +297,7 @@ ComponentSpec tableViewComponent()
     spec.headerPath = QStringLiteral("include/novu/ui/TableView.h");
     spec.sourcePath = QStringLiteral("src/TableView.cpp");
     spec.designedFor = {QStringLiteral("novuspace"),
+                   QStringLiteral("novuai"),
                    QStringLiteral("novuexplorer"),
                    QStringLiteral("novuhub"),
                    QStringLiteral("novutrade")};

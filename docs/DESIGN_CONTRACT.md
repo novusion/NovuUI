@@ -52,24 +52,23 @@ two do not draw.
 
 ### Status — two colours per role, not one
 
-The decisive rule, and the one NovuUI had wrong. `.badge` is stated
-**byte-identically** in the NovuSpace and NovuAdmin mockups:
+The NovuAI reference uses the saturated family hues for its status tags:
 
 ```css
-.badge.ok   { color:#6ADB9E; background:rgba(60,203,127,.10);  border-color:rgba(60,203,127,.40);  }
-.badge.warn { color:#FFB14D; background:rgba(255,177,77,.10);  border-color:rgba(255,177,77,.40);  }
-.badge.bad  { color:#E8A8B0; background:rgba(196,123,133,.12); border-color:rgba(196,123,133,.45); }
-.badge.info { color:#4DA3FF; background:rgba(77,163,255,.10);  border-color:rgba(77,163,255,.38);  }
+.tag.ok     { color:#3CCB7F; background:rgba(60,203,127,.10);  border-color:rgba(60,203,127,.40);  }
+.tag.warn   { color:#FFB14D; background:rgba(255,177,77,.10);  border-color:rgba(255,177,77,.40);  }
+.tag.err    { color:#C47B85; background:rgba(196,123,133,.12); border-color:rgba(196,123,133,.45); }
+.tag.info   { color:#4DA3FF; background:rgba(77,163,255,.10);  border-color:rgba(77,163,255,.38);  }
 ```
 
-The word is written in a light ink; the plate behind it is mixed from a deeper
-hue. **They are different values and neither derives from the other.**
+Ink and plate stay independent channels so a light profile can choose a darker
+accessible ink without changing the semantic tint.
 
 | role | ink | plate | fill α | border α |
 |---|---|---|---|---|
-| Success | `#6ADB9E` | `#3CCB7F` | .10 | .40 |
+| Success | `#3CCB7F` | `#3CCB7F` | .10 | .40 |
 | Warning | `#FFB14D` | `#FFB14D` | .10 | .40 |
-| Danger | `#E8A8B0` | `#C47B85` | .12 | .45 |
+| Danger | `#C47B85` | `#C47B85` | .12 | .45 |
 | Info | `#4DA3FF` | `#4DA3FF` | .10 | .38 |
 
 Danger sits heavier than Success deliberately: a pink plate at .10 disappears
@@ -79,11 +78,10 @@ NovuAI states the same shape on `.tag` and differs only in two border alphas
 (.42 / .45 / .48). NovuExplorer agrees. The alphas above are the two-product
 verbatim set.
 
-> **What was wrong.** `SemanticHues` held the ink alone and `semanticColorFrom()`
-> mixed the plate from it — so a Danger badge was plated in `rgba(#E8A8B0,.16)`
-> where the design plates it in `rgba(#C47B85,.12)`. Every tint in the library
-> was one step light, and the chart's bearish candle took the ink as its body
-> fill. Fixed by `SemanticHue { ink, plate, fillAlpha, borderAlpha }`.
+> **What was wrong.** The Qt components used pastel status inks while the
+> NovuAI reference uses the saturated family hues. Keeping ink and plate as
+> separate channels preserves light-theme overrides while the dark profile
+> now matches the reference.
 
 ### Motion and elevation
 
@@ -111,7 +109,7 @@ Every one of these is a token in the product's own mockup. None is inferred.
 | NovuAdmin | `#3CCB7F` | `#6ADB9E` | — | `#151A20` |
 | NovuHub | `#3CCB7F` | — | — | `#151A20` |
 | NovuExplorer | `#58B09E` | `#77CCB9` | `#3F8F80` | `#10171A` |
-| NovuVoice | **unresolved** — no approved mockup exists | | | |
+| NovuVoice | `#C47B85` | `#DA98A1` | `#A85F6A` | `#1B1014` |
 
 NovuAI's token header names three of them in one sentence: *"NovuAI is blue
 (#4DA3FF) where Hub is green (#3CCB7F) and Explorer is teal (#58B09E)"*.

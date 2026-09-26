@@ -114,20 +114,21 @@ ThemeProfile novuAiProfile()
     // then states different numbers, so both are kept as what each says.
     p.controls.rowHeight = 26;
     p.window.statusBarHeight = 26;
+    // The browser baseline uses 12.5px body type. Native hinting makes the
+    // rounded 13px step visibly larger, so the desktop profile takes the
+    // adjacent 12px raster size while headings keep their stated scale.
+    p.setRoleType(TypeRole::Body, TypeStyle{12, 400, false});
+    p.setRoleType(TypeRole::Label, TypeStyle{12, 600, false});
     return p;
 }
 
 ThemeProfile novuVoiceProfile()
 {
-    // NovuVoice/novuvoice-client/app/src/ui/NovuSpaceTheme.h had drifted
-    // furthest of any of them - a cyan accent, its own surfaces, its own status
-    // colours. All of it is dropped.
-    //
-    // UNRESOLVED, and now the only one: NovuVoice has no approved mockup under
-    // g:\Design\design\, so there is no token sheet to read an accent from. It
-    // keeps the base palette's until there is. Settling it is one argument here
-    // and no screen code changes with it.
-    return applicationProfile(QStringLiteral("novuvoice"), QStringLiteral("NovuVoice"));
+    // NovuVoice-brand-mockup.html states the product identity explicitly:
+    // --acc:#C47B85; --acc-l:#DA98A1; --acc-d:#A85F6A;
+    // --ink-on-accent:#1B1014. Status hues stay on the shared semantic palette.
+    return applicationProfile(QStringLiteral("novuvoice"), QStringLiteral("NovuVoice"),
+                              hex("#C47B85"), hex("#DA98A1"), hex("#1B1014"));
 }
 
 ThemeProfile novuExplorerProfile()

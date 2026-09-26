@@ -175,12 +175,34 @@ ResolvedStyle Field::resolvedStyle() const
     return resolve(styleSpec(), this, height());
 }
 
+// `.field label{font-family:'JetBrains Mono';font-size:10px;letter-spacing:.1em;
+// text-transform:uppercase}`. A different eyebrow from `.stat .lab`, which is
+// 11px at .06em - so the size and the tracking are stated here rather than
+// taken from the role, and measurement and paint read the same function.
+static QFont fieldCaptionFont(const QWidget* context)
+{
+    const ThemeProfile& profile = themeFor(context);
+    QFont font = roleFont(context, TypeRole::Eyebrow);
+    font.setPixelSize(qMax(8, profile.type.xxs));
+    font.setLetterSpacing(QFont::PercentageSpacing, 110);
+    return font;
+}
+
+// `.field .hint{font-size:11px}` - a step under the Caption role.
+static QFont fieldHintFont(const QWidget* context)
+{
+    const ThemeProfile& profile = themeFor(context);
+    QFont font = roleFont(context, TypeRole::Caption);
+    font.setPixelSize(qMax(8, profile.type.xs));
+    return font;
+}
+
 int Field::captionHeight() const
 {
     if (m_caption.isEmpty()) {
         return 0;
     }
-    return QFontMetrics(roleFont(this, TypeRole::Eyebrow)).height() + kGap;
+    return QFontMetrics(fieldCaptionFont(this)).height() + kGap;
 }
 
 int Field::footerHeight() const
@@ -189,7 +211,7 @@ int Field::footerHeight() const
     if (text.isEmpty()) {
         return 0;
     }
-    const QFontMetrics fm(roleFont(this, TypeRole::Caption));
+    const QFontMetrics fm(fieldHintFont(this));
     // Wrapped at the field's own width: a hint that explains something is
     // usually longer than the control it explains.
     const int available = qMax(1, width() - (m_error.isEmpty() ? 0 : kErrorGlyph + kErrorGap));
@@ -237,12 +259,7 @@ void Field::paintEvent(QPaintEvent*)
     QPainter painter(this);
 
     if (!m_caption.isEmpty()) {
-        QFont font = roleFont(this, TypeRole::Eyebrow);
-        // The design's `.1em` tracking. Applied here rather than stored in the
-        // role, because it is a treatment of this line and not a property of
-        // the font.
-        font.setLetterSpacing(QFont::PercentageSpacing, 110);
-        painter.setFont(font);
+        painter.setFont(fieldCaptionFont(this));
         painter.setPen(style.foreground);
         const QRect line(0, 0, width(), captionHeight() - kGap);
         const QString text = m_caption.toUpper();
@@ -264,7 +281,7 @@ void Field::paintEvent(QPaintEvent*)
 
     const bool bad = !m_error.isEmpty();
     const QColor ink = bad ? style.hoverForeground : style.foreground;
-    painter.setFont(roleFont(this, TypeRole::Caption));
+    painter.setFont(fieldHintFont(this));
     painter.setPen(ink);
 
     QRect box(0, height() - footerHeight() + kGap, width(), footerHeight() - kGap);

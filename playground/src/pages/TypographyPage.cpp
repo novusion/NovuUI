@@ -5,10 +5,13 @@
 
 #include "novu/ui/Card.h"
 #include "novu/ui/Text.h"
+#include "novu/ui/ThemeScope.h"
+#include "novu/ui/ThemeManager.h"
 #include "novu/ui/ThemeManager.h"
 
 #include <QGridLayout>
 #include <QLabel>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -48,7 +51,7 @@ struct InkRow
 const InkRow kInks[] = {
     {"Default", Ink::Default},   {"Secondary", Ink::Secondary}, {"Muted", Ink::Muted},
     {"Accent", Ink::Accent},     {"Success", Ink::Success},     {"Warning", Ink::Warning},
-    {"Danger", Ink::Danger},     {"Info", Ink::Info},
+    {"Danger", Ink::Danger},     {"Info", Ink::Info}, {"Tertiary", Ink::Tertiary},
 };
 
 QWidget* build(const PreviewContext& ctx)
@@ -56,6 +59,14 @@ QWidget* build(const PreviewContext& ctx)
     auto* page = new QWidget(ctx.parent);
     QVBoxLayout* column = previewPage(page);
 
+    auto* elision = elidedLabel(QStringLiteral("A long path / workspace / document that must not widen its column"), page, TypeRole::Mono);
+    elision->setFixedWidth(240);
+    column->addWidget(elision);
+    auto* natural=new Card(QStringLiteral("Natural text metrics"),page);
+    auto naturalProfile=themeFor(page);naturalProfile.id=QStringLiteral("gallery-natural-type");naturalProfile.type.unhintedMetrics=true;
+    ThemeManager::instance().registerProfile(naturalProfile);ThemeScope::apply(natural,naturalProfile.id);
+    natural->body()->addWidget(label(QStringLiteral("Fractional outlines without grid-fitted advances"),natural));
+    column->addWidget(natural);
     const ThemeProfile& profile = themeFor(ctx.parent);
     const QString sample = ctx.scenario == Scenario::LongText
         ? ctx.data->text(QStringLiteral("long_text"))
@@ -148,6 +159,94 @@ QWidget* build(const PreviewContext& ctx)
         column->addWidget(card);
     }
 
+    // ── what a role carries besides a font ───────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Tracking, line height, case"),
+                                 QStringLiteral("Three properties the approved CSS states "
+                                                "per role that a font alone does not "
+                                                "carry."));
+        QVBoxLayout* body = card->body();
+        const ThemeProfile& profile = themeFor(card);
+
+        for (const TypeRole role : {TypeRole::Eyebrow, TypeRole::Metric, TypeRole::PageTitle}) {
+            const TypeStyle style = profile.text(role);
+            auto* sample = label(QStringLiteral("Workspaces 1.3 GB"), card, role);
+            body->addWidget(sample);
+            body->addWidget(label(QStringLiteral("size %1 · weight %2 · tracking %3em · "
+                                                 "line-height %4 · %5")
+                                      .arg(style.size)
+                                      .arg(style.weight)
+                                      .arg(style.letterSpacing)
+                                      .arg(style.lineHeight == 0.0
+                                               ? QStringLiteral("font's own")
+                                               : QString::number(style.lineHeight))
+                                      .arg(style.uppercase ? QStringLiteral("uppercase")
+                                                           : QStringLiteral("as written")),
+                                  card, TypeRole::Caption, Ink::Muted));
+        }
+
+        note(body, card,
+             QStringLiteral("`letter-spacing:.06em`, `line-height:1.05`, "
+                            "`text-transform:uppercase` - stated by the profile, applied by "
+                            "roleFont() and label(). A caller never calls toUpper() and two "
+                            "call sites cannot disagree about a role's tracking; a display "
+                            "face laid out to its own metrics instead of the design's line "
+                            "box is several pixels taller in every metric card on a page."));
+        column->addWidget(card);
+    }
+
+    // ── a paragraph in a column ──────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Paragraph"),
+                                 QStringLiteral("Prose that answers for its own "
+                                                "height."));
+        QVBoxLayout* body = card->body();
+
+        const QString prose =
+            QStringLiteral("A wrapped label is asked two questions by every layout it "
+                           "sits in -- how wide would you like to be, and how tall are "
+                           "you -- and QLabel answers the second one at a width nobody "
+                           "asked about. A Paragraph answers it at the width it has.");
+
+        auto* plain = new QLabel(prose, card);
+        plain->setWordWrap(true);
+        plain->setMinimumWidth(1);
+        auto* measured = new Paragraph(prose, card, TypeRole::Body, Ink::Secondary);
+
+        body->addWidget(label(QStringLiteral("setWordWrap(true) on a QLabel"), card,
+                              TypeRole::Label, Ink::Muted));
+        body->addWidget(plain);
+        body->addWidget(label(QStringLiteral("Paragraph"), card, TypeRole::Label,
+                              Ink::Muted));
+        body->addWidget(measured);
+
+        auto* readout = label(QString(), card, TypeRole::Mono, Ink::Muted);
+        auto report = [plain, measured, readout] {
+            readout->setText(QStringLiteral("QLabel hint %1x%2, min %3   |   "
+                                            "Paragraph hint %4x%5, min %6")
+                                 .arg(plain->sizeHint().width())
+                                 .arg(plain->sizeHint().height())
+                                 .arg(plain->minimumSizeHint().height())
+                                 .arg(measured->sizeHint().width())
+                                 .arg(measured->sizeHint().height())
+                                 .arg(measured->minimumSizeHint().height()));
+        };
+        report();
+        // Both hints depend on the width the column ends up giving them, so
+        // the reading is taken once the page has been laid out.
+        QTimer::singleShot(0, readout, report);
+        body->addWidget(readout);
+
+        note(body, card,
+             QStringLiteral("The two heights are the whole of it. A scroll area sizes its "
+                            "content to the minimum it is told, so a column of wrapped "
+                            "QLabels asks for several times the room it uses and a box "
+                            "layout shares the surplus out among whatever else can grow "
+                            "-- which is how a code block quoted in a chat turn became a "
+                            "thousand pixels of empty surface."));
+        column->addWidget(card);
+    }
+
     column->addStretch(1);
     return page;
 }
@@ -172,7 +271,7 @@ ComponentSpec typographyComponent()
                    QStringLiteral("novuvoice"),
                    QStringLiteral("novutrade")};
     spec.usedBy = {QStringLiteral("novuspace")};
-    spec.variants = {QStringLiteral("PageTitle"), QStringLiteral("SectionTitle"),
+    spec.variants = {QStringLiteral("Paragraph"), QStringLiteral("PageTitle"), QStringLiteral("SectionTitle"),
                      QStringLiteral("CardTitle"), QStringLiteral("Body"),
                      QStringLiteral("Caption"), QStringLiteral("Label"),
                      QStringLiteral("Metric"), QStringLiteral("Mono"),

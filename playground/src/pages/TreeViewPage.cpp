@@ -90,6 +90,8 @@ QWidget* buildSelectionBar(const PreviewContext& ctx)
 {
     auto* page = new QWidget(ctx.parent);
     QVBoxLayout* column = previewPage(page);
+    auto* structure=new TreeView(page);structure->addNode({},"root","Composer",Glyph::Layers);structure->addNode("root","button","Send",Glyph::Check);structure->setExpanded("root",true);structure->setMeta("button","button");structure->setBranchesVisible(false);structure->setGuidesVisible(false);structure->setRowHeight(26);structure->setFixedHeight(90);column->addWidget(structure);
+
 
     {
         Card* card = exampleCard(page, QStringLiteral("Counts"),

@@ -75,6 +75,41 @@ QFont pillFont(const QWidget* context)
     return font;
 }
 
+QString fileTypeText(const QString& label, Glyph glyph)
+{
+    if (glyph != Glyph::File && glyph != Glyph::Code
+        && glyph != Glyph::Doc && glyph != Glyph::Terminal) {
+        return {};
+    }
+    const int dot = label.lastIndexOf(QLatin1Char('.'));
+    if (dot <= 0 || dot == label.size() - 1) return {};
+    QString type = label.mid(dot + 1).toUpper();
+    if (type == QLatin1String("CXX") || type == QLatin1String("CC")) type = QStringLiteral("CPP");
+    else if (type == QLatin1String("HPP") || type == QLatin1String("HXX")) type = QStringLiteral("H");
+    else if (type == QLatin1String("YAML")) type = QStringLiteral("YML");
+    else if (type == QLatin1String("MARKDOWN")) type = QStringLiteral("MD");
+    else if (type == QLatin1String("JAVASCRIPT")) type = QStringLiteral("JS");
+    else if (type == QLatin1String("TYPESCRIPT")) type = QStringLiteral("TS");
+    return type.size() <= 4 ? type : type.left(4);
+}
+
+QColor fileTypeInk(const ThemeProfile& profile, const QString& type)
+{
+    if (type == QLatin1String("PY")) return profile.semantic.info.text;
+    if (type == QLatin1String("CPP") || type == QLatin1String("C")
+        || type == QLatin1String("H")) return profile.colors.accentLight;
+    if (type == QLatin1String("MD") || type == QLatin1String("TXT"))
+        return profile.semantic.success.text;
+    if (type == QLatin1String("YML") || type == QLatin1String("JSON")
+        || type == QLatin1String("TOML") || type == QLatin1String("INI"))
+        return profile.semantic.warning.text;
+    if (type == QLatin1String("JS") || type == QLatin1String("TS")
+        || type == QLatin1String("QML")) return profile.semantic.warning.text;
+    if (type == QLatin1String("SH") || type == QLatin1String("PS1")
+        || type == QLatin1String("BAT")) return profile.semantic.info.text;
+    return profile.colors.textDisabled;
+}
+
 SemanticRole roleFor(Badge::Tone tone)
 {
     switch (tone) {
@@ -348,6 +383,27 @@ void TreeView::setNodeEnabled(const QString& id, bool enabled)
     viewport()->update();
 }
 
+void TreeView::setNodeExpandable(const QString& id, bool expandable)
+{
+    Node* entry = node(id);
+    if (!entry || entry->expandable == expandable) {
+        return;
+    }
+    entry->expandable = expandable;
+    viewport()->update();
+}
+
+bool TreeView::isNodeExpandable(const QString& id) const
+{
+    const Node* entry = node(id);
+    return entry && canExpand(*entry);
+}
+
+bool TreeView::canExpand(const Node& entry)
+{
+    return !entry.children.isEmpty() || entry.expandable;
+}
+
 // == state ==================================================================
 
 bool TreeView::isExpanded(const QString& id) const
@@ -437,8 +493,12 @@ void TreeView::setCurrentId(const QString& id)
 
 // == geometry ===============================================================
 
+void TreeView::setRowHeight(int height){m_rowHeight=qMax(0,height);updateScrollRange();updateGeometry();viewport()->update();}
+void TreeView::setMeta(const QString& id,const QString& text){if(auto* item=node(id)){item->meta=text;viewport()->update();}}
+QString TreeView::meta(const QString& id)const{const auto* item=node(id);return item?item->meta:QString();}
 int TreeView::rowHeight() const
 {
+    if(m_rowHeight>0)return m_rowHeight;
     const QFontMetrics fm(nameFont(this, Kind::Item));
     return qMax(m_compact ? kCompactRowHeight : kRowHeight, fm.height() + 6);
 }
@@ -476,11 +536,12 @@ int TreeView::indentStep() const
 
 QRect TreeView::chevronRect(int row) const
 {
+    if(!m_branchesVisible)return {};
     if (row < 0 || row >= m_rows.size()) {
         return QRect();
     }
     const Node* entry = node(m_rows.at(row));
-    if (!entry || entry->children.isEmpty()) {
+    if (!entry || !canExpand(*entry)) {
         return QRect();
     }
     const QRect box = rowRect(row);
@@ -632,7 +693,7 @@ void TreeView::keyPressEvent(QKeyEvent* event)
         // Right opens a closed node and steps into an open one, which is what
         // every tree in every file manager does and what a user's hands expect.
         const Node* entry = node(m_current);
-        if (entry && !entry->children.isEmpty()) {
+        if (entry && canExpand(*entry)) {
             if (!entry->expanded) {
                 setExpanded(m_current, true);
                 emit expandToggled(m_current, true);
@@ -644,7 +705,7 @@ void TreeView::keyPressEvent(QKeyEvent* event)
     }
     case Qt::Key_Left: {
         const Node* entry = node(m_current);
-        if (entry && entry->expanded && !entry->children.isEmpty()) {
+        if (entry && entry->expanded && canExpand(*entry)) {
             setExpanded(m_current, false);
             emit expandToggled(m_current, false);
         } else if (entry && !entry->parent.isEmpty()) {
@@ -748,7 +809,7 @@ void TreeView::paintEvent(QPaintEvent*)
         // `.tkids` — one guide per level the row is under, drawn before the
         // plate so a selected row's tint sits over it rather than under it.
         painter.setPen(QPen(profile.colors.borderSubtle, 1));
-        for (int level = 1; level <= entry->depth; ++level) {
+        for (int level = 1; m_guidesVisible && level <= entry->depth; ++level) {
             const int x = kRowPaddingLeft + (level - 1) * indentStep() + kGuideInset;
             painter.drawLine(x, box.top(), x, box.bottom());
         }
@@ -795,10 +856,11 @@ void TreeView::paintEvent(QPaintEvent*)
 
         int x = kRowPaddingLeft + entry->depth * indentStep();
 
-        // The chevron, or the space it would take. A node with no children
-        // still reserves it, or names at the same depth stagger by 14px
-        // depending on whether they happen to have anything inside them.
-        if (!entry->children.isEmpty()) {
+        // The chevron, or the space it would take. A node with nothing
+        // expandable about it still reserves it, or names at the same depth
+        // stagger by 14px depending on whether they happen to have anything
+        // inside them.
+        if (m_branchesVisible && canExpand(*entry)) {
             const QRect chevron = chevronRect(row);
             if (m_hoveredChevron && row == m_hovered) {
                 painter.setPen(Qt::NoPen);
@@ -810,9 +872,31 @@ void TreeView::paintEvent(QPaintEvent*)
                        QRectF(chevron).adjusted(3, 3, -3, -3),
                        withAlpha(ink, 0.85), entry->expanded ? 0.0 : -90.0);
         }
-        x += kChevron + kRowGap;
+        if(m_branchesVisible)x += kChevron + kRowGap;
 
-        if (entry->glyph != Glyph::None) {
+        const QString fileType = fileTypeText(entry->label, entry->glyph);
+        if (!fileType.isEmpty()) {
+            QFont typeFont = roleMonoFont(this, TypeRole::Mono);
+            typeFont.setPixelSize(qMax(8, profile.type.xxs));
+            const QFontMetrics typeMetrics(typeFont, viewport());
+            const int typeWidth = qMax(20, typeMetrics.horizontalAdvance(fileType) + 6);
+            const int typeHeight = 16;
+            const QRectF typeBox(x, box.center().y() - typeHeight / 2.0,
+                                 typeWidth, typeHeight);
+            QColor typeInk = fileTypeInk(profile, fileType);
+            if (!entry->enabled) typeInk = withAlpha(typeInk, kDisabledOpacity);
+            QColor typeFill = typeInk;
+            typeFill.setAlphaF(0.10);
+            QColor typeEdge = typeInk;
+            typeEdge.setAlphaF(0.42);
+            painter.setFont(typeFont);
+            painter.setPen(QPen(typeEdge, 1));
+            painter.setBrush(typeFill);
+            painter.drawRoundedRect(typeBox.adjusted(0.5, 0.5, -0.5, -0.5), 3, 3);
+            painter.setPen(typeInk);
+            painter.drawText(typeBox, Qt::AlignCenter, fileType);
+            x += typeWidth + kRowGap;
+        } else if (entry->glyph != Glyph::None) {
             QColor iconInk = ink;
             if (entry->mark == Mark::Active) {
                 iconInk = profile.colors.accent;
@@ -827,6 +911,11 @@ void TreeView::paintEvent(QPaintEvent*)
         // The trailing zone, measured from the right so the name gets what is
         // left rather than the other way round.
         int rightEdge = box.right() - kRowPaddingRight;
+        if(!entry->meta.isEmpty()){
+            auto font=roleMonoFont(this,TypeRole::Mono);font.setPointSizeF(9.0*72/logicalDpiY());const QFontMetrics metrics(font,viewport());const int width=metrics.horizontalAdvance(entry->meta);
+            painter.setFont(font);painter.setPen(current?profile.colors.accent:profile.colors.textDisabled);painter.drawText(QRect(rightEdge-width,box.top(),width,box.height()),Qt::AlignVCenter,entry->meta);rightEdge-=width+kRowGap;
+        }
+
 
         if (!entry->marks.isEmpty()) {
             // `.trow .tmarks { opacity:.7 }`, full on hover. They are properties
@@ -893,7 +982,7 @@ void TreeView::paintEvent(QPaintEvent*)
                          fm.elidedText(text, Qt::ElideMiddle, nameBox.width()));
     }
 
-    if (hasFocus() && !m_current.isEmpty()) {
+    if (hasFocus() && !m_current.isEmpty() && !focusRingSuppressed(this)) {
         const int row = rowOf(m_current);
         if (row >= first && row < first + rows) {
             painter.setPen(QPen(profile.colors.accent, profile.border(BorderRole::Focus)));

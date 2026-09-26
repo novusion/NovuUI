@@ -19,7 +19,7 @@ ItemStrip::ItemStrip(QWidget* parent)
 
 void ItemStrip::setCurrentIndex(int index)
 {
-    if (index < 0 || index >= stripCount() || index == m_current) {
+    if (index < -1 || index >= stripCount() || index == m_current) {
         return;
     }
     m_current = index;

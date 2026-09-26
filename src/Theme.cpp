@@ -1,4 +1,7 @@
 #include "novu/ui/Theme.h"
+
+#include <QPainter>
+#include <QPen>
 #include <QWidget>
 #include <QVariant>
 
@@ -90,6 +93,21 @@ SemanticColor semanticColorFrom(const QColor& hue)
     return semanticColorFrom(hue, hue, 0.12, 0.42);
 }
 
+bool focusRingSuppressed(const QWidget* widget)
+{
+    for (const QWidget* w = widget; w; w = w->parentWidget()) {
+        if (w->property(focusRingSuppressedProperty).toBool()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool FocusRing::visibleOn(const QWidget* widget) const
+{
+    return widget && widget->hasFocus() && m_visible && !focusRingSuppressed(widget);
+}
+
 bool selectionIsActive(const QWidget* widget)
 {
     if (!widget) {
@@ -111,6 +129,34 @@ bool selectionIsActive(const QWidget* widget)
     // to be confused with, so a dimmed selection in one would be dimmed for no
     // reason a user could see.
     return true;
+}
+
+
+void paintHairline(QPainter* painter, const QPoint& from, const QPoint& to,
+                   const QColor& colour, int weight)
+{
+    if (!painter || !colour.isValid()) {
+        return;
+    }
+    const int thickness = qMax(1, weight);
+    if (from.y() == to.y()) {
+        const int left = qMin(from.x(), to.x());
+        const int right = qMax(from.x(), to.x());
+        painter->fillRect(QRect(left, from.y(), right - left + 1, thickness), colour);
+        return;
+    }
+    if (from.x() == to.x()) {
+        const int top = qMin(from.y(), to.y());
+        const int bottom = qMax(from.y(), to.y());
+        painter->fillRect(QRect(from.x(), top, thickness, bottom - top + 1), colour);
+        return;
+    }
+    // A diagonal is not a hairline; it is a drawing, and it belongs to
+    // whatever is drawing it.
+    painter->save();
+    painter->setPen(QPen(colour, thickness));
+    painter->drawLine(from, to);
+    painter->restore();
 }
 
 } // namespace novu::ui

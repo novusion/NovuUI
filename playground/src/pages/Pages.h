@@ -14,6 +14,7 @@ namespace novu::playground::pages {
 // changes.
 
 // Foundation
+ComponentSpec applicationRulesComponent();
 ComponentSpec typographyComponent();
 ComponentSpec motionComponent();
 ComponentSpec dropTargetComponent();
@@ -26,6 +27,7 @@ ComponentSpec layoutComponent();
 ComponentSpec flowLayoutComponent();
 ComponentSpec windowShellComponent();
 ComponentSpec floatingPanelComponent();
+ComponentSpec splashScreenComponent();
 ComponentSpec splitterComponent();
 ComponentSpec gateCardComponent();
 ComponentSpec activePanelComponent();
@@ -57,6 +59,7 @@ ComponentSpec popoverComponent();
 ComponentSpec statusBarComponent();
 ComponentSpec pageHeaderComponent();
 ComponentSpec treeViewComponent();
+ComponentSpec filePickerComponent();
 ComponentSpec tabBarComponent();
 ComponentSpec drawerComponent();
 ComponentSpec commandPaletteComponent();
@@ -69,6 +72,7 @@ ComponentSpec cardComponent();
 ComponentSpec statCardComponent();
 ComponentSpec statusDotComponent();
 ComponentSpec propertyRowComponent();
+ComponentSpec itemListComponent();
 ComponentSpec tableViewComponent();
 ComponentSpec appMarkComponent();
 ComponentSpec productMarkComponent();

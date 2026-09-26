@@ -5,6 +5,7 @@
 #include "novu/ui/Button.h"
 #include "novu/ui/Card.h"
 #include "novu/ui/Form.h"
+#include "novu/ui/IconButton.h"
 #include "novu/ui/NavList.h"
 #include "novu/ui/Separator.h"
 #include "novu/ui/Splitter.h"
@@ -13,8 +14,13 @@
 #include "novu/ui/Theme.h"
 #include "novu/ui/ThemeManager.h"
 #include "novu/ui/TreeView.h"
+#include "novu/ui/WidgetEditor.h"
+#include "novu/ui/Feedback.h"
+#include "novu/ui/Segmented.h"
 
 #include <QHBoxLayout>
+
+#include <utility>
 #include <QLabel>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -166,6 +172,29 @@ QWidget* buildSplitter(const PreviewContext& ctx)
         column->addWidget(card);
     }
 
+    auto* thinCard=exampleCard(page,QStringLiteral("One-pixel divider"),QStringLiteral("Explicit handle width is preserved."));
+    auto* thin=new Splitter(Qt::Horizontal,thinCard);
+    thin->setHandleWidth(1);
+    thin->setCollapseArrows(false);
+    thin->addWidget(panel(thin,QStringLiteral("LEFT"),ColorRole::PanelBg));
+    thin->addWidget(panel(thin,QStringLiteral("RIGHT"),ColorRole::WindowBg));
+    thin->setMinimumHeight(120);
+    thinCard->body()->addWidget(thin);
+    column->addWidget(thinCard);
+    auto* editing=exampleCard(page,QStringLiteral("Edit real widgets"),QStringLiteral("Pick a widget, resize a constraint, or drag to request a document move."));
+    auto* stage=new QWidget(editing);stage->setMinimumHeight(170);
+    auto* sample=new Button(QStringLiteral("Pick and resize"),Button::Variant::Primary,stage);sample->setGeometry(40,60,150,32);
+    auto* editor=new WidgetEditor(stage);editor->registerWidget(sample,QStringLiteral("Button"));editor->setSnapStep(8);editor->setCurrentWidget(sample);
+    QObject::connect(editor,&WidgetEditor::dragMoved,stage,[editor,stage](QWidget*,QPoint global){
+        const auto local=stage->mapFromGlobal(global);
+        editor->setDropFeedback(local.x()>200?QRect(210,40,110,90):QRect(),true);
+    });
+    auto* readout=label(QStringLiteral("No document move requested"),editing,TypeRole::Caption,Ink::Muted);
+    QObject::connect(editor,&WidgetEditor::dropRequested,readout,[readout](QWidget*,QPoint){readout->setText(QStringLiteral("Document move requested"));});
+    auto* progress=new ProgressBar(50,editing);progress->setTrackMetrics(5,3);progress->setTrackBackground(token(ColorRole::BorderHover));editing->body()->addWidget(progress);
+    auto* filename=new ElidedLabel(QStringLiteral("ui/src/views/chat/ComposerPanel.cpp"),editing);filename->setElideMode(Qt::ElideLeft);filename->setMaximumWidth(160);editing->body()->addWidget(filename);
+    auto* noSelection=new Segmented({QStringLiteral("One"),QStringLiteral("Two")},editing,-1);editing->body()->addWidget(noSelection);
+    editing->body()->addWidget(stage);editing->body()->addWidget(readout);column->addWidget(editing);
     column->addStretch(1);
     return page;
 }
@@ -267,6 +296,74 @@ QWidget* buildTabBar(const PreviewContext& ctx)
     }
 
     {
+        // The browser case: no icon set has a glyph for `novuai.app`, so the
+        // page's own initial is the mark - and the state is a dot after the
+        // label rather than something drawn over that initial.
+        Card* card = exampleCard(page, QStringLiteral("Pages, not files"),
+                                 QStringLiteral("A lettered mark, a state dot, "
+                                                "and the strip's own actions."));
+        QVBoxLayout* body = card->body();
+
+        auto* tabs = new TabBar(card);
+        tabs->setNewTabButton(true);
+
+        const struct {
+            const char* key;
+            const char* label;
+            const char* mark;
+            TabBar::State state;
+        } pages[] = {
+            {"p1", "NovuAI - Console", "N", TabBar::State::Idle},
+            {"p2", "arXiv - retrieval", "A", TabBar::State::Idle},
+            {"p3", "Benchmarks sheet", "B", TabBar::State::Asleep},
+            {"p4", "Status page", "S", TabBar::State::Failed},
+            {"p5", "Grafana - inference", "G", TabBar::State::Loading},
+        };
+        for (const auto& entry : pages) {
+            const QString key = QString::fromLatin1(entry.key);
+            tabs->addTab(key, QString::fromLatin1(entry.label));
+            tabs->setMarkText(key, QString::fromLatin1(entry.mark));
+            tabs->setState(key, entry.state);
+        }
+        tabs->setCurrentKey(QStringLiteral("p1"));
+
+        // `.btabs-row .bacts` - what belongs to the set rather than to one tab.
+        auto* acts = new QWidget(tabs);
+        auto* actsRow = new QHBoxLayout(acts);
+        actsRow->setContentsMargins(8, 0, 8, 0);
+        actsRow->setSpacing(5);
+        for (const auto& pair : {std::make_pair(Glyph::Users, "Sessions here"),
+                                 std::make_pair(Glyph::Overview, "Overview")}) {
+            auto* action = new IconButton(pair.first, acts);
+            action->setVariant(IconButton::Variant::Ghost);
+            action->setControlSize(ControlSize::Small);
+            action->setToolTip(QString::fromLatin1(pair.second));
+            actsRow->addWidget(action);
+        }
+        tabs->setTrailingWidget(acts);
+        body->addWidget(tabs);
+
+        note(body, card,
+             QStringLiteral("The mark is the document's, so the document's state does not "
+                            "take its place: a failed page keeps its initial and says so "
+                            "with a dot after the label. Loading is the exception - a page "
+                            "still arriving has no identity to protect yet, so the spinner "
+                            "sits where its mark will be."));
+        note(body, card,
+             QStringLiteral("The two actions at the trailing edge belong to the whole set "
+                            "rather than to any one tab, and they ride on the strip instead "
+                            "of getting a bar of their own. The tabs lay out in what is "
+                            "left, so they shrink around the actions rather than sliding "
+                            "underneath them."));
+        note(body, card,
+             QStringLiteral("Each tab is as wide as its own title needs, up to the cap. "
+                            "Equal widths are the crowded case, not the normal one - the "
+                            "card below shows what happens when the strip runs out of "
+                            "room."));
+        column->addWidget(card);
+    }
+
+    {
         Card* card = exampleCard(page, QStringLiteral("Too many"),
                                  QStringLiteral("They shrink together, down to a "
                                                 "floor."));
@@ -303,6 +400,43 @@ QWidget* buildTabBar(const PreviewContext& ctx)
                             "can be dragged, there can be thirty, each has a state of its own, "
                             "and the set is never known in advance. Making one class do both "
                             "is what produced three tab bars in three applications."));
+        column->addWidget(card);
+    }
+
+    // ── the other strip the design draws ─────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Faces of one card"),
+                                 QStringLiteral("The same component, saying "
+                                                "something else entirely."));
+        card->setBodyMetrics(QMargins(0, 0, 0, 0), 0);
+
+        auto* tabs = new TabBar(card);
+        // `.tabs` / `.tab` - no plate, no close box, the accent ink and a 2px
+        // rule inset under the current word.
+        tabs->setVariant(TabBar::Variant::Underline);
+        tabs->addTab(QStringLiteral("ai"), QStringLiteral("NovuAI access"));
+        tabs->addTab(QStringLiteral("general"), QStringLiteral("General"));
+        tabs->addTab(QStringLiteral("notify"), QStringLiteral("Notifications"));
+        tabs->addTab(QStringLiteral("data"), QStringLiteral("Data & storage"));
+        tabs->setCurrentKey(QStringLiteral("ai"));
+        card->body()->addWidget(tabs);
+
+        auto* shown = label(QStringLiteral("NovuAI access"), card, TypeRole::Body,
+                            Ink::Secondary);
+        shown->setContentsMargins(16, 14, 16, 14);
+        QObject::connect(tabs, &TabBar::currentChanged, shown,
+                         [tabs, shown](const QString& key) {
+                             shown->setText(tabs->label(key));
+                         });
+        card->body()->addWidget(shown);
+
+        note(card->body(), card,
+             QStringLiteral("Underline is the settings card, the market panel, the "
+                            "parameter groups of the bot builder: a fixed set of faces "
+                            "of one surface. Browser is a document strip. Drawing the "
+                            "first as the second gave four faces of one card four "
+                            "separate plates and put a close box on the one you were "
+                            "reading."));
         column->addWidget(card);
     }
 

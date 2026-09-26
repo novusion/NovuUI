@@ -23,11 +23,14 @@
 #include "novu/ui/Icon.h"
 #include <QPainterPath>
 
+#include "novu/ui/AddressBar.h"
 #include "novu/ui/AppMark.h"
+#include "novu/ui/Chip.h"
 #include "novu/ui/CommandPalette.h"
 #include "novu/ui/DiffView.h"
 #include "novu/ui/GateCard.h"
 #include "novu/ui/Drawer.h"
+#include "novu/ui/FilePicker.h"
 #include "novu/ui/FloatingPanel.h"
 #include "novu/ui/SelectionBar.h"
 #include "novu/ui/Splitter.h"
@@ -41,12 +44,18 @@
 #include "novu/ui/DropTarget.h"
 #include "novu/ui/Swatch.h"
 #include "novu/ui/Button.h"
+#include "novu/ui/IconButton.h"
+#include "novu/ui/ItemList.h"
+
 #include "novu/ui/Disclosure.h"
 #include "novu/ui/Keys.h"
 #include "novu/ui/LogView.h"
 #include "novu/ui/ModuleBar.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/NavList.h"
+#include "novu/ui/Card.h"
+#include "novu/ui/TableView.h"
+#include "novu/ui/StatCard.h"
 #include "novu/ui/PageHeader.h"
 #include "novu/ui/Popover.h"
 #include "novu/ui/SettingRow.h"
@@ -71,6 +80,8 @@
 #include <QDir>
 #include <QFile>
 #include <QImage>
+#include <QHeaderView>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QSet>
 #include <QCoreApplication>
@@ -85,7 +96,10 @@
 #include <QLineEdit>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QHBoxLayout>
+#include <QPushButton>
 #include <QVBoxLayout>
+#include <QWindow>
 #include <QTest>
 #include <QWidget>
 
@@ -108,6 +122,17 @@ class GalleryTest : public QObject
     Q_OBJECT
 
 private slots:
+    void chipTokenIsNotAToggle();
+    void navSectionApiReachesItsCaption();
+    void aNestedRowShowsItsLevelTheWayTheProfileSays();
+    void aSelectIsAButtonThatOpensItsMenu();
+    void aRaisedCardKeepsItsOutlineOnAPanel();
+    void segmentsCanShareTheTrayBetweenThem();
+    void theFamilyMarkIsOneDrawingInEveryAccent();
+    void paragraphAnswersForTheWidthItHas();
+    void monoLineViewFitsItsRowsWhenAsked();
+    void monoRowHeightIsTheDesignsLineHeight();
+    void commandFieldIsADoorNotAField();
     void initTestCase();
 
     // icon glyphs
@@ -172,7 +197,7 @@ private slots:
 
     // the design contract
     void aFamilyHueIsTheSameHueInEveryProduct();
-    void aTagPaletteDoesNotTagInTheColourOfFailure();
+    void aTagPaletteDoesNotDuplicateSharedHues();
     void chartSeriesAreEcosystemColoursAndNotStatusColours();
     void metricTokensAreReadByTheComponentsThatDrawThem();
 
@@ -194,6 +219,8 @@ private slots:
     void loopingAnimationsShareOneClock();
     void theSharedClockRunsOnlyWhileSomethingIsAnimating();
     void aBannerNeverSizesItselfToItsMessage();
+    void aOneLineBannerDoesNotBorrowTheWrappedLineSpacing();
+    void anItemListElidesBeforeItCrossesItsCardEdge();
     void aSwitchTravelsRatherThanJumping();
     void aPickerActsOnPressAndReleaseTogether();
     void aFieldReportsWhatIsWrongWithItsControl();
@@ -203,6 +230,7 @@ private slots:
     void aSliderReportsWhereItsPartsAre();
     void aSwatchAsksOneQuestionOrMany();
     void aSettingsShellHoldsShapeAndNotSettings();
+    void settingsShellCollapsesItsNavigationThroughNavListsOwnMechanism();
     void aFormsPrimaryActionEndsWhereItsFieldsEnd();
     void switchingProfileMovesTheColoursAndNotTheContract();
     void aProductOwnsItsAccentAndNothingElse();
@@ -212,8 +240,48 @@ private slots:
     void aNavigationTreeIsOneWidgetAndNotThreeHundred();
     void aNavRowsTwistyIsADifferentTargetFromTheRow();
     void navigationSkipsCaptionsAndDisabledRows();
+    void aKeyedCaptionFoldsWithoutBeingAskedTo();
+    void aColumnStatesItsOwnFaceInkAndAlignment();
+    void aNoteWrapsCarriesAGlyphAndKeepsItsBoldLead();
+    void anUnderlinedTabStripIsNotADocumentStrip();
+    void aFloatingWindowCanAlwaysBeLeft();
+    void aTableIsAsTallAsItsRows();
+    void shuttingARowHidesTheRowsUnderIt();
+    void theThreeWaysToHideARowDoNotOverwriteEachOther();
+    void railCollapseAndSectionDisclosureAreSeparateStates();
+    void aFoldedCaptionSurvivesTheRailBeingRebuilt();
+    void thewholeCaptionFoldsItsBlockButThePlusDoesNot();
     void bothStripsShareOneHitTestImplementation();
     void moduleBarReservesEnoughWidthForItsOwnLabel();
+
+    // NavList - the layout contract
+    void navListRowsNeverOverlapAcrossItsSupportedWidthRange();
+    void navListRowHeightIsTheSameForItemChildAndCurrent();
+    void navListMinimumWidthReflectsWhatItsWidestRowActuallyNeeds();
+    void navListCollapseRoundTripPreservesHierarchyAndSelection();
+    void navListBothFoldsGiveEquivalentRowsTheSameGeometry();
+    void aGlyphLessRowStillMarksItsPlaceOnACollapsedRail();
+    void navListSurvivesAContinuousWideNarrowCollapsedResizeCycle();
+    void aTypeRoleCarriesMoreThanAFont();
+    void aScrollAreaIsNotAHoleInTheWindow();
+    void aCardKeepsTheBodyMetricsItWasGiven();
+    void aHeaderlessCardPaysNoGapForItsHeader();
+    void anInlineHeaderIsOneRowRatherThanThree();
+    void anOutlinedButtonIsTransparentUntilHovered();
+    void anIconButtonMatchesAButtonsHeightAtTheSameControlSize();
+    void aTableDrawsRowRulesAndNoColumnRules();
+    void aTableIdentityAcceptsAClassificationBadge();
+    void anAccentedTableRowIsNotTheSameAsAnOrdinarySelection();
+    void aFlexibleColumnGivesWayBeforeTheTableScrolls();
+    void aTableToldNotToStretchKeepsItsNaturalWidth();
+    void columnsThatCompressAlikeCompressTogether();
+    void aContentColumnNeverElidesItsWidestCell();
+    void aClickedChromeControlDoesNotWearAFocusRing();
+    void aRowIsAtLeastAsTallAsWhatIsInIt();
+    void anAddressBarWeightsTheHostOverThePath();
+    void anEmptyStatesMarkReplacesItsGlyphAndBackAgain();
+    void anEmptyStatesActionsRowAppearsOnlyWhenFilled();
+    void anAccentedChipIsNotTheSameDrawingAsAPlainOne();
     void aDisclosureHidesItsBodyWithoutForgettingIt();
     void anActionInsideABlockDoesNotCollapseIt();
     void chordsSplitIntoCapsAndLoneSeparatorsSurvive();
@@ -228,12 +296,19 @@ private slots:
     void aSettingInErrorSaysSoInItsContract();
     void aCollapsedRailCollapsesEveryListInIt();
     void aRiskyChoiceIsWarningAndNotDanger();
+    void aRowActionWearsTheSameBorderAsAnyOtherButton();
+    void anActionPlateAndAChromeIconWearDifferentRadii();
+    void aSegmentIsNotAsRoundAsItsOwnTray();
+    void aComboBoxPopupRoundsAwayFromTheFieldItOpenedFrom();
+    void anAccentedRowDimsOnceItsListIsNotWhatHasFocus();
+    void aHoveredRowGreysWithoutHidingItsOwnText();
     void theExtractedComponentsKeepTokensRatherThanColours();
     void aMaskedValueDoesNotLeakItsLength();
 
     // the NovuAI extraction
     void aTreeFlattensOnlyWhatIsOpen();
     void aTreeChevronIsADifferentTargetFromTheRow();
+    void aLazyNodeShowsItsChevronBeforeItHasAnyChildren();
     void aTreeRevealsANodeByOpeningItsAncestors();
     void aTreeKeyboardWalksTheStructure();
     void aDiffIsParsedRatherThanColouredByItsFirstCharacter();
@@ -254,6 +329,8 @@ private slots:
     void aTabsCloseBoxIsItsOwnTarget();
     void closingTheCurrentTabMovesToItsNeighbour();
     void tabsShrinkTogetherRatherThanEachToItsOwnTitle();
+    void aLetteredTabKeepsItsMarkThroughAFailureOrASleep();
+    void aTabBarsTrailingWidgetTakesRoomFromTheTabs();
     void anInactivePanelKeepsItsSelection();
 
     // the NovuAdmin extraction
@@ -261,6 +338,7 @@ private slots:
     void anUnmeasuredReadingIsNotAMeasuredZero();
     void bytesAreWrittenOneWay();
     void aDrawerDimsWhatItIsAbout();
+    void aDrawerSlidesRatherThanSnapsIntoPlace();
     void aBusyDialogDisablesItsWholeFooter();
     void aFormErrorClearsBusyAndSitsAboveTheFooter();
 
@@ -840,14 +918,14 @@ void GalleryTest::applicationProfilesShareOnePalette()
         {QStringLiteral("novuexplorer"), QStringLiteral("#58b09e")},
         {QStringLiteral("novuadmin"),    QStringLiteral("#3ccb7f")},
         {QStringLiteral("novuhub"),      QStringLiteral("#3ccb7f")},
+        {QStringLiteral("novuvoice"),    QStringLiteral("#c47b85")},
     };
     for (const auto& [id, accent] : stated) {
         QCOMPARE(ThemeManager::instance().profile(id).colors.accent.name(), accent);
     }
-    // NovuVoice is the only product with no approved mockup, so it is the only
-    // one still wearing the stand-in.
-    QCOMPARE(ThemeManager::instance().profile(QStringLiteral("novuvoice")).colors.accent.name(),
-             novusionBaseProfile().colors.accent.name());
+    const ThemeColors voice = ThemeManager::instance().profile(QStringLiteral("novuvoice")).colors;
+    QCOMPARE(voice.accentLight.name(), QStringLiteral("#da98a1"));
+    QCOMPARE(voice.textOnAccent.name(), QStringLiteral("#1b1014"));
 }
 
 void GalleryTest::everyProfileSharesTheSemanticPalette()
@@ -934,9 +1012,19 @@ void GalleryTest::badgeTonesResolveThroughTheSharedPalette()
     QCOMPARE(p.semantic.role(SemanticRole::Warning).text.name(), p.colors.warning.name());
     QCOMPARE(p.semantic.role(SemanticRole::Danger).text.name(), p.colors.danger.name());
     QCOMPARE(p.semantic.role(SemanticRole::Info).text.name(), p.colors.info.name());
-    // Neutral is the absence of a status, so it follows the surface.
+    // Neutral is the absence of a status, so it follows the surface - and for
+    // NovuSpace specifically, the design's own `.badge.mut{color:var(--text3);
+    // border-color:var(--hair2);background:var(--card)}` is three flat
+    // surface-tier tokens (textDisabled/borderHover/surfaceHover), not an
+    // alpha-blended plate mixed from the secondary ink the way Success,
+    // Warning, Danger and Info are. NovuSpace restates all three of Neutral's
+    // channels after the shared derivation for exactly that reason.
     QCOMPARE(p.semantic.role(SemanticRole::Neutral).text.name(),
-             p.colors.textSecondary.name());
+             p.colors.textDisabled.name());
+    QCOMPARE(p.semantic.role(SemanticRole::Neutral).fill.name(),
+             p.colors.surfaceHover.name());
+    QCOMPARE(p.semantic.role(SemanticRole::Neutral).border.name(),
+             p.colors.borderHover.name());
 
     // One recipe for the plate, shared by Badge, Button and the scope sheet -
     // and it is the design's, stated per role rather than uniform:
@@ -961,8 +1049,11 @@ void GalleryTest::badgeTonesResolveThroughTheSharedPalette()
         QCOMPARE(c->fill.rgb() & 0xFFFFFF, hue->plate.rgb() & 0xFFFFFF);
         QCOMPARE(c->border.rgb() & 0xFFFFFF, hue->plate.rgb() & 0xFFFFFF);
     }
-    QVERIFY(p.semantic.success.fill.rgb() != p.semantic.success.text.rgb());
-    QVERIFY(p.semantic.danger.fill.rgb() != p.semantic.danger.text.rgb());
+    // NovuAI deliberately uses the same saturated RGB hue for ink and plate;
+    // they remain different rendered colours because the plate carries the
+    // role-specific alpha while the ink is opaque.
+    QVERIFY(p.semantic.success.fill != p.semantic.success.text);
+    QVERIFY(p.semantic.danger.fill != p.semantic.danger.text);
 }
 
 namespace {
@@ -1386,6 +1477,9 @@ void GalleryTest::aBannerNeverSizesItselfToItsMessage()
 
     QCOMPARE(longOne->sizeHint().width(), shortOne->sizeHint().width());
     QCOMPARE(longOne->minimumSizeHint().width(), shortOne->minimumSizeHint().width());
+    QVERIFY2(shortOne->sizeHint().height() <= 38,
+             qPrintable(QStringLiteral("a one-line banner is %1px tall")
+                            .arg(shortOne->sizeHint().height())));
     QVERIFY2(longOne->minimumSizeHint().width() < 400,
              qPrintable(QStringLiteral("a banner insists on %1px")
                             .arg(longOne->minimumSizeHint().width())));
@@ -1394,6 +1488,86 @@ void GalleryTest::aBannerNeverSizesItselfToItsMessage()
 
     // Nothing is lost by eliding: the whole message stays on the tooltip.
     QVERIFY(longOne->toolTip().contains(QStringLiteral("LNK2019")));
+
+    // A banner is first measured while its parent is still hidden. A trailing
+    // action still belongs to that future layout: ignoring it until the first
+    // show made a 26px small button fit into a 24px lane and clipped it.
+    auto* action = outlinedButton(QStringLiteral("Reconnect"), surface);
+    action->setControlSize(ControlSize::Small);
+    auto* actionable = new InfoBanner(
+        QStringLiteral("The last fetch timed out; messages shown are the local copy."),
+        Badge::Tone::Warning, surface, action);
+    auto* column = new QVBoxLayout(surface);
+    column->addWidget(actionable);
+    surface->resize(800, 120);
+    surface->show();
+    QTest::qWait(20);
+    QVERIFY2(action->height() >= action->minimumSizeHint().height(),
+             qPrintable(QStringLiteral("a %1px action was laid out at %2px")
+                            .arg(action->minimumSizeHint().height())
+                            .arg(action->height())));
+}
+
+void GalleryTest::aOneLineBannerDoesNotBorrowTheWrappedLineSpacing()
+{
+    // line-height:1.55 is room a *wrapped* sentence needs between its own
+    // lines. Applied to a banner that never wraps - the common case - the
+    // sentence measured taller than the font that drew it needed, and
+    // because a text layout does not split that extra leading evenly around
+    // the baseline, the strip read as more room below the words than above
+    // them even though the padding is the same number on both edges.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    const QFontMetrics metrics(roleFont(surface, TypeRole::Caption));
+
+    auto* oneLine = new InfoBanner(QStringLiteral("Saved to disk."),
+                                   Badge::Tone::Success, surface);
+    // The same kind of sentence, long enough to still be read naturally but
+    // forced across several lines at a narrow width - the room line-height
+    // exists for is between *these* lines, not around the one above.
+    auto* wrapped = new InfoBanner(
+        QStringLiteral("Saved to disk, along with everything that was open "
+                       "in it at the time, including the panes nobody had "
+                       "touched yet."),
+        Badge::Tone::Success, surface);
+
+    const int oneLineHeight = oneLine->heightForWidth(400);
+    const int wrappedHeight = wrapped->heightForWidth(160);
+
+    // Snug around its own sentence, not the ~55% taller figure
+    // line-height:1.55 would have produced for a line that never needed
+    // room next to another one.
+    QVERIFY2(oneLineHeight <= 2 * metrics.height() + 14,
+             qPrintable(QStringLiteral("a one-line banner is %1px tall against "
+                                       "a %2px font")
+                            .arg(oneLineHeight).arg(metrics.height())));
+
+    // The wrapped sentence still gets the generous spacing: each further
+    // line it takes costs noticeably more than the font's own line height,
+    // which is only true once line-height:1.55 is actually applied between
+    // the lines that need it.
+    QVERIFY2(wrappedHeight >= oneLineHeight + int(1.4 * metrics.height()),
+             qPrintable(QStringLiteral("a wrapped banner grew from %1px to only "
+                                       "%2px (a %3px font line)")
+                            .arg(oneLineHeight).arg(wrappedHeight).arg(metrics.height())));
+}
+
+void GalleryTest::anItemListElidesBeforeItCrossesItsCardEdge()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* list = new ItemList(surface);
+    QWidget* row = list->addRow(
+        QStringLiteral("sess_a91"),
+        QStringLiteral("PF_XBTUSD · 2026-09-13 06:02 → live"),
+        QStringLiteral("1,842 candles · 18.4 MB"));
+
+    // The three authored strings stay intact for accessibility and auditing,
+    // but every one paints an ellipsis when the card gives it less room.
+    const QList<QLabel*> labels = row->findChildren<QLabel*>();
+    QCOMPARE(labels.size(), 3);
+    for (QLabel* label : labels) {
+        QVERIFY(dynamic_cast<ElidedLabel*>(label));
+        QCOMPARE(label->minimumSizeHint().width(), 0);
+    }
 }
 
 void GalleryTest::aSwitchTravelsRatherThanJumping()
@@ -1409,7 +1583,8 @@ void GalleryTest::aSwitchTravelsRatherThanJumping()
 
     // The track is the accent when on and the surface when off, both named
     // rather than taken.
-    QCOMPARE(toggle->styleSpec().checkedBackground.describe(), QStringLiteral("accent@28"));
+    QCOMPARE(toggle->styleSpec().checkedBackground.describe(), QStringLiteral("accent@25"));
+    QCOMPARE(toggle->styleSpec().checkedBorder.describe(), QStringLiteral("accent"));
     QCOMPARE(toggle->styleSpec().background.describe(), QStringLiteral("surfaceHover"));
 
     // A switch is not a status, so it must never resolve through the semantic
@@ -1854,6 +2029,52 @@ void GalleryTest::aSettingsShellHoldsShapeAndNotSettings()
     QCOMPARE(section->findChildren<QLabel*>().size(), 0);
 }
 
+void GalleryTest::settingsShellCollapsesItsNavigationThroughNavListsOwnMechanism()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* shell = new SettingsShell(surface);
+    shell->setSearchEnabled(true);
+    shell->addGroup(QStringLiteral("This machine"));
+    shell->addPage(QStringLiteral("general"), QStringLiteral("General"), Glyph::Settings);
+    shell->addPage(QStringLiteral("connections"), QStringLiteral("Connections"), Glyph::Plug);
+    shell->setCurrentKey(QStringLiteral("connections"));
+
+    QVERIFY(!shell->isNavigationCollapsed());
+    QVERIFY(!shell->navigation()->isCollapsed());
+    // isHidden(), not isVisible(): the surface is never shown (see
+    // makeSurface()), so isVisible() would read false regardless of the
+    // field's own explicit state - isHidden() is the explicit flag itself.
+    QVERIFY(!shell->searchField()->isHidden());
+    const int expandedWidth = shell->navigationWidth();
+
+    QSignalSpy collapsedChanged(shell, &SettingsShell::navigationCollapsedChanged);
+    shell->setNavigationCollapsed(true);
+    QCOMPARE(collapsedChanged.count(), 1);
+    QVERIFY(shell->isNavigationCollapsed());
+    // Not a second collapse mechanism grown for Settings - the same call
+    // Sidebar makes on every NavList it holds.
+    QVERIFY(shell->navigation()->isCollapsed());
+    // A text field has no icon-rail form to shrink to, so it goes with the
+    // rest of what a rail hides rather than sitting alone with nothing to
+    // filter into view.
+    QVERIFY(shell->searchField()->isHidden());
+    // navigationWidth() is what setNavigationWidth() would restore, so
+    // collapsing must not overwrite the caller's own preference with
+    // whatever the rail happened to need.
+    QCOMPARE(shell->navigationWidth(), expandedWidth);
+
+    // The selected page and the group hierarchy underneath it never moved -
+    // collapsing is presentation, not a rebuild.
+    QCOMPARE(shell->currentKey(), QStringLiteral("connections"));
+
+    shell->setNavigationCollapsed(false);
+    QCOMPARE(collapsedChanged.count(), 2);
+    QVERIFY(!shell->isNavigationCollapsed());
+    QVERIFY(!shell->navigation()->isCollapsed());
+    QVERIFY(!shell->searchField()->isHidden());
+    QCOMPARE(shell->currentKey(), QStringLiteral("connections"));
+}
+
 void GalleryTest::aFormsPrimaryActionEndsWhereItsFieldsEnd()
 {
     // Where a form's action sits is a property of the form, not of the screen
@@ -2017,8 +2238,7 @@ void GalleryTest::aProductOwnsItsAccentAndNothingElse()
         QCOMPARE(c.danger.name(), base.danger.name());
     }
 
-    // Five products have an approved accent of their own; NovuVoice, the only
-    // one without a mockup, keeps the stand-in. What this guards is the "and
+    // Six products have an approved accent of their own. What this guards is the "and
     // nothing else" half of the name - the loop above has already compared
     // surfaces, ink and status against the base.
     int withOwnAccent = 0;
@@ -2030,7 +2250,7 @@ void GalleryTest::aProductOwnsItsAccentAndNothingElse()
             ++withOwnAccent;
         }
     }
-    QCOMPARE(withOwnAccent, 5);
+    QCOMPARE(withOwnAccent, 6);
 }
 
 void GalleryTest::aLiveProfileEditReachesWidgetsAlreadyBuilt()
@@ -2221,27 +2441,24 @@ void GalleryTest::aFamilyHueIsTheSameHueInEveryProduct()
     QCOMPARE(find("Green").name().toUpper(), QStringLiteral("#3CCB7F"));
 }
 
-void GalleryTest::aTagPaletteDoesNotTagInTheColourOfFailure()
+void GalleryTest::aTagPaletteDoesNotDuplicateSharedHues()
 {
     // A tag is a label a person picks; a status is something the application
-    // reports. tagPalette() used to append the four status colours, so a user
-    // could tag a folder in the exact pink that means "failed" two rows below.
+    // reports. They may share a family hue, but tagPalette() must not append a
+    // second copy merely because that hue also carries a semantic meaning.
     QWidget* surface = makeSurface(QStringLiteral("novuspace"));
-    const ThemeProfile& p = themeFor(surface);
     const QList<QColor> palette = tagPalette(surface);
 
     QCOMPARE(palette.size(), familyHues().size());
-    // Danger, specifically: `#E8A8B0` is the one ink neither a family hue nor
-    // a chart series is allowed to reuse, because it is the one thing every
-    // profile agrees means "this failed". Warning is not held to the same
-    // rule - the design's own table states warning's ink and plate as the same
-    // value as the family's Amber, which is DESIGN_CONTRACT.md's shared-hue
-    // case, not a bug: one value, two legitimate meanings depending on where
-    // it is used.
+    // The approved NovuAI palette deliberately reuses Rose for Danger and
+    // Green for Success. Meaning comes from the component, not from exclusive
+    // ownership of a hue, so the guard here is that no status-only colour was
+    // appended as an extra, duplicate choice.
+    QSet<QRgb> unique;
     for (const QColor& c : palette) {
-        QVERIFY2(c.rgb() != p.colors.danger.rgb(),
-                 "a tag palette offers the ink that means failure");
+        unique.insert(c.rgb());
     }
+    QCOMPARE(unique.size(), palette.size());
     delete surface;
 }
 
@@ -2286,6 +2503,23 @@ void GalleryTest::metricTokensAreReadByTheComponentsThatDrawThem()
     bar->ensurePolished();
     QCOMPARE(bar->height(), p.window.statusBarHeight);
     QCOMPARE(bar->sizeHint().height(), p.window.statusBarHeight);
+
+    // A compact selector in the strip must keep all four rounded edges.  The
+    // host used to be forced to height-6 (20 px here), clipping the 23 px
+    // selector along its bottom edge.
+    auto* leading = new QWidget(bar);
+    auto* leadingRow = new QHBoxLayout(leading);
+    leadingRow->setContentsMargins(0, 0, 0, 0);
+    auto* selector = new SelectButton(leading);
+    selector->setControlSize(ControlSize::Small);
+    selector->addOption(QStringLiteral("model"), QStringLiteral("Model"));
+    leadingRow->addWidget(selector);
+    bar->setLeadingWidget(leading);
+    bar->resize(420, bar->height());
+    QCoreApplication::processEvents();
+    QCOMPARE(selector->height(), selector->sizeHint().height());
+    QVERIFY2(leading->height() >= selector->height(),
+             "status bar clips the compact selector's rounded border");
 
     // The same component under a profile that states a different strip.
     QWidget* explorer = makeSurface(QStringLiteral("novuexplorer"));
@@ -2378,8 +2612,14 @@ void GalleryTest::theTwoDropHighlightsAreDifferentWeights()
     QCOMPARE(lit.border.rgb() & 0xFFFFFF, p.colors.accent.rgb() & 0xFFFFFF);
     QCOMPARE(area.border.rgb() & 0xFFFFFF, p.colors.accent.rgb() & 0xFFFFFF);
     QVERIFY(lit.background.alpha() > area.background.alpha());
-    QVERIFY2(area.borderWidth > lit.borderWidth,
-             "the region carries the heavier outline, the row the heavier fill");
+    // Both outlines are one device pixel - no outline anywhere in NovuUI is
+    // heavier than that. What still tells the region from the row is alpha,
+    // exactly as the design states two different numbers for it: the row's
+    // border at full strength, the region's at .55.
+    QCOMPARE(lit.borderWidth, area.borderWidth);
+    QCOMPARE(lit.borderWidth, 1);
+    QVERIFY2(row.border.alpha > region.border.alpha,
+             "the row's outline is the stronger of the two, its fill even more so");
     delete surface;
 }
 void GalleryTest::translucentTokensKeepTheirAlphaInTheSheet()
@@ -2445,7 +2685,13 @@ void GalleryTest::scrollAreasAreNeverLeftUnstyled()
     QVERIFY(area != nullptr);
     QCOMPARE(area->objectName(), QString::fromLatin1(name::scrollArea));
     QCOMPARE(area->frameShape(), QFrame::NoFrame);
-    QVERIFY(!area->viewport()->autoFillBackground());
+    // And it paints the surface it stands on. This assertion used to be the
+    // other way round - "the viewport fills nothing" - which is what a
+    // transparent rule reads like and is not what it does: Qt treats a styled
+    // background as opaque and stops repainting the parent under it, so on a
+    // translucent shell the area was a hole with the desktop in it. See
+    // aScrollAreaIsNotAHoleInTheWindow().
+    QVERIFY(area->viewport()->autoFillBackground());
 }
 
 void GalleryTest::themeSwitchingUsesTheRealThemeManager()
@@ -2828,6 +3074,667 @@ void GalleryTest::bothStripsShareOneHitTestImplementation()
     QCOMPARE(modules->currentKey(), QStringLiteral("web"));
 }
 
+// A card's body padding and gap are re-applied on every theme change and on
+// the first polish. Set straight on body() they survived until that polish and
+// then reverted - which is how a StatCard ended up a section gap apart from its
+// own caption, and a flush table card grew a 16px inset it had asked not to
+// have.
+// A role states more than a family, a size and a weight: the approved CSS
+// gives `.stat .lab` `letter-spacing:.06em` and `text-transform:uppercase`,
+// and `.stat .val` `line-height:1.05`. None of the three is expressible as a
+// font alone, and all three are visible - tracking at 11px is the difference
+// between a caption and a tracked label, and a 25px display face laid out to
+// its own metrics is five pixels taller than the design's own line box.
+// A viewport that paints nothing is not the same as one you can see through.
+// Qt treats a styled-background child as opaque and stops repainting the
+// parent under it, so on a shell whose frame is translucent - which every Novu
+// window is - a scroll area came out as a hole: the desktop showed through the
+// page's own background, its side rail and the gaps between its cards.
+void GalleryTest::aScrollAreaIsNotAHoleInTheWindow()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    const ThemeProfile& profile = themeFor(surface);
+
+    auto* page = new QWidget(surface);
+    QScrollArea* area = nullptr;
+    scrollPage(page, &area);
+    QVERIFY(area);
+    QVERIFY(area->viewport()->autoFillBackground());
+    QCOMPARE(area->viewport()->palette().color(QPalette::Window), profile.colors.windowBg);
+
+    // And the same for a scroll area an application makes itself, which is
+    // what the helper is for.
+    auto* own = new QScrollArea(surface);
+    fillScrollViewport(own, ColorRole::PanelBg);
+    QVERIFY(own->viewport()->autoFillBackground());
+    QCOMPARE(own->viewport()->palette().color(QPalette::Window), profile.colors.panelBg);
+}
+
+void GalleryTest::aTypeRoleCarriesMoreThanAFont()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    const ThemeProfile& profile = themeFor(surface);
+
+    const TypeStyle eyebrow = profile.text(TypeRole::Eyebrow);
+    QVERIFY(eyebrow.uppercase);
+    QVERIFY(eyebrow.letterSpacing > 0.0);
+
+    const QFont tracked = roleFont(surface, TypeRole::Eyebrow);
+    QCOMPARE(tracked.capitalization(), QFont::AllUppercase);
+    QCOMPARE(tracked.letterSpacingType(), QFont::AbsoluteSpacing);
+    QVERIFY(qAbs(tracked.letterSpacing() - eyebrow.size * eyebrow.letterSpacing) < .01);
+
+    // Negative em tracking is an absolute reduction in advance width.
+    const TypeStyle metric = profile.text(TypeRole::Metric);
+    QVERIFY(metric.letterSpacing < 0.0);
+    QVERIFY(qAbs(roleFont(surface, TypeRole::Metric).letterSpacing() - metric.size * metric.letterSpacing) < .01);
+
+    // The stated line box, not the font's own.
+    QVERIFY(metric.lineHeight > 0.0);
+    auto* value = label(QStringLiteral("1.3 GB"), surface, TypeRole::Metric, Ink::Default, true);
+    QCOMPARE(value->height(), qRound(metric.size * metric.lineHeight));
+    // Deliberately no comparison against QFontMetrics here. Whether the
+    // stated box is taller or shorter than the font's own is a property of
+    // the typeface, and the design's faces ship with the application rather
+    // than with this library - so on a machine without Instrument Sans
+    // installed the comparison tests the substitute font, not the line box.
+    // What matters is asserted above: the label is exactly the box the role
+    // states, whatever font it is drawn in.
+
+    // `bold` is one step of emphasis, never past the design's own 600.
+    QCOMPARE(roleFont(surface, TypeRole::Metric, true).weight(), QFont::DemiBold);
+    QCOMPARE(roleFont(surface, TypeRole::Body, true).weight(), QFont::DemiBold);
+
+    // An explicit `weight` states the exact number instead of floor-ing at
+    // 600 - `.cellmain{font-weight:500}` is one step from Body's 400, to
+    // Medium, and `bold=true` overshoots it. This is not a hypothetical:
+    // every name in every table in the product was drawn a full step heavier
+    // than the design before `weight` existed to say 500 rather than "bold".
+    QCOMPARE(roleFont(surface, TypeRole::Body, false, 500).weight(), QFont::Medium);
+    QCOMPARE(roleFont(surface, TypeRole::Body, /*bold=*/true, 500).weight(), QFont::Medium);
+    QCOMPARE(roleMonoFont(surface, TypeRole::Mono, false, 500).weight(), QFont::Medium);
+    auto* medium = label(QStringLiteral("Kraken"), surface, TypeRole::Body, Ink::Default,
+                         false, 500);
+    QCOMPARE(medium->font().weight(), QFont::Medium);
+}
+
+void GalleryTest::aCardKeepsTheBodyMetricsItWasGiven()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* card = new Card(QStringLiteral("Flush"), surface);
+    card->setBodyMetrics(QMargins(0, 0, 0, 0), 0);
+
+    QCOMPARE(card->body()->contentsMargins(), QMargins(0, 0, 0, 0));
+    QCOMPARE(card->body()->spacing(), 0);
+
+    // What a polish does, and what used to undo it.
+    QApplication::sendEvent(card, new QEvent(QEvent::PolishRequest));
+    QCOMPARE(card->body()->contentsMargins(), QMargins(0, 0, 0, 0));
+    QCOMPARE(card->body()->spacing(), 0);
+
+    // Clearing restores the card's own body gap, which is a role of its own:
+    // `.card .body{gap:12px}` is not the section gap between cards, and reusing
+    // SectionGap here was what pushed every card's contents 6px apart.
+    const ThemeProfile& profile = themeFor(card);
+    card->clearBodyMetrics();
+    QCOMPARE(card->body()->spacing(), profile.space(SpacingRole::CardBodyGap));
+}
+
+// `setHeaderVisible(false)` has to take the row with it, not only the words in
+// it: a layout keeps the gap around an item whose contents merely have nothing
+// to show, which a metric card pays for in height it never asked for.
+void GalleryTest::aHeaderlessCardPaysNoGapForItsHeader()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+
+    auto* titled = new Card(QStringLiteral("Balances"), surface);
+    auto* plain = new Card(surface);
+    auto* hidden = new Card(QStringLiteral("Balances"), surface);
+    hidden->setHeaderVisible(false);
+
+    for (Card* card : {titled, plain, hidden}) {
+        card->body()->addWidget(label(QStringLiteral("One line"), card));
+        card->resize(card->sizeHint());
+    }
+
+    QVERIFY(hidden->sizeHint().height() < titled->sizeHint().height());
+    // A card that never had a title is the same card as one whose header was
+    // turned off.
+    QCOMPARE(plain->sizeHint().height(), hidden->sizeHint().height());
+
+    // A titleless card that *does* carry a trailing control still has a header.
+    plain->setHeaderTrailing(ghostButton(QStringLiteral("Detach"), plain));
+    QVERIFY(plain->sizeHint().height() > hidden->sizeHint().height());
+}
+
+// NovuSpace's `.page-head` is one flex row: `.ttl{display:flex;
+// align-items:baseline;gap:10px}` puts the trail, the title and the description
+// on a single baseline. Stacked, the same three strings are three rows, and
+// every pixel of the page below the header moves.
+void GalleryTest::anInlineHeaderIsOneRowRatherThanThree()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+
+    auto* stacked = new PageHeader(QStringLiteral("Web workspaces"),
+                                   QStringLiteral("Organise browser workspaces"), surface);
+    stacked->setPath({QStringLiteral("NovuSpace"), QStringLiteral("Web"),
+                      QStringLiteral("Overview")});
+
+    auto* oneRow = new PageHeader(QStringLiteral("Web workspaces"),
+                                  QStringLiteral("Organise browser workspaces"), surface);
+    oneRow->setPath({QStringLiteral("NovuSpace"), QStringLiteral("Web"),
+                     QStringLiteral("Overview")});
+    QCOMPARE(oneRow->layout(), PageHeader::Layout::Stacked);
+    oneRow->setLayout(PageHeader::Layout::Inline);
+    QCOMPARE(oneRow->layout(), PageHeader::Layout::Inline);
+
+    const int width = 900;
+    QVERIFY(oneRow->heightForWidth(width) < stacked->heightForWidth(width));
+
+    // One row is as tall as the tallest of the three plus the band's padding,
+    // and the trail and the description no longer add a line each.
+    const QFontMetrics titles(roleFont(oneRow, TypeRole::PageTitle));
+    QVERIFY(oneRow->heightForWidth(width) <= titles.height() + 2 * 10 + 4);
+}
+
+// `.btn` at rest is a hairline and a transparent plate; it fills only on hover.
+// Secondary is filled before the pointer ever arrives - a different button, not
+// a smaller one - and Ghost carries no border at rest at all.
+void GalleryTest::anOutlinedButtonIsTransparentUntilHovered()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* outlined = new Button(QStringLiteral("Refresh"), Button::Variant::Outlined, surface);
+    auto* secondary = new Button(QStringLiteral("Refresh"), Button::Variant::Secondary, surface);
+    auto* ghost = new Button(QStringLiteral("Refresh"), Button::Variant::Ghost, surface);
+
+    const StyleSpec out = outlined->styleSpec();
+    QCOMPARE(out.background.role, ColorRole::Transparent);
+    QCOMPARE(out.border.role, ColorRole::BorderHover);
+    QCOMPARE(out.hoverBackground.role, ColorRole::PanelBg);
+
+    // The two it is not.
+    QVERIFY(secondary->styleSpec().background.role != ColorRole::Transparent);
+    QCOMPARE(ghost->styleSpec().border.role, ColorRole::Transparent);
+
+    QCOMPARE(outlinedButton(QStringLiteral("Refresh"), surface)->variant(),
+             Button::Variant::Outlined);
+}
+
+void GalleryTest::anIconButtonMatchesAButtonsHeightAtTheSameControlSize()
+{
+    // Two components, one token: Button::sizeHint() floors its height at
+    // profile.controlHeight(size), and IconButton's own side is that same
+    // call. Anything that puts them in one row - a text field's trailing
+    // action, a toolbar's overflow button beside its label - gets a matched
+    // pair for free as long as both are told the same size; this is that
+    // guarantee, asserted so it cannot drift the way it did in the Gallery's
+    // own Popover demo, where the icon button had quietly defaulted to
+    // Medium beside a Small one.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    for (const ControlSize size : {ControlSize::Small, ControlSize::Medium, ControlSize::Large}) {
+        auto* button = new Button(QStringLiteral("Window menu"), Button::Variant::Secondary,
+                                  surface);
+        button->setControlSize(size);
+        auto* icon = new IconButton(Glyph::More, surface);
+        icon->setControlSize(size);
+
+        QCOMPARE(icon->sizeHint().height(), button->sizeHint().height());
+        // Square is IconButton's whole contract, not just true by
+        // coincidence at this one size.
+        QCOMPARE(icon->sizeHint().width(), icon->sizeHint().height());
+
+        delete button;
+        delete icon;
+    }
+}
+
+// `table.tbl td{border-bottom:1px solid var(--hair)}` and no border-right
+// anywhere: a table draws a rule under a row and never between two columns.
+// Qt's own grid is one pen in both directions, so it stays off.
+void GalleryTest::aTableDrawsRowRulesAndNoColumnRules()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* table = new TableView(surface);
+    table->setColumns({{QStringLiteral("Workspace"), TableView::ColumnRole::Text},
+                       {QStringLiteral("Status"), TableView::ColumnRole::Content}});
+    table->setRowCount(3);
+    for (int row = 0; row < 3; ++row) {
+        table->setText(row, 0, QStringLiteral("Row %1").arg(row));
+        table->setText(row, 1, QStringLiteral("active"));
+    }
+    QVERIFY(!table->showGrid());
+
+    table->resize(400, 240);
+    table->relayoutColumns();
+    QImage shot(table->size(), QImage::Format_ARGB32);
+    shot.fill(Qt::transparent);
+    table->render(&shot);
+
+    const QColor rule = themeFor(table).table.gridLine;
+    const auto columnHas = [&](int x) {
+        for (int y = 0; y < shot.height(); ++y) {
+            if (QColor(shot.pixel(x, y)) == rule) {
+                return true;
+            }
+        }
+        return false;
+    };
+    // The boundary between the two columns carries no continuous rule: no
+    // column of pixels inside the body is the grid colour top to bottom.
+    int continuous = 0;
+    for (int x = 2; x < shot.width() - 2; ++x) {
+        int run = 0;
+        for (int y = 40; y < shot.height() - 2; ++y) {
+            run = QColor(shot.pixel(x, y)) == rule ? run + 1 : 0;
+            if (run > 60) {
+                ++continuous;
+                break;
+            }
+        }
+    }
+    QCOMPARE(continuous, 0);
+    Q_UNUSED(columnHas);
+}
+
+void GalleryTest::aTableIdentityAcceptsAClassificationBadge()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuai"));
+    auto* table = new TableView(surface);
+    table->setColumns({{QStringLiteral("Model"), TableView::ColumnRole::Text}});
+    table->setRowCount(1);
+
+    auto* kind = new Badge(QStringLiteral("LAN"), Badge::Tone::Neutral, table);
+    const QColor blue(QStringLiteral("#4DA3FF"));
+    kind->setClassificationHue(blue);
+    table->setIdentity(0, 0, QStringLiteral("Qwen2.5 Coder 14b Instruct"),
+                       QStringLiteral("unsloth.Q8_0.gguf"), kind);
+    table->resize(520, 140);
+    table->relayoutColumns();
+
+    QCOMPARE(kind->classificationHue(), blue);
+    QVERIFY(table->cellWidget(0, 0));
+    QCOMPARE(table->cellWidget(0, 0)->findChildren<Badge*>().size(), 1);
+    QVERIFY(table->rowHeight(0) > themeFor(table).table.rowHeight);
+}
+
+void GalleryTest::aFlexibleColumnGivesWayBeforeTheTableScrolls()
+{
+    // The approved design puts a sentence ("Why", a bot's last error) in a
+    // card narrower than the sentence. Text and Content are floors - the view
+    // scrolls rather than shrink them - and without a third role that column
+    // shouldered the table past the card and took the P&L, Since and action
+    // columns off the right edge with it.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* table = new TableView(surface);
+    table->setColumns({{QStringLiteral("What"), TableView::ColumnRole::Content},
+                       {QStringLiteral("Why"), TableView::ColumnRole::Flexible},
+                       {QStringLiteral("Since"), TableView::ColumnRole::Content}});
+    table->setRowCount(1);
+    table->setText(0, 0, QStringLiteral("Breakout Hunter"));
+    table->setText(0, 1,
+                   QStringLiteral("Exchange rejected order: insufficient margin (code "
+                                  "-2019). Retried three times, then halted the bot."));
+    table->setText(0, 2, QStringLiteral("18 min ago"));
+
+    // Rendered rather than merely resized: the layout reads viewport()'s own
+    // width, and an unpolished scroll area has not laid its viewport out yet.
+    const auto settle = [table](int width) {
+        table->resize(width, 120);
+        // A hidden scroll area posts its resize rather than laying the
+        // viewport out on the spot, and relayoutColumns() reads the
+        // viewport's width - without this it measures the old one.
+        QCoreApplication::sendPostedEvents(table, QEvent::Resize);
+        QCoreApplication::processEvents();
+        table->relayoutColumns();
+    };
+
+    settle(1400);
+    const int roomy = table->columnWidth(1);
+    const int fixedBefore = table->columnWidth(0) + table->columnWidth(2);
+
+    // Now narrower than the sentence. The two Content columns must not lose a
+    // pixel; the flexible one pays for the difference.
+    settle(420);
+    QCOMPARE(table->columnWidth(0) + table->columnWidth(2), fixedBefore);
+    QVERIFY(table->columnWidth(1) < roomy);
+    // ...but never past the point where the column could not show a word.
+    QVERIFY(table->columnWidth(1) >= 80);
+}
+
+// `setStretchToFill(false)` - a wide preset with mostly pinned Numeric columns
+// and one narrow Mono timestamp: handing every spare pixel to the timestamp
+// opened a gap ahead of the price columns instead of reading as one compact
+// row, where the approved sheet leaves the table at its natural width and
+// scrolls instead. On by default, so every other table keeps stretching to
+// fill exactly as it always has.
+void GalleryTest::aTableToldNotToStretchKeepsItsNaturalWidth()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* table = new TableView(surface);
+    table->setColumns({{QStringLiteral("Symbol"), TableView::ColumnRole::Numeric},
+                       {QStringLiteral("Entry time (UTC)"), TableView::ColumnRole::Mono},
+                       {QStringLiteral("PNL $"), TableView::ColumnRole::Numeric}});
+    table->setRowCount(1);
+    table->setText(0, 0, QStringLiteral("PF_XBTUSD"));
+    table->setText(0, 1, QStringLiteral("09-13 10:02:14"));
+    table->setText(0, 2, QStringLiteral("+$116.90"));
+
+    const auto settle = [table](int width) {
+        table->resize(width, 120);
+        QCoreApplication::sendPostedEvents(table, QEvent::Resize);
+        QCoreApplication::processEvents();
+        table->relayoutColumns();
+    };
+
+    settle(1200);
+    const int stretchedMono = table->columnWidth(1);
+
+    table->setStretchToFill(false);
+    settle(1200);
+    const int naturalAt1200 = table->columnWidth(1);
+    // A viewport wider still would have hand out even more had anything been
+    // willing to take it - the natural width does not move with it.
+    settle(1800);
+    const int naturalAt1800 = table->columnWidth(1);
+
+    // A wide, mostly-empty viewport handed every spare pixel to the one
+    // stretch-eligible column when nothing said not to.
+    QVERIFY(stretchedMono > naturalAt1200);
+    // Off, the timestamp keeps to what it actually measured - not clipped,
+    // not padded to fill the card, and not a function of the viewport at all.
+    QCOMPARE(naturalAt1800, naturalAt1200);
+    QVERIFY(table->horizontalScrollBarPolicy() == Qt::ScrollBarAlwaysOff);
+}
+
+// Two columns that compress on the same terms compress *together*.
+//
+// The overview's own table is the case: a sentence in `Why` and a timestamp in
+// `Since`, both allowed to wrap, in a card too narrow for both at full width.
+// Asked one role at a time, `Why` was drained to its floor before `Since` was
+// asked for anything - so the sentence wrapped onto four lines beside a
+// timestamp with sixty pixels of room it had no use for. A browser's auto
+// table layout takes from both in proportion to what they hold.
+void GalleryTest::columnsThatCompressAlikeCompressTogether()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* table = new TableView(surface);
+    using Role = TableView::ColumnRole;
+    table->setColumns({{QStringLiteral("State"), Role::Content},
+                       {QStringLiteral("Why"), Role::Flexible},
+                       {QStringLiteral("Since"), Role::Mono}});
+    table->setRowCount(1);
+    table->setText(0, 0, QStringLiteral("error"));
+    table->setText(0, 1,
+                   QStringLiteral("Exchange rejected order: insufficient margin (code "
+                                  "-2019). Retried three times, then halted the bot."));
+    table->setText(0, 2, QStringLiteral("2026-09-13 06:01"));
+
+    const auto settle = [table](int width) {
+        table->resize(width, 120);
+        QCoreApplication::sendPostedEvents(table, QEvent::Resize);
+        QCoreApplication::processEvents();
+        table->relayoutColumns();
+    };
+
+    settle(1400);
+    const int whyRoomy = table->columnWidth(1);
+    const int sinceRoomy = table->columnWidth(2);
+    QVERIFY(whyRoomy > sinceRoomy);
+
+    // Too narrow for both. Both give, and the one that was holding more keeps
+    // more - the sentence must not end up narrower than the timestamp.
+    settle(500);
+    QVERIFY(table->columnWidth(1) < whyRoomy);
+    QVERIFY(table->columnWidth(2) < sinceRoomy);
+    QVERIFY(table->columnWidth(1) > table->columnWidth(2));
+}
+
+// The class's own contract: "a Text or Content column is never compressed
+// and never elided." FilePicker's content table found the exception - a
+// Content column whose widest cell was set after a shorter one in the same
+// column read as elided even once the table had settled at its final size,
+// because nothing about a Content column obliged the column to actually be
+// as wide as measureColumn() said it should be.
+void GalleryTest::aContentColumnNeverElidesItsWidestCell()
+{
+    // The Gallery's own nesting: a QScrollArea with setWidgetResizable(true)
+    // holding the page, which is where this was actually found - a bare
+    // FilePicker resized directly does not reproduce it, so whatever goes
+    // wrong depends on being resized *by* a resizable scroll area rather
+    // than by a direct resize() call.
+    auto* scroll = new QScrollArea();
+    scroll->setWidgetResizable(true);
+    m_surfaces.append(scroll);
+    applyStyleSheet(scroll, QStringLiteral("novuspace"));
+
+    auto* page = new QWidget();
+    applyStyleSheet(page, QStringLiteral("novuspace"));
+    auto* pageLayout = new QVBoxLayout(page);
+
+    auto* picker = new FilePicker(page);
+    picker->addLocation(QString(), QStringLiteral("root"), QStringLiteral("Root"));
+    picker->setCurrentLocation(QStringLiteral("root"));
+    picker->setEntries({
+        {QStringLiteral("Documents_Win"), FilePicker::EntryKind::Folder,
+         QStringLiteral("7/15/2024 2:33 PM"), QStringLiteral("File folder"), QString()},
+        {QStringLiteral("Houdini_20.5"), FilePicker::EntryKind::Folder,
+         QStringLiteral("3/1/2025 12:25 PM"), QStringLiteral("File folder"), QString()},
+        {QStringLiteral("3d_Tiles_Earth_Mesh.txt"), FilePicker::EntryKind::File,
+         QStringLiteral("7/15/2024 2:09 PM"), QStringLiteral("Text Document"),
+         QStringLiteral("2 KB")},
+        {QStringLiteral("obj_Cave_Generator_1_0.png"), FilePicker::EntryKind::File,
+         QStringLiteral("11/13/2025 6:32 PM"), QStringLiteral("PNG File"),
+         QStringLiteral("1,536 KB")},
+    });
+    picker->setMinimumHeight(360);
+    pageLayout->addWidget(picker);
+
+    scroll->setWidget(page);
+    scroll->resize(1100, 700);
+    scroll->show();
+    QVERIFY(QTest::qWaitForWindowExposed(scroll));
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+
+    const QFontMetrics metrics(picker->table()->font());
+    const int widest = metrics.horizontalAdvance(QStringLiteral("Text Document"));
+    QVERIFY2(picker->table()->columnWidth(2) >= widest,
+             qPrintable(QStringLiteral("Type column is %1px, \"Text Document\" needs %2px")
+                            .arg(picker->table()->columnWidth(2)).arg(widest)));
+    scroll->hide();
+}
+
+// `:focus-visible`, not `:focus`.
+//
+// The design gives an active chrome control exactly one treatment - a tint and
+// the accent ink - and draws no outline anywhere. An outline on top of that is
+// the same statement twice, and on a control the user has just clicked it is
+// addressed to someone who already knows where they clicked. The ring is for
+// the keyboard: Tab shows it, a click does not.
+void GalleryTest::aClickedChromeControlDoesNotWearAFocusRing()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* bar = new ModuleBar(surface);
+    bar->addModule(QStringLiteral("web"), QStringLiteral("Web"), Glyph::Globe);
+    bar->addModule(QStringLiteral("mail"), QStringLiteral("Mail"), Glyph::Inbox);
+    bar->setCurrentIndex(1);
+    bar->resize(300, 30);
+    surface->resize(400, 60);
+    surface->show();
+    QVERIFY(QTest::qWaitForWindowExposed(surface));
+
+    // Pixels close enough to the accent to be the ring rather than the
+    // `.on` plate under it. Widened from a tight match: the ring is one
+    // device pixel wide at BorderRole::Focus, and a one-pixel line centred
+    // on a non-integer coordinate splits across two rows at roughly half
+    // strength each - neither row is the accent within a few units, but both
+    // are plainly not the plate's own tint either, which sits well outside
+    // this band (the plate is the accent at .17 over a dark ground, not a
+    // blend toward it).
+    const auto ringPixels = [](QWidget* widget, const QColor& accent) {
+        const QImage shot = widget->grab().toImage().convertToFormat(QImage::Format_ARGB32);
+        int hits = 0;
+        for (int y = 0; y < shot.height(); ++y) {
+            for (int x = 0; x < shot.width(); ++x) {
+                const QColor pixel(shot.pixel(x, y));
+                if (qAbs(pixel.red() - accent.red()) < 60
+                    && qAbs(pixel.green() - accent.green()) < 60
+                    && qAbs(pixel.blue() - accent.blue()) < 60) {
+                    ++hits;
+                }
+            }
+        }
+        return hits;
+    };
+    const QColor accent = themeFor(bar).colors.accent;
+
+    // Focus arriving from a click: the module is current, and that is all it
+    // shows.
+    bar->setFocus(Qt::MouseFocusReason);
+    QTest::mousePress(bar, Qt::LeftButton, Qt::NoModifier, bar->rect().center());
+    QTest::mouseRelease(bar, Qt::LeftButton, Qt::NoModifier, bar->rect().center());
+    const int clicked = ringPixels(bar, accent);
+
+    // The same control, reached with the keyboard.
+    bar->setFocus(Qt::TabFocusReason);
+    QTest::keyClick(bar, Qt::Key_Right);
+    const int tabbed = ringPixels(bar, accent);
+
+    QVERIFY2(tabbed > clicked,
+             "the keyboard must show a ring the mouse does not");
+
+    surface->hide();
+}
+
+void GalleryTest::aRowIsAtLeastAsTallAsWhatIsInIt()
+{
+    // A caller states the row height from the text it is about to put in,
+    // before the cells exist. A cell holding a button, an avatar or a stacked
+    // pair is taller than that, and the difference came out as a control
+    // clipped top and bottom in every row of five different tables.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* table = new TableView(surface);
+    table->setColumns({{QStringLiteral("Exchange"), TableView::ColumnRole::Text},
+                       {QString(), TableView::ColumnRole::Content}});
+    table->setRowCount(1);
+    table->setText(0, 0, QStringLiteral("Kraken Futures Real"));
+
+    const int statedByTheCaller = table->verticalHeader()->defaultSectionSize();
+    auto* tall = new QLabel(QStringLiteral("a control"), table);
+    tall->setFixedHeight(statedByTheCaller + 24);
+    table->setWidget(0, 1, tall);
+
+    table->relayoutColumns();
+    QVERIFY(table->rowHeight(0) >= tall->sizeHint().height());
+    QVERIFY(table->rowHeight(0) > statedByTheCaller);
+}
+
+void GalleryTest::anAccentedTableRowIsNotTheSameAsAnOrdinarySelection()
+{
+    // `tr.sel{background:rgba(var(--rl),.13)}` plus
+    // `tr.sel td:first-child{box-shadow:inset 2.5px 0 0 var(--acc)}` - a
+    // master list beside a reading pane needs its open row to read as
+    // different from an ordinary "selected to act on" row, or a mail list
+    // where every row looks bulk-selected does not say which message is open.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* table = new TableView(surface);
+    table->setColumns({{QStringLiteral("From"), TableView::ColumnRole::Text},
+                       {QStringLiteral("Subject"), TableView::ColumnRole::Content}});
+    table->setRowCount(3);
+    for (int row = 0; row < 3; ++row) {
+        table->setText(row, 0, QStringLiteral("Row %1").arg(row));
+        table->setText(row, 1, QStringLiteral("Subject %1").arg(row));
+    }
+    auto* probeWidget = new QLabel(QStringLiteral("probe"), table);
+    probeWidget->setAutoFillBackground(false);
+    table->setWidget(1, 0, probeWidget);
+    table->relayoutColumns();
+
+    QVERIFY(!table->isSelectionAccented());
+    table->setSelectionAccented(true);
+    QVERIFY(table->isSelectionAccented());
+    // Idempotent: setting it again does not rebuild the stylesheet or repaint
+    // for no reason.
+    table->setSelectionAccented(true);
+
+    table->resize(400, 240);
+    table->setCurrentCell(1, 0);
+    QCOMPARE(table->currentRow(), 1);
+
+    // The vivid accent is what says "this list is what keyboard input
+    // reaches" - it only means that while the table actually has focus, so
+    // the render below has to happen with focus genuinely in place rather
+    // than assumed from setSelectionAccented() and a current cell alone.
+    surface->show();
+    QVERIFY(QTest::qWaitForWindowExposed(surface));
+    QApplication::setActiveWindow(surface);
+    table->setFocus();
+    QVERIFY(table->hasFocus());
+
+    QImage shot(table->size(), QImage::Format_ARGB32);
+    shot.fill(Qt::transparent);
+    table->render(&shot);
+
+    // The accent bar is painted at the selected row's own top, 2-3px wide,
+    // in the profile's accent colour - not the neutral selectionBg an
+    // ordinary `:selected` row uses. rowViewportPosition() is relative to the
+    // viewport, a child positioned below the header in the widget render()
+    // composes - the header's own height has to be added to land in the
+    // viewport's own band of the image.
+    const ThemeProfile& profile = themeFor(table);
+    const QColor accent = profile.colors.accent;
+    const int y = profile.table.headerHeight + table->rowViewportPosition(1) + 2;
+    bool foundBar = false;
+    for (int x = 0; x < 4; ++x) {
+        if (QColor(shot.pixel(x, y)) == accent) {
+            foundBar = true;
+            break;
+        }
+    }
+    QVERIFY2(foundBar, "accented selection did not paint the leading-edge bar");
+
+    // The row's own background, not only the leading bar. This was the part
+    // that silently never worked: the colour was built as an 8-digit
+    // #AARRGGBB hex string, which is not a QSS colour Qt's stylesheet parser
+    // accepts, so the rule failed to parse and the row fell back to the
+    // platform's flat highlight - the same fallback for an accented row as
+    // for a plain one, which is exactly the distinction this test's name
+    // promises and the bar-only check above could not catch.
+    const int midY = profile.table.headerHeight + table->rowViewportPosition(1)
+        + table->rowHeight(1) / 2;
+    const QColor rowPixel(shot.pixel(200, midY));
+    const QColor plainSelection = profile.colors.surfaceActive;
+    QVERIFY2(rowPixel != plainSelection,
+             "accented row background matched the plain selection colour");
+    // And it is a wash of the accent, not the accent at full strength -
+    // 0.13 alpha over the panel ground sits partway between the two.
+    const QColor ground = profile.colors.panelBg;
+    const int towardAccent = qAbs(accent.red() - ground.red());
+    const int actual = qAbs(rowPixel.red() - ground.red());
+    QVERIFY2(towardAccent == 0 || actual < towardAccent,
+             "accented row background was not a partial wash of the accent");
+
+    // Row 1 carries an embedded cell widget in column 0 (the way Documents'
+    // Title/Tags/Index columns do) - sampled separately, close to the left
+    // edge. `::item:selected` never fires for a setWidget() cell, so this is
+    // the check that actually exercises `selection-background-color`: a
+    // regression here previously still passed the two checks above (an
+    // item-based cell in column 1) while every widget-based cell in the
+    // live app kept Qt's flat platform highlight underneath the widget,
+    // indistinguishable from an unaccented selection.
+    const QColor embeddedPixel(shot.pixel(6, midY));
+    QVERIFY2(embeddedPixel != plainSelection,
+             "accented wash did not reach a cell that carries an embedded widget");
+    const int embeddedTowardAccent = qAbs(embeddedPixel.red() - ground.red());
+    QVERIFY2(towardAccent == 0 || embeddedTowardAccent < towardAccent,
+             "a cell carrying an embedded widget kept the platform's default "
+             "highlight instead of the computed accent wash");
+
+    // Turning it back off removes the bar and returns to the plain style.
+    table->setSelectionAccented(false);
+    QVERIFY(!table->isSelectionAccented());
+}
+
 void GalleryTest::moduleBarReservesEnoughWidthForItsOwnLabel()
 {
     // NovuSpace, the bar's first real consumer, found every module's label
@@ -2861,6 +3768,369 @@ void GalleryTest::moduleBarReservesEnoughWidthForItsOwnLabel()
     QCOMPARE(modules->displayedLabel(1), QStringLiteral("Mail"));
     QCOMPARE(modules->displayedLabel(2), QStringLiteral("Vault"));
     QCOMPARE(modules->displayedLabel(3), QStringLiteral("Trade"));
+}
+
+// ── NavList - the layout contract ──────────────────────────────────────────
+
+namespace {
+
+// The row content this whole group of tests exercises: enough of every
+// optional element - glyph, twisty, a leading status dot, a wide badge, a
+// child under it - that a row genuinely needs real width, not just whatever
+// a hardcoded floor happened to allow.
+void fillLayoutContractRows(NavList* nav)
+{
+    nav->addSection(QStringLiteral("Workspaces"), QStringLiteral("sec"));
+    nav->addItem(QStringLiteral("ws"), QStringLiteral("Novusion"), Glyph::Folder);
+    nav->setExpandable(QStringLiteral("ws"), true);
+    nav->setExpanded(QStringLiteral("ws"), true);
+    nav->setStatus(QStringLiteral("ws"), StatusDot::Tone::Success);
+    // A status dot *and* a count together - "NovuAI Platform"'s own shape,
+    // the busiest a row gets - not just one or the other.
+    nav->setCount(QStringLiteral("ws"), 8);
+    nav->addChild(QStringLiteral("ws.docs"), QStringLiteral("Documents"));
+    nav->setCount(QStringLiteral("ws.docs"), 128);
+    nav->addItem(QStringLiteral("settings"), QStringLiteral("Settings"), Glyph::Settings);
+}
+
+} // namespace
+
+void GalleryTest::navListRowsNeverOverlapAcrossItsSupportedWidthRange()
+{
+    // The bug this replaces: minimumSizeHint() answered a flat 96 regardless
+    // of what was actually in the list, so a container that honoured it
+    // could still hand a row less width than its own glyph, twisty and badge
+    // needed at once - which is what put a count pill over the glyph next
+    // to it. The contract minimumSizeHint() now keeps: no row is ever told
+    // it has less width than rowMinimumWidth() says it needs.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* nav = new NavList(surface);
+    fillLayoutContractRows(nav);
+
+    const int floor = nav->minimumSizeHint().width();
+    for (int i = 0; i < nav->count(); ++i) {
+        QVERIFY2(floor >= nav->rowMinimumWidth(i),
+                 qPrintable(QStringLiteral("row %1 needs %2 but the list's floor is %3")
+                                .arg(i).arg(nav->rowMinimumWidth(i)).arg(floor)));
+    }
+
+    // Sweeping the actual widget width from that floor upward, row rects
+    // stack without gaps or overlap - the linear sum rowRect() is built
+    // from, asserted rather than trusted, because a height that ever
+    // returned something width-dependent would break exactly this.
+    for (const int width : {floor, floor + 20, floor + 80, 400}) {
+        nav->resize(width, nav->sizeHint().height());
+        int expectedTop = 0;
+        for (int i = 0; i < nav->count(); ++i) {
+            const QRect box = nav->rowRect(i);
+            QCOMPARE(box.top(), expectedTop);
+            QVERIFY(box.height() >= 0);
+            expectedTop += box.height();
+        }
+    }
+}
+
+void GalleryTest::navListRowHeightIsTheSameForItemChildAndCurrent()
+{
+    // Hierarchy depth, current, hover and a badge are all paint - none of
+    // them may move a row's own top or bottom. NovuSpace's `.navbtn` and
+    // `.navbtn.child` share one row metric; only the indent and the type
+    // step differ.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* nav = new NavList(surface);
+    fillLayoutContractRows(nav);
+    nav->resize(nav->minimumSizeHint().width(), nav->sizeHint().height());
+
+    const int itemHeight = nav->rowRect(nav->indexOfKey(QStringLiteral("ws"))).height();
+    const int childHeight = nav->rowRect(nav->indexOfKey(QStringLiteral("ws.docs"))).height();
+    QCOMPARE(childHeight, itemHeight);
+
+    // Marking the child current - the visually heaviest state a row can be
+    // in, plate and marker and a joined badge all at once - must not change
+    // what rowHeight() already said.
+    nav->setCurrentKey(QStringLiteral("ws.docs"));
+    QCOMPARE(nav->rowRect(nav->indexOfKey(QStringLiteral("ws.docs"))).height(), childHeight);
+
+    const int settingsHeight =
+        nav->rowRect(nav->indexOfKey(QStringLiteral("settings"))).height();
+    QCOMPARE(settingsHeight, itemHeight);
+}
+
+void GalleryTest::navListMinimumWidthReflectsWhatItsWidestRowActuallyNeeds()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* plain = new NavList(surface);
+    plain->addItem(QStringLiteral("a"), QStringLiteral("Ab"));
+
+    auto* loaded = new NavList(surface);
+    fillLayoutContractRows(loaded);
+
+    // A row carrying a glyph, a twisty, a status dot and a three-digit badge
+    // needs more room than two letters and nothing else - and the list's
+    // floor has to say so, not repeat one flat number regardless of content.
+    QVERIFY2(loaded->minimumSizeHint().width() > plain->minimumSizeHint().width(),
+             "the list's own floor must grow with what a row actually carries");
+
+    // And it is not a coincidence of a hardcoded number: the loaded list's
+    // floor is exactly its own widest row.
+    int widest = 0;
+    for (int i = 0; i < loaded->count(); ++i) {
+        widest = qMax(widest, loaded->rowMinimumWidth(i));
+    }
+    QCOMPARE(loaded->minimumSizeHint().width(), qMax(widest, 48));
+}
+
+void GalleryTest::navListCollapseRoundTripPreservesHierarchyAndSelection()
+{
+    // Collapsing the whole list to an icon rail is a property of the list,
+    // not of the tree inside it - expanding it again must find the same
+    // hierarchy and the same current row, including a branch that was open
+    // before the rail ever went in.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* nav = new NavList(surface);
+    fillLayoutContractRows(nav);
+    nav->setCurrentKey(QStringLiteral("ws.docs"));
+    QVERIFY(nav->isExpanded(QStringLiteral("ws")));
+    const QStringList before = nav->keys();
+
+    nav->setCollapsed(true);
+    QVERIFY(nav->isCollapsed());
+    // The tree itself is untouched by the rail - collapsing it must not be
+    // implemented as folding every branch, because then expanding the rail
+    // again could not tell a branch that was shut from one collapse mode
+    // shut for it.
+    QVERIFY(nav->isExpanded(QStringLiteral("ws")));
+    QCOMPARE(nav->currentKey(), QStringLiteral("ws.docs"));
+
+    nav->setCollapsed(false);
+    QVERIFY(!nav->isCollapsed());
+    QVERIFY(nav->isExpanded(QStringLiteral("ws")));
+    QCOMPARE(nav->currentKey(), QStringLiteral("ws.docs"));
+    // Same identities, same order - the rail is a way of drawing this list,
+    // never a second one built to stand in for it.
+    QCOMPARE(nav->keys(), before);
+}
+
+void GalleryTest::navListBothFoldsGiveEquivalentRowsTheSameGeometry()
+{
+    // The Gallery's own regression reproducer: the same data, four times,
+    // differing only in which of the two independent folds - the section's
+    // own twisty, and the workspace's - is shut. A row neither fold touches
+    // must read identically in all four: same height, same left edge, same
+    // badge position style. Folding one dimension may only ever hide rows
+    // that belong to IT, never move the ones that do not.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+
+    const auto build = [surface](bool sectionOpen, bool groupOpen) {
+        auto* nav = new NavList(surface);
+        nav->addSection(QStringLiteral("Workspaces"), QStringLiteral("sec"));
+        nav->addItem(QStringLiteral("ws"), QStringLiteral("Novusion"), Glyph::Folder);
+        nav->setExpandable(QStringLiteral("ws"), true);
+        nav->setExpanded(QStringLiteral("ws"), groupOpen);
+        nav->addChild(QStringLiteral("ws.docs"), QStringLiteral("Documents"));
+        nav->setCount(QStringLiteral("ws.docs"), 128);
+        nav->addItem(QStringLiteral("archive"), QStringLiteral("Archive 2024"), Glyph::Archive);
+        nav->addSection(QStringLiteral("System"), QStringLiteral("sec2"));
+        nav->addItem(QStringLiteral("settings"), QStringLiteral("Settings"), Glyph::Settings);
+        nav->setCurrentKey(QStringLiteral("archive"));
+        nav->setSectionExpanded(QStringLiteral("sec"), sectionOpen);
+        nav->resize(206, nav->sizeHint().height());
+        return nav;
+    };
+
+    NavList* bothOpen = build(true, true);
+    NavList* groupShut = build(true, false);
+    NavList* captionShut = build(false, true);
+    NavList* both = build(false, false);
+
+    // "Settings" is in the System section, downstream of both folds and a
+    // member of neither - present and at the same height in every one of
+    // the four regardless of what Workspaces is doing above it.
+    {
+        const QString settings = QStringLiteral("settings");
+        const int base = bothOpen->rowRect(bothOpen->indexOfKey(settings)).height();
+        for (NavList* nav : {groupShut, captionShut, both}) {
+            QVERIFY2(nav->isRowVisible(settings), "settings went missing");
+            QCOMPARE(nav->rowRect(nav->indexOfKey(settings)).height(), base);
+        }
+    }
+
+    // "Archive 2024" IS a member of Workspaces by row order - it correctly
+    // hides with the caption (which takes its whole section with it) and
+    // stays regardless of the group fold, which only ever takes its own
+    // children. The two axes are independent, not "nothing outside the
+    // group fold is ever affected".
+    QVERIFY(bothOpen->isRowVisible(QStringLiteral("archive")));
+    QVERIFY(groupShut->isRowVisible(QStringLiteral("archive")));
+    QVERIFY(!captionShut->isRowVisible(QStringLiteral("archive")));
+    QVERIFY(!both->isRowVisible(QStringLiteral("archive")));
+    QCOMPARE(groupShut->rowRect(groupShut->indexOfKey(QStringLiteral("archive"))).height(),
+             bothOpen->rowRect(bothOpen->indexOfKey(QStringLiteral("archive"))).height());
+
+    // The current row's selection survives every combination, including the
+    // ones where its own section is shut and it is off screen - "current"
+    // is state, not paint, and a rail that loses the page you are on
+    // because you tidied a group above it is the defect this replaces.
+    for (NavList* nav : {bothOpen, groupShut, captionShut, both}) {
+        QCOMPARE(nav->currentKey(), QStringLiteral("archive"));
+    }
+
+    // Shutting the caption hides the workspace and its child; shutting only
+    // the group hides the child alone. The two axes are independent.
+    QVERIFY(bothOpen->isRowVisible(QStringLiteral("ws.docs")));
+    QVERIFY(!groupShut->isRowVisible(QStringLiteral("ws.docs")));
+    QVERIFY(!captionShut->isRowVisible(QStringLiteral("ws")));
+    QVERIFY(!captionShut->isRowVisible(QStringLiteral("ws.docs")));
+    QVERIFY(!both->isRowVisible(QStringLiteral("ws")));
+}
+
+void GalleryTest::aGlyphLessRowStillMarksItsPlaceOnACollapsedRail()
+{
+    // The bug this replaces: a collapsed rail centres each row's own glyph
+    // and hides everything else, but a row added without a glyph - every
+    // child in the Gallery's own sample data - had nothing left to centre.
+    // The row still took its full height; nothing was painted into it. Next
+    // to a caption that also kept its full height while drawing nothing,
+    // that read as several rows missing rather than as one icon-only list.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* nav = new NavList(surface);
+    nav->addSection(QStringLiteral("Sec"), QStringLiteral("sec"));
+    nav->addItem(QStringLiteral("a"), QStringLiteral("Alpha"), Glyph::Folder);
+    nav->setExpandable(QStringLiteral("a"), true);
+    nav->setExpanded(QStringLiteral("a"), true);
+    // No glyph - exactly how the Gallery's own fillWorkspaces() adds
+    // ws.novusion.docs, ws.novusion.mail and ws.novusion.vault.
+    nav->addChild(QStringLiteral("a.child"), QStringLiteral("Alpha child"));
+    nav->addItem(QStringLiteral("b"), QStringLiteral("Bravo"), Glyph::Settings);
+    nav->setCollapsed(true);
+
+    // A caption draws nothing on a collapsed rail (`.sb-bhead` is hidden by
+    // design) and must not go on reserving the height it drew into when it
+    // still had a label - that height is now a gap standing in for nothing.
+    QCOMPARE(nav->rowRect(nav->indexOfSection(QStringLiteral("sec"))).height(), 0);
+
+    const QRect childBox = nav->rowRect(nav->indexOfKey(QStringLiteral("a.child")));
+    QVERIFY2(childBox.height() > 0, "a glyph-less child must still occupy a row");
+
+    nav->resize(nav->sizeHint().width(), nav->sizeHint().height());
+    surface->resize(nav->size());
+    surface->show();
+    QVERIFY(QTest::qWaitForWindowExposed(surface));
+
+    const QColor background = nav->resolvedStyle().background;
+    const QImage shot = nav->grab().toImage().convertToFormat(QImage::Format_ARGB32);
+    bool paintedSomething = false;
+    for (int y = childBox.top(); y < childBox.bottom() && y < shot.height(); ++y) {
+        for (int x = 0; x < shot.width(); ++x) {
+            const QColor pixel(shot.pixel(x, y));
+            if (qAbs(pixel.red() - background.red()) > 12
+                || qAbs(pixel.green() - background.green()) > 12
+                || qAbs(pixel.blue() - background.blue()) > 12) {
+                paintedSomething = true;
+                break;
+            }
+        }
+        if (paintedSomething) {
+            break;
+        }
+    }
+    QVERIFY2(paintedSomething,
+             "a glyph-less row on a collapsed rail must still paint a mark of its own");
+    surface->hide();
+}
+
+void GalleryTest::navListSurvivesAContinuousWideNarrowCollapsedResizeCycle()
+{
+    // The regression reproducer as filed: wide, then narrow, then collapsed,
+    // then narrow again, then wide again - with selection, hierarchy, item
+    // order and every row's identity read back at each stop. None of that is
+    // width's or the rail's to change; both are presentation over the same
+    // fixed list of rows.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* nav = new NavList(surface);
+    nav->addSection(QStringLiteral("Workspaces"), QStringLiteral("sec"));
+    nav->addItem(QStringLiteral("ws"), QStringLiteral("Novusion"), Glyph::Folder);
+    nav->setExpandable(QStringLiteral("ws"), true);
+    nav->setExpanded(QStringLiteral("ws"), true);
+    nav->setStatus(QStringLiteral("ws"), StatusDot::Tone::Success);
+    // Glyph-less children, as the Gallery's own sample builds them.
+    nav->addChild(QStringLiteral("ws.docs"), QStringLiteral("Documents"));
+    nav->setCount(QStringLiteral("ws.docs"), 128);
+    nav->addChild(QStringLiteral("ws.mail"), QStringLiteral("Mail"));
+    nav->setCount(QStringLiteral("ws.mail"), 7, NavList::CountTone::Alert);
+    nav->addItem(QStringLiteral("archive"), QStringLiteral("Archive 2024"), Glyph::Archive);
+    nav->addSection(QStringLiteral("System"), QStringLiteral("sec2"));
+    nav->addItem(QStringLiteral("settings"), QStringLiteral("Settings"), Glyph::Settings);
+    nav->setCurrentKey(QStringLiteral("ws.docs"));
+
+    const QStringList keysBefore = nav->keys();
+    const QStringList expectedVisible = {QStringLiteral("ws"), QStringLiteral("ws.docs"),
+                                         QStringLiteral("ws.mail"), QStringLiteral("archive"),
+                                         QStringLiteral("settings")};
+
+    const auto checkTreeState = [&](const char* stage) {
+        QVERIFY2(nav->keys() == keysBefore,
+                 qPrintable(QStringLiteral("row identity/order drifted at %1")
+                                .arg(QString::fromLatin1(stage))));
+        QCOMPARE(nav->currentKey(), QStringLiteral("ws.docs"));
+        QVERIFY(nav->isExpanded(QStringLiteral("ws")));
+        for (const QString& key : expectedVisible) {
+            QVERIFY2(nav->isRowVisible(key),
+                     qPrintable(QStringLiteral("%1 lost visibility at %2")
+                                    .arg(key, QString::fromLatin1(stage))));
+        }
+    };
+
+    const auto checkNoOverlap = [&](const char* stage) {
+        int expectedTop = 0;
+        for (int i = 0; i < nav->count(); ++i) {
+            const QRect box = nav->rowRect(i);
+            QVERIFY2(box.top() == expectedTop,
+                     qPrintable(QStringLiteral("row %1 does not tile at %2")
+                                    .arg(i).arg(QString::fromLatin1(stage))));
+            QVERIFY(box.height() >= 0);
+            expectedTop += box.height();
+        }
+    };
+
+    // wide
+    nav->resize(400, nav->sizeHint().height());
+    checkTreeState("wide");
+    checkNoOverlap("wide");
+
+    // narrow, still expanded - down to the floor minimumSizeHint() itself
+    // promises is always enough.
+    nav->resize(nav->minimumSizeHint().width(), nav->sizeHint().height());
+    checkTreeState("narrow");
+    checkNoOverlap("narrow");
+
+    // collapsed
+    nav->setCollapsed(true);
+    checkTreeState("collapsed");
+    checkNoOverlap("collapsed");
+    for (const QString& key : expectedVisible) {
+        if (key == QStringLiteral("ws.docs") || key == QStringLiteral("ws.mail")) {
+            continue;   // glyph-less children; covered on their own above
+        }
+        QVERIFY2(nav->rowRect(nav->indexOfKey(key)).height() > 0,
+                 qPrintable(QStringLiteral("%1 lost its row on the collapsed rail").arg(key)));
+    }
+
+    // narrow again, collapsed
+    nav->resize(nav->minimumSizeHint().width(), nav->sizeHint().height());
+    checkTreeState("narrow-collapsed");
+    checkNoOverlap("narrow-collapsed");
+
+    // back to narrow, expanded
+    nav->setCollapsed(false);
+    nav->resize(nav->minimumSizeHint().width(), nav->sizeHint().height());
+    checkTreeState("narrow-re-expanded");
+    checkNoOverlap("narrow-re-expanded");
+
+    // wide again
+    nav->resize(400, nav->sizeHint().height());
+    checkTreeState("wide-again");
+    checkNoOverlap("wide-again");
 }
 
 void GalleryTest::aDisclosureHidesItsBodyWithoutForgettingIt()
@@ -3224,6 +4494,166 @@ void GalleryTest::aRiskyChoiceIsWarningAndNotDanger()
     QVERIFY(risky->heightForWidth(180) > risky->heightForWidth(600));
 }
 
+// `iact(icon, title, cls, attrs)` is `class="btn sm ico"` - `.btn`'s hairline
+// border at rest, the same as a labelled button. Ghost ("no border until
+// hover") is for chrome: a title bar, a panel header. rowAction() and
+// detachButton() are never chrome - every call site is a row's own action
+// (Copy, View, Edit, Inspect, a card header's Detach) - and both shipped with
+// Ghost until this test, which is why every one of those icons in Mail, Vault,
+// Trade and Web was missing the border the design draws on it.
+void GalleryTest::aRowActionWearsTheSameBorderAsAnyOtherButton()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+
+    IconButton* action = rowAction(Glyph::Copy, surface, QStringLiteral("Copy"));
+    QCOMPARE(action->variant(), IconButton::Variant::Outlined);
+
+    Button* detach = detachButton(surface);
+    QCOMPARE(detach->variant(), Button::Variant::Outlined);
+}
+
+// `.btn.ico{border-radius:8px}` against `.nb{border-radius:7px}` - one pixel
+// apart in the approved sheet, not the same shape at two names. An Outlined
+// action plate (rowAction()) must resolve through ActionIcon; a Ghost chrome
+// icon (nb()) must keep resolving through IconButton, unmoved by the split.
+void GalleryTest::anActionPlateAndAChromeIconWearDifferentRadii()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    const ThemeProfile& profile = themeFor(surface);
+
+    QCOMPARE(profile.radius(SurfaceRole::ActionIcon), 8);
+    QCOMPARE(profile.radius(SurfaceRole::IconButton), 7);
+    QVERIFY(profile.radius(SurfaceRole::ActionIcon) != profile.radius(SurfaceRole::IconButton));
+}
+
+// `.chipset{border-radius:10px}` holding `.chip{border-radius:7px}` - a
+// Segmented tray and the plate lifted out of it are two different radii in
+// the approved sheet. A segment drawn at the tray's own Select radius reads
+// as a near-pill on a ~26px control instead of a crisp small chip.
+void GalleryTest::aSegmentIsNotAsRoundAsItsOwnTray()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    const ThemeProfile& profile = themeFor(surface);
+
+    QCOMPARE(profile.radius(SurfaceRole::Segment), 7);
+    QVERIFY(profile.radius(SurfaceRole::Segment) != profile.radius(SurfaceRole::Select));
+
+    auto* segmented = new Segmented({QStringLiteral("Basic"), QStringLiteral("Extended")},
+                                    surface, 0);
+    QCOMPARE(segmented->segmentStyleSpec(0).radius, SurfaceRole::Segment);
+    QCOMPARE(segmented->styleSpec().radius, SurfaceRole::Select);
+}
+
+// A QComboBox's own popup is a Qt-drawn overlay, not a browser-native list -
+// nothing in the approved sheet states its shape, so Qt's own unstyled square
+// corners were the only "match" it ever had. Square where it meets the closed
+// field (so the two read as one shape continuing downward) and rounded to the
+// field's own radius everywhere else is the deliberate choice this fixes in.
+void GalleryTest::aComboBoxPopupRoundsAwayFromTheFieldItOpenedFrom()
+{
+    const ThemeManager& manager = ThemeManager::instance();
+    const QString qss = styleSheetFor(manager.profile(QStringLiteral("novuspace")));
+    QVERIFY(qss.contains(QStringLiteral("QComboBox QAbstractItemView")));
+    QVERIFY(qss.contains(QStringLiteral("border-top-left-radius: 0")));
+    QVERIFY(qss.contains(QStringLiteral("border-bottom-left-radius:")));
+}
+
+// An accented row says "this is the one open beside you" - Mail's list next
+// to its reading pane. That stops being true the moment a FloatingPanel
+// opened over the list (Compose, an item dialog) takes focus: the list is not
+// what keyboard input reaches any more, and the row's own wash has to say so
+// instead of keeping the vivid accent as if nothing had changed.
+void GalleryTest::anAccentedRowDimsOnceItsListIsNotWhatHasFocus()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    surface->resize(400, 200);
+
+    auto* table = new TableView(surface);
+    table->setGeometry(0, 0, 380, 90);
+    table->setSelectionAccented(true);
+    table->setColumns({{QStringLiteral("From"), TableView::ColumnRole::Text}});
+    table->setRowCount(1);
+    table->setText(0, 0, QStringLiteral("Petr Dostal"));
+    table->relayoutColumns();
+    auto* elsewhere = new QPushButton(QStringLiteral("Compose"), surface);
+    elsewhere->setGeometry(0, 100, 100, 30);
+
+    surface->show();
+    QVERIFY(QTest::qWaitForWindowExposed(surface));
+    QApplication::setActiveWindow(surface);
+
+    table->setFocus();
+    table->setCurrentCell(0, 0);
+    QVERIFY(table->hasFocus());
+
+    const QString focusedSheet = table->styleSheet();
+
+    elsewhere->setFocus();
+    QVERIFY(!table->hasFocus());
+
+    const QString blurredSheet = table->styleSheet();
+    QVERIFY(focusedSheet != blurredSheet);
+
+    // Back again - the row is not permanently stuck muted once focus returns.
+    table->setFocus();
+    QVERIFY(table->hasFocus());
+    QCOMPARE(table->styleSheet(), focusedSheet);
+}
+
+// `table.tbl tbody tr:hover{background:var(--panel)}` - every row in every
+// table, whether or not it opens anything. Nothing in QTableWidget paints
+// this on its own, and the fill is painted *before* the base class's own
+// paintEvent() so a plain setText() cell draws its item on top of it rather
+// than the wash covering the text - the failure mode this test guards.
+void GalleryTest::aHoveredRowGreysWithoutHidingItsOwnText()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* table = new TableView(surface);
+    table->setColumns({{QStringLiteral("Symbol"), TableView::ColumnRole::Text},
+                       {QStringLiteral("Mark"), TableView::ColumnRole::Numeric}});
+    table->setRowCount(2);
+    table->setText(0, 0, QStringLiteral("PF_XBTUSD"));
+    table->setText(0, 1, QStringLiteral("64,212.50"));
+    table->setText(1, 0, QStringLiteral("ETHUSDT"));
+    table->setText(1, 1, QStringLiteral("2,494.60"));
+    table->relayoutColumns();
+    table->resize(400, 120);
+    surface->resize(420, 140);
+    surface->show();
+    QVERIFY(QTest::qWaitForWindowExposed(surface));
+
+    const ThemeProfile& profile = themeFor(table);
+    const int row1y = table->rowViewportPosition(1) + 2;
+    const auto pixelAt = [&](int y) {
+        return QColor(table->viewport()
+                          ->grab()
+                          .toImage()
+                          .convertToFormat(QImage::Format_ARGB32)
+                          .pixel(5, y));
+    };
+    const QColor row1Before = pixelAt(row1y);
+
+    // Sent directly rather than through QTest::mouseMove(), which drives the
+    // platform cursor - and so, on the offscreen platform, depends on which
+    // window a *previous* test last left active. A directly delivered event
+    // does not.
+    const QPoint at(10, table->rowViewportPosition(0) + 2);
+    QMouseEvent move(QEvent::MouseMove, at, table->viewport()->mapToGlobal(at), Qt::NoButton,
+                     Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(table->viewport(), &move);
+    QCoreApplication::processEvents();
+
+    // The hovered row picks up the panel wash - `panelBgAlt` in this
+    // palette's own naming, since `panelBg` is `--bg`, the card's base.
+    QCOMPARE(pixelAt(table->rowViewportPosition(0) + 2), profile.colors.panelBgAlt);
+    // ...and the row the pointer never reached is exactly what it was before
+    // anything was hovered - not incidentally the same shade panelBg happens
+    // to be, but unchanged by the hover at all.
+    QCOMPARE(pixelAt(row1y), row1Before);
+
+    surface->hide();
+}
+
 void GalleryTest::theExtractedComponentsKeepTokensRatherThanColours()
 {
     // Every component added in this pass, asked what it means rather than what
@@ -3243,7 +4673,10 @@ void GalleryTest::theExtractedComponentsKeepTokensRatherThanColours()
              QStringLiteral("accent@17"));
 
     auto* strip = new ConnectionStrip(surface);
-    QCOMPARE(strip->styleSpec().background.describe(), QStringLiteral("windowBg"));
+    // `.rail-conn{background:var(--bg)}` - the card surface. It read as
+    // windowBg, which is the rail's own bottom colour, so the strip vanished
+    // into the rail instead of reading as a well cut into it.
+    QCOMPARE(strip->styleSpec().background.describe(), QStringLiteral("panelBg"));
 
     auto* bar = new StatusBar(surface);
     QCOMPARE(bar->styleSpec().background.describe(), QStringLiteral("headerBg"));
@@ -3276,7 +4709,7 @@ void GalleryTest::theExtractedComponentsKeepTokensRatherThanColours()
     const ThemeProfile& profile =
         ThemeManager::instance().profile(QStringLiteral("novuspace"));
     QCOMPARE(bar->resolvedStyle().background.name(), profile.colors.headerBg.name());
-    QCOMPARE(strip->resolvedStyle().background.name(), profile.colors.windowBg.name());
+    QCOMPARE(strip->resolvedStyle().background.name(), profile.colors.panelBg.name());
 }
 
 void GalleryTest::aMaskedValueDoesNotLeakItsLength()
@@ -3380,6 +4813,53 @@ void GalleryTest::aTreeChevronIsADifferentTargetFromTheRow()
 
     // A leaf has no chevron, and reserves its space rather than shifting left.
     QVERIFY(tree->chevronRect(tree->rowOf(QStringLiteral("a.1"))).isNull());
+}
+
+// The bug this replaces: a file picker's tree cannot know whether a drive
+// or a folder has anything inside it without listing it, so every location
+// is added with no children yet. Before setNodeExpandable(), that node was
+// indistinguishable from an actual leaf - it read as an empty drive, not as
+// one nobody had looked inside yet.
+void GalleryTest::aLazyNodeShowsItsChevronBeforeItHasAnyChildren()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* tree = new TreeView(surface);
+    tree->addNode(QString(), QStringLiteral("pc"), QStringLiteral("This PC"), Glyph::Cpu);
+    tree->addNode(QStringLiteral("pc"), QStringLiteral("c:/"),
+                  QStringLiteral("Local Disk (C:)"), Glyph::Layers);
+    // A genuine leaf beside it - the fix must not give every node a chevron.
+    tree->addNode(QStringLiteral("pc"), QStringLiteral("recent"),
+                  QStringLiteral("Recent"), Glyph::Star);
+    tree->setExpanded(QStringLiteral("pc"), true);
+    tree->resize(280, 200);
+
+    QVERIFY(!tree->isNodeExpandable(QStringLiteral("c:/")));
+    QVERIFY(tree->chevronRect(tree->rowOf(QStringLiteral("c:/"))).isNull());
+
+    tree->setNodeExpandable(QStringLiteral("c:/"), true);
+    QVERIFY(tree->isNodeExpandable(QStringLiteral("c:/")));
+    const QRect chevron = tree->chevronRect(tree->rowOf(QStringLiteral("c:/")));
+    QVERIFY(!chevron.isNull());
+    // Still no children - a drive nobody has opened yet has none on record,
+    // and that must not be why it lost the chevron the fix just gave it.
+    QCOMPARE(tree->childrenOf(QStringLiteral("c:/")).size(), 0);
+
+    // The click still works with nothing under it: this is what a caller's
+    // expandToggled() handler relies on to fetch and add the real children.
+    QSignalSpy expanded(tree, &TreeView::expandToggled);
+    QTest::mouseClick(tree->viewport(), Qt::LeftButton, Qt::NoModifier, chevron.center());
+    QCOMPARE(expanded.count(), 1);
+    QVERIFY(tree->isExpanded(QStringLiteral("c:/")));
+
+    // The caller answers, the normal way - real children, added lazily.
+    tree->addNode(QStringLiteral("c:/"), QStringLiteral("c:/users"),
+                  QStringLiteral("Users"), Glyph::Folder);
+    QCOMPARE(tree->childrenOf(QStringLiteral("c:/")).size(), 1);
+    QVERIFY(tree->visibleRowCount() > 2);
+
+    // The untouched leaf never grew a chevron of its own.
+    QVERIFY(!tree->isNodeExpandable(QStringLiteral("recent")));
+    QVERIFY(tree->chevronRect(tree->rowOf(QStringLiteral("recent"))).isNull());
 }
 
 void GalleryTest::aTreeRevealsANodeByOpeningItsAncestors()
@@ -3534,6 +5014,27 @@ void GalleryTest::aFloatingPanelCannotLeaveItsLayer()
     layer->addPanel(panel);
     panel->placeAt(QPoint(40, 40), QSize(400, 240));
     QCOMPARE(panel->pos(), QPoint(40, 40));
+
+    // Exercise the real routed mouse path through FloatingLayer. Making the
+    // whole layer WA_TransparentForMouseEvents also disabled every child, so
+    // direct calls to the panel passed while users could neither drag a title
+    // bar nor click a control in any module's floating window.
+    surface->show();
+    QApplication::processEvents();
+    const QPoint dragFrom = panel->mapTo(surface, QPoint(120, panel->barRect().center().y()));
+    const QPoint dragTo = dragFrom + QPoint(45, 30);
+    QTest::mousePress(surface->windowHandle(), Qt::LeftButton, Qt::NoModifier, dragFrom);
+    QTest::mouseMove(surface->windowHandle(), dragTo);
+    QTest::mouseRelease(surface->windowHandle(), Qt::LeftButton, Qt::NoModifier, dragTo);
+    QCOMPARE(panel->pos(), QPoint(85, 70));
+
+    auto* action = new QPushButton(QStringLiteral("Action"), panel->bodyWidget());
+    panel->body()->addWidget(action);
+    QSignalSpy clicked(action, &QPushButton::clicked);
+    QApplication::processEvents();
+    QTest::mouseClick(surface->windowHandle(), Qt::LeftButton, Qt::NoModifier,
+                      action->mapTo(surface, action->rect().center()));
+    QCOMPARE(clicked.count(), 1);
 
     // Dragged far above the top: the bar has to stay reachable.
     panel->placeAt(QPoint(40, -400));
@@ -3980,6 +5481,236 @@ void GalleryTest::tabsShrinkTogetherRatherThanEachToItsOwnTitle()
     QCOMPARE(tabs->findChildren<QWidget*>().size(), 0);
 }
 
+void GalleryTest::aLetteredTabKeepsItsMarkThroughAFailureOrASleep()
+{
+    // A browser tab's mark is the page's own initial, and it is the page's
+    // identity - not overwritten by the page's state the way an icon glyph
+    // used to be. Loading is the one exception, because a page still arriving
+    // has no identity to protect yet.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* tabs = new TabBar(surface);
+    tabs->resize(600, 32);
+
+    tabs->addTab(QStringLiteral("a"), QStringLiteral("NovuAI - Console"));
+    tabs->setMarkText(QStringLiteral("a"), QStringLiteral("N"));
+    QCOMPARE(tabs->markText(QStringLiteral("a")), QStringLiteral("N"));
+
+    // A wider tab than a markless one, because the lettered tile plus its
+    // state dot both have to fit beside the label.
+    tabs->addTab(QStringLiteral("b"), QStringLiteral("Status page"));
+    const int widthBeforeFailure = tabs->tabRect(0).width();
+
+    tabs->setState(QStringLiteral("a"), TabBar::State::Failed);
+    QCOMPARE(tabs->markText(QStringLiteral("a")), QStringLiteral("N"));
+    // Failed makes room for the trailing dot - the tab does not shrink back to
+    // its markless width, it widens further.
+    QVERIFY(tabs->tabRect(0).width() >= widthBeforeFailure);
+
+    tabs->setState(QStringLiteral("a"), TabBar::State::Asleep);
+    QCOMPARE(tabs->markText(QStringLiteral("a")), QStringLiteral("N"));
+
+    // Loading is the exception: the mark's own tile is where the spinner
+    // goes, so it is drawn even though the tab still carries a mark string -
+    // markText() itself does not clear, only what is painted in its place
+    // does.
+    tabs->setState(QStringLiteral("a"), TabBar::State::Loading);
+    QCOMPARE(tabs->markText(QStringLiteral("a")), QStringLiteral("N"));
+    QVERIFY(tabs->tabRect(0).width() >= 92);
+}
+
+void GalleryTest::aTabBarsTrailingWidgetTakesRoomFromTheTabs()
+{
+    // `.btabs-row .bacts` - a control pinned to the strip's trailing edge,
+    // which the tabs must lay out around rather than under.
+    //
+    // Long titles, so the tabs' own natural width already presses on the
+    // available room - a short-label pair sits at the floor width regardless
+    // of what else is on the strip, which would make this test pass whether
+    // the trailing widget was accounted for or not.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* tabs = new TabBar(surface);
+    tabs->resize(500, 32);
+    tabs->addTab(QStringLiteral("a"),
+                 QStringLiteral("A rather long document title, first"));
+    tabs->addTab(QStringLiteral("b"),
+                 QStringLiteral("A rather long document title, second"));
+
+    const int widthWithoutTrailing = tabs->tabRect(0).width();
+
+    // A bare QWidget's own sizeHint() is invalid (-1,-1) - setFixedSize()
+    // constrains its geometry but never answers sizeHint(), which is what
+    // laidOutWidths() actually consults. A composite widget with a layout is
+    // what every real caller hands in (PlainModules' browser view passes two
+    // IconButtons in a QHBoxLayout), so the test builds the same shape rather
+    // than a shortcut that would not have caught the geometry this exercises.
+    auto* trailing = new QWidget(tabs);
+    auto* trailingRow = new QHBoxLayout(trailing);
+    trailingRow->setContentsMargins(8, 0, 8, 0);
+    trailingRow->setSpacing(5);
+    trailingRow->addWidget(new QPushButton(QStringLiteral("A"), trailing));
+    trailingRow->addWidget(new QPushButton(QStringLiteral("B"), trailing));
+    trailing->adjustSize();
+    tabs->setTrailingWidget(trailing);
+    QCOMPARE(tabs->trailingWidget(), trailing);
+    QVERIFY(trailing->sizeHint().width() > 0);
+
+    // The tabs gave up width to make room for it.
+    QVERIFY(tabs->tabRect(0).width() < widthWithoutTrailing);
+    // And no tab's box reaches into the trailing widget's own geometry.
+    QVERIFY(tabs->tabRect(1).right() < trailing->geometry().left());
+
+    // A second call replaces rather than stacks.
+    auto* replacement = new QWidget(tabs);
+    tabs->setTrailingWidget(replacement);
+    QCOMPARE(tabs->trailingWidget(), replacement);
+}
+
+void GalleryTest::anAddressBarWeightsTheHostOverThePath()
+{
+    // `urlMarkup()` splits at the first slash and weights only the host - the
+    // one anti-phishing affordance a browser chrome has, so it has to survive
+    // the port to a self-painted field.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* bar = new AddressBar(surface);
+    bar->resize(320, 28);
+
+    QCOMPARE(bar->url(), QString());
+    bar->setPlaceholder(QStringLiteral("No tab open"));
+    QCOMPARE(bar->placeholder(), QStringLiteral("No tab open"));
+
+    bar->setUrl(QStringLiteral("novuai.app/console"));
+    QCOMPARE(bar->url(), QStringLiteral("novuai.app/console"));
+    // The whole address stays reachable through the library's own tooltip
+    // registry, not QWidget::toolTip() - Tooltip::install() never calls
+    // setToolTip(), so that native property is deliberately not what this
+    // checks.
+    QCOMPARE(Tooltip::contentFor(bar).brief, QStringLiteral("novuai.app/console"));
+
+    bar->setSecurity(AddressBar::Security::Secure);
+    QCOMPARE(bar->security(), AddressBar::Security::Secure);
+    bar->setSecurity(AddressBar::Security::Failed);
+    QCOMPARE(bar->security(), AddressBar::Security::Failed);
+
+    // A trailing control - the session chip - takes ownership and narrows the
+    // text rect it is given.
+    auto* chip = new Chip(QStringLiteral("novuai_ops"));
+    chip->setGlyph(Glyph::Key);
+    chip->setMonospaced(true);
+    bar->setTrailing(chip);
+    QCOMPARE(bar->trailing(), chip);
+    QCOMPARE(chip->parentWidget(), static_cast<QWidget*>(bar));
+
+    // placeTrailing() lays the chip out by its sizeHint(), so the geometry it
+    // actually receives has to be exactly as wide as the chip needs to draw
+    // its own text without clipping it - not QPushButton's generic guess.
+    // This is what a monospaced session chip ("novuai_ops") long enough to
+    // matter actually hit: the chip was placed narrower than its own text and
+    // the identifier clipped mid-word against the omnibox's edge.
+    QCOMPARE(chip->geometry().width(), chip->sizeHint().width());
+    QVERIFY(chip->geometry().right() <= bar->width() - 1);
+
+    // Fixed height: an address field stands as tall as a medium control,
+    // whatever its own text needs.
+    QCOMPARE(bar->sizeHint().height(), bar->minimumSizeHint().height());
+    QVERIFY(bar->sizeHint().height() > 0);
+}
+
+void GalleryTest::anEmptyStatesMarkReplacesItsGlyphAndBackAgain()
+{
+    // `.empty` (a bare glyph) and `.bpage` (a plaque) are one component - the
+    // mark decides which rhythm is drawn, and setting one hides the other
+    // rather than drawing both.
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* state = new EmptyState(QStringLiteral("i"), QStringLiteral("Title"),
+                                 QStringLiteral("Subtitle"), surface);
+    surface->show();
+    QVERIFY(QTest::qWaitForWindowExposed(surface));
+
+    auto* plaque = new QWidget;
+    plaque->setFixedSize(54, 54);
+    state->setMark(plaque);
+    QCOMPARE(state->mark(), plaque);
+    QVERIFY(plaque->isVisible());
+
+    state->setMark(nullptr);
+    QCOMPARE(state->mark(), static_cast<QWidget*>(nullptr));
+
+    // `.bpage .u` - the detail line under the title, hidden until it has text.
+    QCOMPARE(state->detail(), QString());
+    state->setDetail(QStringLiteral("novuai.app/console"));
+    QCOMPARE(state->detail(), QStringLiteral("novuai.app/console"));
+    state->setDetail(QString());
+    QCOMPARE(state->detail(), QString());
+
+    delete state;
+}
+
+void GalleryTest::anEmptyStatesActionsRowAppearsOnlyWhenFilled()
+{
+    // An empty actions row is not a row: it must not reserve the margin above
+    // it until a caller actually puts a button in it.
+    auto* state = new EmptyState(QStringLiteral("i"), QStringLiteral("Title"),
+                                 QStringLiteral("Subtitle"));
+    QVERIFY(state->actions() != nullptr);
+    QCOMPARE(state->actions()->count(), 0);
+
+    auto* button = primaryButton(QStringLiteral("New tab"));
+    state->actions()->addWidget(button);
+    QCOMPARE(state->actions()->count(), 1);
+    state->resize(400,260);state->show();QCoreApplication::processEvents();
+    QVERIFY(button->isVisible());
+    state->actions()->removeWidget(button);delete button;QCoreApplication::processEvents();
+    QVERIFY(state->actions()->parentWidget()->isHidden());
+
+    // `.bpage .sess` - one widget under the actions, centred.
+    QCOMPARE(state->footer(), static_cast<QWidget*>(nullptr));
+    auto* chip = new Chip(QStringLiteral("novuai_dev"));
+    state->setFooter(chip);
+    QCOMPARE(state->footer(), chip);
+    QVERIFY(chip->parentWidget() != nullptr);
+
+    delete state;
+}
+
+void GalleryTest::anAccentedChipIsNotTheSameDrawingAsAPlainOne()
+{
+    // `.sesschip` against `.sesschip.anon` - the accent is what says a token
+    // names something that is *yours*.
+    auto* signedIn = new Chip(QStringLiteral("novuai_dev"));
+    signedIn->setGlyph(Glyph::Key);
+    QVERIFY(!signedIn->isAccented());
+    signedIn->setAccented(true);
+    QVERIFY(signedIn->isAccented());
+
+    // A token carrying an identifier is set in the monospace face; toggling it
+    // must not crash the width calculation and must produce a non-zero width.
+    auto* plain = new Chip(QStringLiteral("novuai_dev"));
+    plain->setGlyph(Glyph::Key);
+    QVERIFY(!plain->isMonospaced());
+    plain->setMonospaced(true);
+    QVERIFY(plain->isMonospaced());
+    QVERIFY(plain->width() != 0);
+
+    // sizeHint() has to answer the same box the chip actually committed to,
+    // not QPushButton's own guess from the widget's QFont property (which
+    // never changes - setMonospaced() only redirects what applyGeometry()
+    // measures and what paintEvent() draws with). AddressBar::setTrailing()
+    // lays out entirely by sizeHint(), so a chip whose sizeHint() disagreed
+    // with its real width clipped its own text against the omnibox's edge -
+    // exactly what happened with a session chip long enough to matter
+    // ("novuai_ops") before this override existed.
+    QCOMPARE(plain->sizeHint(), plain->size());
+    auto* longToken = new Chip(QStringLiteral("a-rather-long-session-identifier"));
+    longToken->setGlyph(Glyph::Key);
+    longToken->setMonospaced(true);
+    QCOMPARE(longToken->sizeHint().width(), longToken->width());
+    QVERIFY(longToken->sizeHint().width() > plain->sizeHint().width());
+
+    delete signedIn;
+    delete plain;
+    delete longToken;
+}
+
 void GalleryTest::anInactivePanelKeepsItsSelection()
 {
     QWidget* surface = makeSurface(QStringLiteral("novuspace"));
@@ -4120,6 +5851,11 @@ void GalleryTest::aDrawerDimsWhatItIsAbout()
     QVERIFY(drawer->scrim()->isVisible());
     QCOMPARE(drawer->scrim()->size(), surface->size());
 
+    // `.drawer{animation:slidein .28s ...}` - open() starts from an offset
+    // position and slides into place rather than snapping there, so the
+    // final geometry is only true once the animation has actually finished.
+    QTest::qWait(400);
+
     // min(760px, 92%) - both halves matter: the cap stops it swallowing a wide
     // window, the fraction stops it overflowing a narrow one.
     QCOMPARE(drawer->width(), qMin(760, int(900 * 0.92)));
@@ -4131,14 +5867,50 @@ void GalleryTest::aDrawerDimsWhatItIsAbout()
     QCOMPARE(drawer->x(), 0);
 
     // Escape closes: a drawer is not asking a question, so leaving is always
-    // allowed - which is the difference between this and a Dialog.
+    // allowed - which is the difference between this and a Dialog. isOpen()
+    // flips the instant Escape is pressed; closed() and the scrim hiding wait
+    // for the close animation, the same way opened() did not wait for open()'s.
     QTest::keyClick(drawer, Qt::Key_Escape);
     QVERIFY(!drawer->isOpen());
+    QVERIFY(closed.wait(500));
     QCOMPARE(closed.count(), 1);
     QVERIFY(!drawer->scrim()->isVisible());
 
     drawer->setClosesOnScrimClick(false);
     QVERIFY(!drawer->closesOnScrimClick());
+}
+
+// `.drawer{animation:slidein .28s cubic-bezier(.2,.8,.2,1) both}` - open()
+// used to show() at its final geometry outright, which is what "an instant
+// popup" means. It has to actually be somewhere else the moment it starts.
+void GalleryTest::aDrawerSlidesRatherThanSnapsIntoPlace()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    surface->resize(900, 500);
+    surface->show();
+    QVERIFY(QTest::qWaitForWindowExposed(surface));
+
+    auto* drawer = new Drawer(surface);
+    drawer->setTitle(QStringLiteral("Bot detail"));
+    drawer->open();
+
+    // Right after open(), the animation has barely run: the drawer is not yet
+    // at the resting position it will end at, and it is not yet fully opaque.
+    const int restingRight = surface->width() - 1;
+    QVERIFY(drawer->geometry().right() != restingRight);
+    QVERIFY(drawer->graphicsEffect() != nullptr);
+
+    QTest::qWait(400);
+    QCOMPARE(drawer->geometry().right(), restingRight);
+
+    drawer->close();
+    // close() is asymmetric with open(): isOpen() flips immediately, but the
+    // widget itself is still where it was until the close animation runs.
+    QVERIFY(!drawer->isOpen());
+    QVERIFY(drawer->isVisible());
+    QSignalSpy closed(drawer, &Drawer::closed);
+    QVERIFY(closed.wait(500));
+    QVERIFY(!drawer->isVisible());
 }
 
 void GalleryTest::aBusyDialogDisablesItsWholeFooter()
@@ -4450,4 +6222,804 @@ void GalleryTest::curvedGlyphsResolveTheirCoordinatesInOrder()
 }
 
 QTEST_MAIN(GalleryTest)
+
+// A chip that carries a glyph or an x is a token, not a toggle -- and a
+// chip that carries neither is exactly what it was before, because
+// NovuSpace's column pills consume this header today.
+void GalleryTest::chipTokenIsNotAToggle()
+{
+    Chip plain(QStringLiteral("Columns"), nullptr, true);
+    QVERIFY(!plain.isToken());
+    QVERIFY(plain.isCheckable());
+    QVERIFY(plain.isChecked());
+    QVERIFY(plain.removeRect().isEmpty());
+    const int plainWidth = plain.width();
+
+    Chip token(QStringLiteral("Columns"), nullptr, true);
+    token.setGlyph(Glyph::File);
+    QVERIFY(token.isToken());
+    QVERIFY(!token.isCheckable());
+    QCOMPARE(token.glyph(), Glyph::File);
+    // The glyph and its gap are paid for, so a token is wider than the
+    // plain chip carrying the same word.
+    QVERIFY(token.width() > plainWidth);
+
+    token.setRemovable(true);
+    QVERIFY(token.isRemovable());
+    const QRect x = token.removeRect();
+    QVERIFY(!x.isEmpty());
+    // The x sits inside the chip, against its trailing edge.
+    QVERIFY(token.rect().contains(x));
+    QVERIFY(x.right() < token.width());
+
+    QSignalSpy removed(&token, &Chip::removed);
+    QTest::mouseClick(&token, Qt::LeftButton, Qt::NoModifier, x.center());
+    QCOMPARE(removed.count(), 1);
+
+    // Pressing the label is not pressing the x.
+    QTest::mouseClick(&token, Qt::LeftButton, Qt::NoModifier, QPoint(4, token.height() / 2));
+    QCOMPARE(removed.count(), 1);
+}
+
+
+// A wrapped label is asked how tall it is at a width; QLabel answers at a
+// width nobody asked about, which is what a column then believes.
+void GalleryTest::paragraphAnswersForTheWidthItHas()
+{
+    const QString prose = QStringLiteral(
+        "A paragraph is as tall as the width it is given makes it, and a column "
+        "that adds up the wrong heights hands the difference to whatever else in "
+        "it can grow.");
+
+    QWidget host;
+    host.resize(420, 400);
+    auto* column = new QVBoxLayout(&host);
+
+    auto* plain = new QLabel(prose, &host);
+    plain->setWordWrap(true);
+    plain->setMinimumWidth(1);
+    auto* measured = new Paragraph(prose, &host);
+    column->addWidget(plain);
+    column->addWidget(measured);
+    host.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&host));
+
+    // The height at the width it has is the whole claim.
+    QCOMPARE(measured->sizeHint().height(), measured->heightForWidth(measured->width()));
+    QCOMPARE(measured->minimumSizeHint().height(),
+             measured->heightForWidth(measured->width()));
+    QVERIFY(measured->sizePolicy().hasHeightForWidth());
+
+    Q_UNUSED(plain);
+
+    // A paragraph prefers the width its text wants, capped by what it is
+    // allowed -- which is what lets a shrink-to-fit column stop at the
+    // sentence rather than at the edge of the window.
+    QVERIFY(measured->naturalWidth() > 0);
+    measured->setMaximumWidth(120);
+    QCOMPARE(measured->sizeHint().width(), 120);
+    measured->setMaximumWidth(QWIDGETSIZE_MAX);
+    QCOMPARE(measured->sizeHint().width(), measured->naturalWidth());
+
+    // And the consequence, which is where the wrong number does its damage: a
+    // scrollable page of paragraphs is as tall as its text, not a multiple of
+    // it. A widgetResizable QScrollArea sizes its content from the minimum it
+    // is told, so a column of plain wrapped labels asks for a page several
+    // times too long and a box layout shares the surplus out among whatever
+    // else in it can grow.
+    QWidget outer;
+    outer.resize(420, 300);
+    auto* shell = new QVBoxLayout(&outer);
+    shell->setContentsMargins(0, 0, 0, 0);
+    auto* pageHost = new QWidget(&outer);
+    QScrollArea* area = nullptr;
+    QVBoxLayout* pageColumn = scrollPage(pageHost, &area);
+    pageColumn->setContentsMargins(0, 0, 0, 0);
+    pageColumn->setSpacing(0);
+    for (int i = 0; i < 5; ++i) {
+        pageColumn->addWidget(new Paragraph(prose, pageHost));
+    }
+    shell->addWidget(pageHost);
+    outer.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&outer));
+    QCoreApplication::processEvents();
+
+    QWidget* content = area->widget();
+    const int wanted = pageColumn->heightForWidth(content->width());
+    QVERIFY(wanted > 0);
+    QVERIFY(content->height() <= qMax(wanted, area->viewport()->height()) + 2);
+}
+
+// A scroll area has no height of its own. One quoted inside a column has to.
+void GalleryTest::monoLineViewFitsItsRowsWhenAsked()
+{
+    DiffView diff;
+    diff.setUnifiedDiff(QStringLiteral(
+        "@@ -1,4 +1,5 @@\n context\n-gone\n+arrived\n+also arrived\n more context\n"));
+    QVERIFY(diff.rowCount() >= 6);
+    QVERIFY(!diff.fitsContent());
+
+    const int loose = diff.sizeHint().height();
+    diff.setFitToContent(true);
+    QVERIFY(diff.fitsContent());
+    QCOMPARE(diff.sizeHint().height(), diff.contentHeight());
+    QCOMPARE(diff.minimumSizeHint().height(), diff.sizeHint().height());
+    QCOMPARE(diff.sizePolicy().verticalPolicy(), QSizePolicy::Fixed);
+    QVERIFY(diff.sizeHint().height() != loose || diff.rowCount() == 0);
+
+    // Past the cap it stops growing and scrolls, which is the point of one.
+    diff.setFitToContent(true, 3);
+    QCOMPARE(diff.maxVisibleRows(), 3);
+    QCOMPARE(diff.sizeHint().height(), 3 * diff.rowHeight() + 2 * 0);
+    QVERIFY(diff.sizeHint().height() < diff.contentHeight());
+
+    // Off again is the behaviour every existing caller has.
+    diff.setFitToContent(false);
+    QCOMPARE(diff.sizePolicy().verticalPolicy(), QSizePolicy::Expanding);
+}
+
+// `line-height:1.65` is a multiple of the font size, not of the font's
+// metric height -- the second is about a third taller in every row.
+void GalleryTest::monoRowHeightIsTheDesignsLineHeight()
+{
+    DiffView diff;
+    LogView log;
+
+    const QFontMetrics metrics(diff.font());
+    QVERIFY(diff.rowHeight() > 0);
+    // A diff is tighter than a log, because 1.65 is less than 1.75.
+    QVERIFY(diff.rowHeight() <= log.rowHeight());
+    // And neither is the metric height times the leading, which would put a
+    // diff row above 24px at this size.
+    QVERIFY(diff.rowHeight() < qRound(metrics.height() * 1.65));
+    Q_UNUSED(metrics);
+}
+
+// The titlebar's way into the palette accepts no text and takes no focus.
+void GalleryTest::commandFieldIsADoorNotAField()
+{
+    CommandField field(QStringLiteral("Search this workspace, or run a command"));
+    QCOMPARE(field.focusPolicy(), Qt::NoFocus);
+    QVERIFY(field.capRect().isEmpty());
+
+    const int bare = field.sizeHint().width();
+    field.setShortcut(QKeySequence(QStringLiteral("Ctrl+K")));
+    QCOMPARE(field.shortcut(), QKeySequence(QStringLiteral("Ctrl+K")));
+    const QRect cap = field.capRect();
+    QVERIFY(!cap.isEmpty());
+    // The cap is paid for, and it sits against the trailing edge.
+    QVERIFY(field.sizeHint().width() > bare);
+    field.resize(field.sizeHint());
+    QVERIFY(field.rect().contains(field.capRect()));
+    QVERIFY(field.capRect().right() < field.width());
+
+    // A hand-placing parent sizes this from its hint, so the hint has to obey
+    // the width the caller fixed -- `.omni{max-width:460px}`.
+    field.setFixedWidth(460);
+    QCOMPARE(field.sizeHint().width(), 460);
+
+    QSignalSpy pressed(&field, &QAbstractButton::clicked);
+    QTest::mouseClick(&field, Qt::LeftButton, Qt::NoModifier,
+                      QPoint(field.width() / 2, field.height() / 2));
+    QCOMPARE(pressed.count(), 1);
+
+    field.setShortcut(QKeySequence());
+    QVERIFY(field.capRect().isEmpty());
+}
+
+
+// setSectionCollapsible() and setSectionAction() looked their row up through
+// indexOfKey(), which skips captions on purpose so that setCurrentKey() can
+// never land on one. Both therefore searched for a row that by definition
+// could not be found, and did nothing at all, in every application that called
+// them -- which is why a rail that asked for collapsible sections got none.
+void GalleryTest::navSectionApiReachesItsCaption()
+{
+    NavList nav;
+    nav.addSection(QStringLiteral("Modules"), QStringLiteral("sec"));
+    nav.addItem(QStringLiteral("chat"), QStringLiteral("Chat"));
+    nav.addItem(QStringLiteral("docs"), QStringLiteral("Documents"));
+
+    // A caption is not an item, and still answers about itself.
+    QCOMPARE(nav.indexOfKey(QStringLiteral("sec")), -1);
+    QCOMPARE(nav.indexOfSection(QStringLiteral("sec")), 0);
+
+    nav.setSectionCollapsible(QStringLiteral("sec"), true);
+    QVERIFY(nav.isExpanded(QStringLiteral("sec")));
+
+    const int open = nav.sizeHint().height();
+    nav.setSectionExpanded(QStringLiteral("sec"), false);
+    QVERIFY(!nav.isExpanded(QStringLiteral("sec")));
+    // Shut, the section costs its caption and nothing else.
+    QVERIFY(nav.sizeHint().height() < open);
+
+    nav.setSectionExpanded(QStringLiteral("sec"), true);
+    QCOMPARE(nav.sizeHint().height(), open);
+
+    // And a caption that is not collapsible has no twisty to aim at.
+    NavList plain;
+    plain.addSection(QStringLiteral("Group"), QStringLiteral("g"));
+    plain.addItem(QStringLiteral("a"), QStringLiteral("A"));
+    QVERIFY(plain.sizeHint().height() > 0);
+}
+
+// A window must always be leavable, and its action must always be reachable.
+//
+// The footer used to be the last thing inside the scrolling body, so a form
+// taller than the window scrolled its own Create button out of reach; there
+// was no Escape; and minimising - which the sheet does by hiding the element -
+// would have left a panel nothing in the application could find again.
+void GalleryTest::aFloatingWindowCanAlwaysBeLeft()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    surface->resize(900, 700);
+    auto* panel = new FloatingPanel(Glyph::Vault, QStringLiteral("New item"), surface);
+    panel->resize(470, 520);
+
+    // A form far taller than the window.
+    for (int i = 0; i < 30; ++i) {
+        auto* field = new QLabel(QStringLiteral("Field %1").arg(i), panel->bodyWidget());
+        field->setMinimumHeight(40);
+        panel->body()->addWidget(field);
+    }
+    auto* create = new QPushButton(QStringLiteral("Create item"), panel);
+    panel->footer()->addStretch(1);
+    panel->footer()->addWidget(create);
+    panel->show();
+    QApplication::sendPostedEvents();
+    panel->resize(470, 520);
+    QApplication::sendPostedEvents();
+
+    // The footer is inside the window and below the body, whatever the body
+    // is doing. Measured in the panel's own coordinates: the button is a
+    // child of the footer row, which is what has to have stayed put.
+    QVERIFY(!create->isHidden());
+    const int bottom = create->mapTo(panel, QPoint(0, create->height())).y();
+    QVERIFY2(bottom <= panel->height(),
+             qPrintable(QStringLiteral("button bottom %1, panel %2")
+                            .arg(bottom).arg(panel->height())));
+    // And below the body, not floating over it.
+    QVERIFY(create->mapTo(panel, QPoint(0, 0)).y() > panel->height() / 2);
+
+    // Escape asks to close, exactly as the close box does - and asks on the
+    // next turn of the loop rather than from inside the event that asked. A
+    // caller is entitled to answer with a modal question ("this has not been
+    // sent, keep it?"), and a nested event loop started from inside a key or
+    // mouse handler leaves the panel holding the implicit mouse grab: the
+    // window will not close and nothing else in the application answers the
+    // mouse again. Posting the signal is what makes that safe, so the posting
+    // is the behaviour under test.
+    QSignalSpy closed(panel, &FloatingPanel::closeRequested);
+    QTest::keyClick(panel, Qt::Key_Escape);
+    QCOMPARE(closed.count(), 0);
+    QApplication::sendPostedEvents();
+    QCOMPARE(closed.count(), 1);
+
+    // The close box, the same way.
+    QTest::mouseClick(panel, Qt::LeftButton, Qt::NoModifier, panel->closeRect().center());
+    QCOMPARE(closed.count(), 1);
+    QApplication::sendPostedEvents();
+    QCOMPARE(closed.count(), 2);
+
+    // Minimising rolls the window up rather than hiding it: a hidden panel is
+    // one nothing in the application can reach again.
+    QSignalSpy minimised(panel, &FloatingPanel::minimiseRequested);
+    QTest::mouseClick(panel, Qt::LeftButton, Qt::NoModifier,
+                      panel->minimiseRect().center());
+    QCOMPARE(minimised.count(), 1);
+    QVERIFY(panel->isRolled());
+    // Still on the layer: rolled up is not hidden, which is the whole point.
+    QVERIFY(!panel->isHidden());
+
+    // And maximising fills the layer, then puts it back where it was.
+    const QRect before = panel->geometry();
+    QTest::mouseClick(panel, Qt::LeftButton, Qt::NoModifier,
+                      panel->maximiseRect().center());
+    QVERIFY(panel->isMaximised());
+    QVERIFY(panel->width() > before.width());
+    QTest::mouseClick(panel, Qt::LeftButton, Qt::NoModifier,
+                      panel->maximiseRect().center());
+    QVERIFY(!panel->isMaximised());
+    QCOMPARE(panel->geometry(), before);
+}
+
+// `.tabs`/`.tab` and `.btab` are two strips, not one wearing two colours.
+//
+// A settings card's four tabs were drawn as browser tabs: a raised plate under
+// each, and a close box on the one you were reading. Both say the wrong thing
+// - these are four faces of one surface, and none of them can be closed.
+void GalleryTest::anUnderlinedTabStripIsNotADocumentStrip()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* tabs = new TabBar(surface);
+    tabs->addTab(QStringLiteral("a"), QStringLiteral("NovuAI access"));
+    tabs->addTab(QStringLiteral("b"), QStringLiteral("General"));
+    tabs->setCurrentKey(QStringLiteral("a"));
+
+    // A browser strip closes documents.
+    QCOMPARE(tabs->variant(), TabBar::Variant::Browser);
+    QVERIFY(!tabs->closeRect(0).isNull());
+
+    // An underlined one does not, and says so by having no close box at all
+    // rather than by ignoring the click on it.
+    tabs->setVariant(TabBar::Variant::Underline);
+    QCOMPARE(tabs->variant(), TabBar::Variant::Underline);
+    QVERIFY(tabs->closeRect(0).isNull());
+
+    // And a tab is as wide as its own label, at either variant: a caption
+    // measured to the pixel came out elided by one character.
+    tabs->resize(600, 40);
+    const QFontMetrics metrics(tabs->font());
+    QVERIFY2(tabs->tabRect(0).width() > metrics.horizontalAdvance(
+                 QStringLiteral("NovuAI access")),
+             qPrintable(QStringLiteral("tab %1px, label %2px")
+                            .arg(tabs->tabRect(0).width())
+                            .arg(metrics.horizontalAdvance(
+                                QStringLiteral("NovuAI access")))));
+}
+
+// `.note` is a block of prose, not a strip.
+//
+// It was one control-height line with the rest elided, in the tone colour,
+// with no glyph - so a warning that said what to do lost the half that said
+// it, every note in the product read as a coloured sentence rather than as a
+// tinted block, and the `<b>` the design puts at the front of every one of
+// them was printed on the screen as markup.
+void GalleryTest::aNoteWrapsCarriesAGlyphAndKeepsItsBoldLead()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    surface->resize(600, 400);
+
+    const QString sentence =
+        QStringLiteral("<b>1 order rejected by the exchange.</b> Rejections are kept so "
+                       "the reason stays visible; they do not retry on their own, and "
+                       "nothing here is sent again without being asked.");
+    auto* note = new InfoBanner(sentence, Badge::Tone::Warning, surface);
+    note->resize(520, note->heightForWidth(520));
+
+    // The markup never reaches the screen, and the whole sentence - without
+    // it - stays on the tooltip.
+    QVERIFY(!note->toolTip().contains(QStringLiteral("<b>")));
+    QVERIFY(note->toolTip().startsWith(QStringLiteral("1 order rejected")));
+
+    // A note this long is more than one line at this width, and fewer lines
+    // when it is given more room.
+    const int narrow = note->heightForWidth(320);
+    const int wide = note->heightForWidth(900);
+    QVERIFY2(narrow > wide,
+             qPrintable(QStringLiteral("320px:%1 900px:%2").arg(narrow).arg(wide)));
+
+    // The glyph follows the tone: a warning carries the warning mark, and an
+    // informational note the info one.
+    QCOMPARE(note->glyph(), Glyph::None);  // unset means "from the tone"
+    note->setGlyph(Glyph::Shield);
+    QCOMPARE(note->glyph(), Glyph::Shield);
+
+    // Width is still a preference and never a measurement: the regression
+    // aBannerNeverSizesItselfToItsMessage exists for is not reintroduced by
+    // letting the height follow the text.
+    QCOMPARE(note->sizePolicy().horizontalPolicy(), QSizePolicy::Ignored);
+}
+
+// `td.num`, `td.mono` and `td.act` are classes the sheet writes, and every
+// page in the product was expressing them by putting a styled QLabel in the
+// cell - a column's typography reimplemented once per page, in a widget that
+// cannot wrap to a width the table has not decided yet.
+void GalleryTest::aColumnStatesItsOwnFaceInkAndAlignment()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* table = new TableView(surface);
+    using Role = TableView::ColumnRole;
+    table->setColumns({{QStringLiteral("Name"), Role::Text},
+                       {QStringLiteral("P&L"), Role::Numeric},
+                       {QStringLiteral("Since"), Role::Mono}});
+    table->setRowCount(1);
+    table->setText(0, 0, QStringLiteral("Breakout Hunter"));
+    table->setText(0, 1, QStringLiteral("-77.50"));
+    table->setText(0, 2, QStringLiteral("2026-09-13 06:01"));
+
+    const ThemeProfile& profile = themeFor(table);
+
+    // Text keeps the table's own face and stays left.
+    QVERIFY(!table->item(0, 0)->data(Qt::FontRole).isValid());
+    QVERIFY(table->item(0, 0)->textAlignment() & Qt::AlignLeft);
+
+    // `td.num{font-family:'JetBrains Mono';text-align:right}` — the mono face
+    // at the body size, because `.num` states no size of its own.
+    const QFont numeric = table->item(0, 1)->data(Qt::FontRole).value<QFont>();
+    QCOMPARE(numeric.family(), profile.type.monoFamily);
+    QVERIFY(table->item(0, 1)->textAlignment() & Qt::AlignRight);
+
+    // `td.mono{font-size:11.5px;color:var(--text3)}` — a step down, and muted.
+    const QFont mono = table->item(0, 2)->data(Qt::FontRole).value<QFont>();
+    QCOMPARE(mono.family(), profile.type.monoFamily);
+    QCOMPARE(mono.pixelSize(), profile.type.xs);
+    QVERIFY(mono.pixelSize() < numeric.pixelSize());
+    QCOMPARE(table->item(0, 2)->foreground().color(), profile.colors.textDisabled);
+    QCOMPARE(table->item(0, 1)->foreground().color(), profile.colors.textSecondary);
+}
+
+// A table inside a card is markup with a height, not a viewport: it is as tall
+// as its rows and the *page* scrolls. Asking QAbstractScrollArea what it wants
+// gets a fixed 256x192 viewport, which is why every page in the product had to
+// compute a minimum height by hand from a row height it could not see.
+void GalleryTest::aTableIsAsTallAsItsRows()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* table = new TableView(surface);
+    using Role = TableView::ColumnRole;
+    table->setColumns({{QStringLiteral("Name"), Role::Text},
+                       {QStringLiteral("Value"), Role::Numeric}});
+    table->setRowCount(3);
+    for (int row = 0; row < 3; ++row) {
+        table->setText(row, 0, QStringLiteral("Row %1").arg(row));
+        table->setText(row, 1, QStringLiteral("%1.00").arg(row));
+    }
+    table->relayoutColumns();
+
+    int rows = 0;
+    for (int row = 0; row < table->rowCount(); ++row) {
+        rows += table->rowHeight(row);
+    }
+    const int header = table->horizontalHeader()->height();
+    QCOMPARE(table->sizeHint().height(), header + rows + 2 * table->frameWidth());
+
+    // Neither bar exists in the design, and a table that claims every spare
+    // pixel turns a three-row card into a panel the height of the window.
+    QCOMPARE(table->verticalScrollBarPolicy(), Qt::ScrollBarAlwaysOff);
+    QCOMPARE(table->sizePolicy().verticalPolicy(), QSizePolicy::Preferred);
+
+    // `.tbl-wrap.cap{max-height:440px;overflow-y:auto}` is the one exception,
+    // and asking for it is what brings the bar back.
+    table->setHeightCap(40);
+    QCOMPARE(table->sizeHint().height(), 40);
+    QCOMPARE(table->verticalScrollBarPolicy(), Qt::ScrollBarAsNeeded);
+}
+
+// A caption that folds is a caption every application gets for free.
+//
+// It used to be opt-in, and of the four modules sharing this rail exactly one
+// remembered to opt in -- which is how one shared component came to behave
+// four different ways in one window. `renderRail()` wraps every group in a
+// `.sb-block` whose head is a toggle, in every module, so the default is the
+// design's and an application that wants a fixed caption says so.
+void GalleryTest::aKeyedCaptionFoldsWithoutBeingAskedTo()
+{
+    NavList nav;
+    nav.addSection(QStringLiteral("Workspaces"), QStringLiteral("sec.ws"));
+    nav.addItem(QStringLiteral("a"), QStringLiteral("A"));
+
+    QVERIFY(nav.isExpanded(QStringLiteral("sec.ws")));
+    const int open = nav.sizeHint().height();
+    nav.setSectionExpanded(QStringLiteral("sec.ws"), false);
+    QVERIFY(nav.sizeHint().height() < open);
+    QVERIFY(!nav.isRowVisible(QStringLiteral("a")));
+
+    // An unkeyed caption cannot be addressed, so it cannot fold either: there
+    // is nothing for a click to toggle and nothing for a caller to restore.
+    NavList anonymous;
+    anonymous.addSection(QStringLiteral("Workspaces"));
+    anonymous.addItem(QStringLiteral("a"), QStringLiteral("A"));
+    const int before = anonymous.sizeHint().height();
+    anonymous.setSectionExpanded(QString(), false);
+    QCOMPARE(anonymous.sizeHint().height(), before);
+}
+
+// The list owns the fold, not the four applications that draw trees in it.
+//
+// Every one of them used to rebuild the whole rail from a set of open keys on
+// each click, and each got it slightly different. The rows under a twisty are
+// the list's to show and hide, and the signal still fires first so a caller
+// that really does fetch on demand can still fill them.
+void GalleryTest::shuttingARowHidesTheRowsUnderIt()
+{
+    NavList nav;
+    nav.addItem(QStringLiteral("ws"), QStringLiteral("Novusion"));
+    nav.setExpandable(QStringLiteral("ws"), true);
+    nav.setExpanded(QStringLiteral("ws"), true);
+    nav.addChild(QStringLiteral("ws.docs"), QStringLiteral("Documents"));
+    nav.addChild(QStringLiteral("ws.mail"), QStringLiteral("Mail"));
+    nav.addItem(QStringLiteral("other"), QStringLiteral("Archive"));
+
+    QVERIFY(nav.isRowVisible(QStringLiteral("ws.docs")));
+    const int open = nav.sizeHint().height();
+
+    nav.setExpanded(QStringLiteral("ws"), false);
+    QVERIFY(!nav.isRowVisible(QStringLiteral("ws.docs")));
+    QVERIFY(!nav.isRowVisible(QStringLiteral("ws.mail")));
+    // The row after the group is not part of it and never moves out of view.
+    QVERIFY(nav.isRowVisible(QStringLiteral("other")));
+    QVERIFY(nav.sizeHint().height() < open);
+
+    nav.setExpanded(QStringLiteral("ws"), true);
+    QCOMPARE(nav.sizeHint().height(), open);
+
+    // A child added while its parent is shut arrives shut. A caller streaming
+    // rows in cannot be expected to check the state of the row above each one.
+    // (Rows are appended, so the parent has to be the last one for the child
+    // to land under it -- which is exactly how a rail is filled.)
+    NavList streamed;
+    streamed.addItem(QStringLiteral("ws"), QStringLiteral("Novusion"));
+    streamed.setExpandable(QStringLiteral("ws"), true);
+    streamed.addChild(QStringLiteral("ws.vault"), QStringLiteral("Vault"));
+    QVERIFY(!streamed.isRowVisible(QStringLiteral("ws.vault")));
+    streamed.setExpanded(QStringLiteral("ws"), true);
+    QVERIFY(streamed.isRowVisible(QStringLiteral("ws.vault")));
+}
+
+// Three things can hide a row and they compose rather than overwrite: the
+// caller's filter, the caption above it, and the twisty above that. Folding a
+// section used to rewrite every row's visibility on its way past, which put
+// filtered rows back on screen and took expanded state with it.
+void GalleryTest::theThreeWaysToHideARowDoNotOverwriteEachOther()
+{
+    NavList nav;
+    nav.addSection(QStringLiteral("Workspaces"), QStringLiteral("sec"));
+    nav.addItem(QStringLiteral("ws"), QStringLiteral("Novusion"));
+    nav.setExpandable(QStringLiteral("ws"), true);
+    nav.setExpanded(QStringLiteral("ws"), true);
+    nav.addChild(QStringLiteral("ws.docs"), QStringLiteral("Documents"));
+    nav.addItem(QStringLiteral("hidden"), QStringLiteral("Filtered out"));
+    nav.setRowVisible(QStringLiteral("hidden"), false);
+
+    QVERIFY(!nav.isRowVisible(QStringLiteral("hidden")));
+
+    // Fold and unfold the caption over all of it.
+    nav.setSectionExpanded(QStringLiteral("sec"), false);
+    QVERIFY(!nav.isRowVisible(QStringLiteral("ws")));
+    QVERIFY(!nav.isRowVisible(QStringLiteral("ws.docs")));
+    nav.setSectionExpanded(QStringLiteral("sec"), true);
+
+    // The filter survived the caption.
+    QVERIFY(!nav.isRowVisible(QStringLiteral("hidden")));
+    // And so did the twisty: the group is still open, not reset by the fold.
+    QVERIFY(nav.isExpanded(QStringLiteral("ws")));
+    QVERIFY(nav.isRowVisible(QStringLiteral("ws.docs")));
+
+    // A shut group inside a caption stays shut when the caption reopens.
+    nav.setExpanded(QStringLiteral("ws"), false);
+    nav.setSectionExpanded(QStringLiteral("sec"), false);
+    nav.setSectionExpanded(QStringLiteral("sec"), true);
+    QVERIFY(nav.isRowVisible(QStringLiteral("ws")));
+    QVERIFY(!nav.isRowVisible(QStringLiteral("ws.docs")));
+}
+
+// Collapsing the rail and folding a section are different states of different
+// things, and the design says so outright: coming back from the icon rail must
+// find the tree exactly as it was left.
+void GalleryTest::railCollapseAndSectionDisclosureAreSeparateStates()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* rail = new Sidebar(surface);
+    rail->setIdentity(Glyph::Vault, QStringLiteral("Vault"), QStringLiteral("NovuVault"));
+
+    NavList* nav = rail->nav();
+    nav->addSection(QStringLiteral("Workspaces"), QStringLiteral("sec"));
+    nav->addItem(QStringLiteral("ws"), QStringLiteral("Novusion"), Glyph::Folder);
+    nav->setExpandable(QStringLiteral("ws"), true);
+    nav->setExpanded(QStringLiteral("ws"), true);
+    nav->addChild(QStringLiteral("ws.docs"), QStringLiteral("Documents"));
+    nav->setCurrentKey(QStringLiteral("ws.docs"));
+
+    nav->setSectionExpanded(QStringLiteral("sec"), false);
+    QVERIFY(!nav->isExpanded(QStringLiteral("sec")));
+
+    rail->setCollapsed(true);
+    QVERIFY(rail->isCollapsed());
+    QVERIFY(nav->isCollapsed());
+    // The rail narrowing says nothing about what is folded inside it.
+    QVERIFY(!nav->isExpanded(QStringLiteral("sec")));
+    QVERIFY(nav->isExpanded(QStringLiteral("ws")));
+    QCOMPARE(nav->currentKey(), QStringLiteral("ws.docs"));
+
+    rail->setCollapsed(false);
+    QVERIFY(!nav->isCollapsed());
+    QVERIFY(!nav->isExpanded(QStringLiteral("sec")));
+    QCOMPARE(nav->currentKey(), QStringLiteral("ws.docs"));
+
+    nav->setSectionExpanded(QStringLiteral("sec"), true);
+    QVERIFY(nav->isRowVisible(QStringLiteral("ws.docs")));
+}
+
+// An application refreshes its rail by clearing it and building it again -
+// that is what a count changing or a workspace being renamed costs. A caption
+// that forgets it was folded on every refresh is a caption nobody can fold,
+// and every application would have to save and restore the same set of keys.
+void GalleryTest::aFoldedCaptionSurvivesTheRailBeingRebuilt()
+{
+    NavList nav;
+    const auto fill = [&nav] {
+        nav.addSection(QStringLiteral("Workspaces"), QStringLiteral("sec.ws"));
+        nav.addItem(QStringLiteral("a"), QStringLiteral("A"));
+        nav.addSection(QStringLiteral("System"), QStringLiteral("sec.sys"));
+        nav.addItem(QStringLiteral("b"), QStringLiteral("B"));
+    };
+    fill();
+    nav.setSectionExpanded(QStringLiteral("sec.ws"), false);
+
+    nav.clear();
+    fill();
+
+    QVERIFY(!nav.isExpanded(QStringLiteral("sec.ws")));
+    QVERIFY(!nav.isRowVisible(QStringLiteral("a")));
+    // And the one that was never folded comes back open.
+    QVERIFY(nav.isExpanded(QStringLiteral("sec.sys")));
+    QVERIFY(nav.isRowVisible(QStringLiteral("b")));
+
+    // Reopening it is remembered too, or the rail would be stuck shut.
+    nav.setSectionExpanded(QStringLiteral("sec.ws"), true);
+    nav.clear();
+    fill();
+    QVERIFY(nav.isExpanded(QStringLiteral("sec.ws")));
+    QVERIFY(nav.isRowVisible(QStringLiteral("a")));
+}
+
+// `<button class="sb-bhead" data-block-toggle>` — the whole head folds the
+// block. Aiming for the 16px chevron was this port's addition, and it made a
+// caption look like a control that mostly did not respond. The `+` is
+// hit-tested first, because creating something must not collapse the block it
+// is created in.
+void GalleryTest::thewholeCaptionFoldsItsBlockButThePlusDoesNot()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuspace"));
+    auto* nav = new NavList(surface);
+    nav->addSection(QStringLiteral("Workspaces"), QStringLiteral("sec"));
+    nav->setSectionAction(QStringLiteral("sec"), Glyph::Plus, QStringLiteral("New"));
+    nav->addItem(QStringLiteral("a"), QStringLiteral("A"));
+    nav->setFixedWidth(238);
+    nav->resize(nav->sizeHint());
+
+    QSignalSpy folded(nav, &NavList::expandToggled);
+    QSignalSpy added(nav, &NavList::sectionActionTriggered);
+
+    // The words, nowhere near the chevron.
+    const QRect caption = nav->rowRect(0);
+    QTest::mouseClick(nav, Qt::LeftButton, Qt::NoModifier,
+                      QPoint(caption.center().x(), caption.center().y()));
+    QCOMPARE(folded.count(), 1);
+    QCOMPARE(folded.at(0).at(1).toBool(), false);
+    QVERIFY(!nav->isRowVisible(QStringLiteral("a")));
+    QCOMPARE(added.count(), 0);
+
+    // The `+`, which is inside the same head and must not fold it.
+    const QRect plus = nav->sectionActionRect(0);
+    QVERIFY(!plus.isNull());
+    QTest::mouseClick(nav, Qt::LeftButton, Qt::NoModifier, plus.center());
+    QCOMPARE(added.count(), 1);
+    QCOMPARE(folded.count(), 1);
+}
+
+// `.navbtn.child .dot` beside every child, or `.tkids{border-left}` down the
+// level. Two designs, one list -- so the profile says which.
+void GalleryTest::aNestedRowShowsItsLevelTheWayTheProfileSays()
+{
+    ThemeProfile dotted = ThemeManager::instance().profile(QStringLiteral("novuspace"));
+    QCOMPARE(dotted.controls.navChildMark, NavChildMark::Dot);
+
+    ThemeProfile guided = dotted;
+    guided.id = QStringLiteral("test-guide");
+    guided.controls.navChildMark = NavChildMark::Guide;
+    ThemeManager::instance().registerProfile(guided);
+    QCOMPARE(ThemeManager::instance().profile(guided.id).controls.navChildMark,
+             NavChildMark::Guide);
+}
+
+// The design draws a select as a button that opens a menu. A combo box brings
+// a system list, a focus frame and a field shape instead.
+void GalleryTest::aSelectIsAButtonThatOpensItsMenu()
+{
+    SelectButton select;
+    QCOMPARE(select.focusPolicy(), Qt::NoFocus);
+    QVERIFY(select.menu() != nullptr);
+
+    select.setOptions({QStringLiteral("Anthropic"), QStringLiteral("OpenAI"),
+                       QStringLiteral("Google")});
+    // The first option is in force until something says otherwise, and the
+    // menu is marked accordingly -- opening it shows the answer, not only the
+    // list.
+    QCOMPARE(select.currentKey(), QStringLiteral("Anthropic"));
+    QVERIFY(select.menu()->isChecked(QStringLiteral("Anthropic")));
+
+    QSignalSpy changed(&select, &SelectButton::currentChanged);
+    select.setCurrentKey(QStringLiteral("OpenAI"));
+    QCOMPARE(select.currentKey(), QStringLiteral("OpenAI"));
+    QVERIFY(select.menu()->isChecked(QStringLiteral("OpenAI")));
+    QVERIFY(!select.menu()->isChecked(QStringLiteral("Anthropic")));
+    // Setting it is not choosing it: only the menu reports a choice.
+    QCOMPARE(changed.count(), 0);
+
+    // What it carries is paid for in width.
+    const int bare = select.sizeHint().width();
+    select.setGlyph(Glyph::Agent);
+    QVERIFY(select.sizeHint().width() > bare);
+    const int withGlyph = select.sizeHint().width();
+    select.setStatus(StatusDot::Tone::Success, true);
+    QVERIFY(select.sizeHint().width() > withGlyph);
+
+    // `.select` is 26px and `.select.xs` is 23px, both from the profile.
+    select.setControlSize(ControlSize::Small);
+    QCOMPARE(select.height(), themeFor(&select).controlHeight(ControlSize::Small));
+}
+
+// `.card` sits on the page behind a hairline; `.card.raised` sits on a panel,
+// takes the panel shade and drops the outline, because an outline against a
+// surface one step away from it reads as a seam.
+void GalleryTest::aRaisedCardKeepsItsOutlineOnAPanel()
+{
+    QWidget* surface = makeSurface(QStringLiteral("novuai"));
+    const ThemeProfile& profile = themeFor(surface);
+
+    auto* plain = new Card(QStringLiteral("Plain"), surface);
+    auto* raised = new Card(QStringLiteral("Raised"), surface);
+    raised->setSurface(Card::Surface::Raised);
+
+    QCOMPARE(plain->surface(), Card::Surface::Plain);
+    QCOMPARE(raised->surface(), Card::Surface::Raised);
+
+    plain->resize(200, 90);
+    raised->resize(200, 90);
+    const QImage plainShot = plain->grab().toImage();
+    const QImage raisedShot = raised->grab().toImage();
+
+    // The middle of each is its own ground.
+    QCOMPARE(QColor(plainShot.pixel(100, 60)), profile.colors.panelBg);
+    QCOMPARE(QColor(raisedShot.pixel(100, 60)), profile.colors.panelBgAlt);
+
+    // Surface changes do not remove the inherited border: sample the edge
+    // away from the rounded corners.
+    const QColor plainEdge(plainShot.pixel(0, 45));
+    const QColor raisedEdge(raisedShot.pixel(0, 45));
+    QCOMPARE(plainEdge, raisedEdge);
+}
+
+// `.seg button{flex:1}` -- two faces of one panel are two halves of one
+// control, not a short word beside a long one.
+void GalleryTest::segmentsCanShareTheTrayBetweenThem()
+{
+    Segmented seg({QStringLiteral("Tasks"), QStringLiteral("Changes and more")});
+    QVERIFY(!seg.fills());
+    seg.resize(300, seg.sizeHint().height());
+
+    const int narrow = seg.itemRect(0).width();
+    const int wide = seg.itemRect(1).width();
+    QVERIFY(wide > narrow);
+
+    seg.setFill(true);
+    QVERIFY(seg.fills());
+    // Even, and adding up to the tray exactly -- a rounded share left a pixel
+    // at the trailing edge that read as a misdrawn border.
+    const int a = seg.itemRect(0).width();
+    const int b = seg.itemRect(1).width();
+    QVERIFY(qAbs(a - b) <= 1);
+    // Together they fill the tray: the second ends where the first began plus
+    // both shares and the gap between them, with nothing left over.
+    QCOMPARE(seg.itemRect(1).right() - seg.itemRect(0).left() + 1,
+             a + b + (seg.itemRect(1).left() - seg.itemRect(0).right() - 1));
+}
+
+// The Novusion family mark: one drawing, worn by every product in its own
+// accent. Not a plate with a glyph on it.
+void GalleryTest::theFamilyMarkIsOneDrawingInEveryAccent()
+{
+    for (const QString& id : ThemeCatalog::builtinProfileIds()) {
+        QWidget* surface = makeSurface(id);
+        auto* mark = new AppMark(Glyph::None, surface);
+        mark->setShape(AppMark::Shape::Gem);
+        mark->setSideOverride(48);
+        QCOMPARE(mark->shape(), AppMark::Shape::Gem);
+
+        const QImage shot = mark->grab().toImage();
+        // The right face is the accent itself; the left is a shade of it and
+        // the top a tint, so all three are the same hue.
+        const QColor right(shot.pixel(30, 24));
+        const QColor accent = themeFor(surface).colors.accent;
+        QVERIFY2(qAbs(right.hue() - accent.hue()) <= 4,
+                 qPrintable(QStringLiteral("%1: %2 vs %3")
+                                .arg(id, right.name(), accent.name())));
+        // A gem carries no plate, so the corner is whatever is behind it.
+        QVERIFY(QColor(shot.pixel(1, 1)).alpha() == 0
+                || QColor(shot.pixel(1, 1)) != accent);
+    }
+}
+
 #include "tst_gallery.moc"

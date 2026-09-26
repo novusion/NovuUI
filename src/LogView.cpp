@@ -217,6 +217,25 @@ QColor LogView::levelColor(Level level) const
     return profile.colors.textSecondary;
 }
 
+void LogView::append(Level level, const QString& source, const QString& message,
+                     const QDateTime& when)
+{
+    append(level, message, when);
+    if (!m_lines.isEmpty()) {
+        m_lines.last().source = source;
+    }
+    update();
+}
+
+void LogView::setSourceColumn(int characters)
+{
+    if (m_sourceColumn == characters) {
+        return;
+    }
+    m_sourceColumn = qMax(0, characters);
+    update();
+}
+
 void LogView::paintRow(QPainter* painter, int row, const QRect& box)
 {
     const ThemeProfile& profile = themeFor(this);
@@ -234,6 +253,17 @@ void LogView::paintRow(QPainter* painter, int row, const QRect& box)
                           Qt::AlignLeft | Qt::AlignVCenter,
                           line.when.toString(QStringLiteral("HH:mm:ss")));
         x += timestampWidth;
+    }
+
+    // Who wrote it, before what it says: the design reads the column as an
+    // address, and an address goes in front of the message.
+    if (m_sourceColumn > 0) {
+        const int width = m_sourceColumn * fm.horizontalAdvance(QLatin1Char('0'));
+        painter->setPen(profile.colors.textSecondary);
+        painter->drawText(QRect(x, box.top(), width, box.height()),
+                          Qt::AlignLeft | Qt::AlignVCenter,
+                          fm.elidedText(line.source, Qt::ElideRight, width));
+        x += width + kColumnGap;
     }
 
     painter->setPen(levelColor(line.level));

@@ -8,6 +8,7 @@
 #include "novu/ui/StatusDot.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
+#include "novu/ui/StyleSheet.h"
 
 #include <QFontMetrics>
 #include <QGridLayout>
@@ -149,6 +150,9 @@ QWidget* build(const PreviewContext& ctx)
 {
     auto* page = new QWidget(ctx.parent);
     QVBoxLayout* column = previewPage(page);
+    registerGlyphSet("gallery-document-icons",{{Glyph::Book,"book","<path d=\"M2 3h5v10H2zM9 3h5v10H9z\"/>"}},16,1.7);
+    auto glyphProfile=novusionBaseProfile();glyphProfile.id="gallery-document-icons";glyphProfile.icons.family="gallery-document-icons";ThemeManager::instance().registerProfile(glyphProfile);
+    auto* customBook=new QLabel(page);applyStyleSheet(customBook,glyphProfile.id);customBook->setPixmap(glyphPixmap(Glyph::Book,32,glyphProfile.colors.textPrimary,0,0,customBook));column->addWidget(customBook);
     const ThemeProfile& profile = themeFor(ctx.parent);
 
     // This page is the symbolic language as a whole: static glyphs, the

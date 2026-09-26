@@ -115,6 +115,16 @@ public:
     void setWindowActive(bool active);
     bool isWindowActive() const { return m_windowActive; }
 
+    // The frame's own corner radius, so the bar's background can round its
+    // own top corners to match rather than squaring them off over what
+    // WindowFrame already painted underneath it. 0 for a maximised window,
+    // which has no curve at all. The shell is the one thing that knows this
+    // number - see WindowShell::cornerRadius() - so it is pushed in rather
+    // than guessed here from a token the bar has no way to pick correctly on
+    // its own (Window and Dialog do not share one radius).
+    void setCornerRadius(int radius);
+    int cornerRadius() const { return m_cornerRadius; }
+
     // A menu bar, typically. Reparented into the bar; the caller keeps
     // ownership of what it hands over.
     void setLeading(QWidget* widget);
@@ -126,6 +136,9 @@ public:
     // centred thing is centred on the WINDOW and not on what is left over.
     // NovuAI's command field is the case this exists for.
     void setCentre(QWidget* widget);
+    // Fraction of the spare space before the centre slot (0..1).
+    // Negative restores the default of centring on the whole window.
+    void setCentrePosition(qreal proportion);
     QWidget* centre() const { return m_centre; }
 
     // Widgets between the caption and the controls. A list rather than one
@@ -173,6 +186,7 @@ private:
     QLabel* m_titleLabel = nullptr;
     QWidget* m_leading = nullptr;
     QWidget* m_centre = nullptr;
+    qreal m_centrePosition = -1;
     QList<QWidget*> m_trailing;
 
     WindowControlButton* m_minimize = nullptr;
@@ -186,6 +200,7 @@ private:
     bool m_closable = true;
     bool m_maximized = false;
     bool m_windowActive = true;
+    int m_cornerRadius = 0;
 };
 
 } // namespace novu::ui

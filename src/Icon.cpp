@@ -8,6 +8,8 @@
 #include <QPainterPath>
 #include <QRectF>
 #include <QStringView>
+#include <QWidget>
+#include <QTransform>
 #include <QtMath>
 
 #include <array>
@@ -397,6 +399,9 @@ QPainterPath parseGlyph(QStringView source)
             } else {
                 path.addRect(box);
             }
+        } else if (element.startsWith(QLatin1String("<polygon"))) {
+            const auto values=QString(attributeText(element,QLatin1String("points"))).replace(',', ' ').simplified().split(' ',Qt::SkipEmptyParts);
+            for(int i=0;i+1<values.size();i+=2){const QPointF point(values[i].toDouble(),values[i+1].toDouble());if(i==0)path.moveTo(point);else path.lineTo(point);}path.closeSubpath();
         } else if (element.startsWith(QLatin1String("<circle"))) {
             const double r = attribute(element, QLatin1String("r"));
             path.addEllipse(QPointF(attribute(element, QLatin1String("cx")),
@@ -421,6 +426,20 @@ const GlyphDef* definitionFor(Glyph glyph)
         }
     }
     return nullptr;
+}
+
+struct GlyphSet {
+    QHash<int,QPainterPath> paths;
+    QHash<int,QVector<QPair<QPainterPath,qreal>>> parts;
+    QHash<int,QString> canonicalNames;
+    QHash<QString,Glyph> names;
+    QVector<Glyph> order;
+    qreal viewBox=24.0,strokeWidth=1.7;
+};
+QHash<QString,GlyphSet>& glyphSets(){static QHash<QString,GlyphSet> sets;return sets;}
+const GlyphSet* glyphSetFor(const QWidget* context){
+    const auto& sets=glyphSets();auto found=sets.constFind(themeFor(context).icons.family);
+    return found==sets.constEnd()?nullptr:&found.value();
 }
 
 // Pixmaps are keyed on everything that changes the pixels. Colour is part of
@@ -456,14 +475,32 @@ QHash<QString, QPixmap>& pixmapCache()
 
 } // namespace
 
+void registerGlyphSet(const QString& id,const QVector<GlyphSource>& sources,qreal viewBox,qreal strokeWidth){
+    if(id.isEmpty()||viewBox<=0)return;
+    static int nextExtension=0x10000;const auto previous=glyphSets().value(id);GlyphSet set;set.viewBox=viewBox;set.strokeWidth=strokeWidth;
+    for(const auto& source:sources){
+        Glyph glyph=source.glyph;
+        if(glyph==Glyph::None)glyph=previous.names.contains(source.name)?previous.names.value(source.name):static_cast<Glyph>(nextExtension++);
+        const auto scale=QTransform::fromScale(24.0/viewBox,24.0/viewBox);
+        set.paths.insert(int(glyph),scale.map(parseGlyph(source.svg)));
+        QVector<QPair<QPainterPath,qreal>> parts;qsizetype pos=0;
+        while((pos=source.svg.indexOf('<',pos))>=0){const auto end=source.svg.indexOf('>',pos);if(end<0)break;const auto element=QStringView(source.svg).mid(pos,end-pos+1);auto path=scale.map(parseGlyph(element));if(!path.isEmpty())parts.append({path,attribute(element,QLatin1String("opacity"),1.0)});pos=end+1;}
+        set.parts.insert(int(glyph),parts);if(!set.canonicalNames.contains(int(glyph)))set.canonicalNames.insert(int(glyph),source.name);
+        set.names.insert(source.name,glyph);if(!set.order.contains(glyph))set.order.append(glyph);
+    }
+    glyphSets().insert(id,set);pixmapCache().clear();
+}
+
 QString glyphName(Glyph glyph)
 {
+    if(const auto* set=glyphSetFor(nullptr)){if(set->canonicalNames.contains(int(glyph)))return set->canonicalNames.value(int(glyph));}
     const GlyphDef* def = definitionFor(glyph);
     return def ? QString::fromLatin1(def->name) : QString();
 }
 
-Glyph glyphFromName(const QString& name)
+Glyph glyphFromName(const QString& name,const QWidget* context)
 {
+    if(const auto* set=glyphSetFor(context)){auto found=set->names.constFind(name);if(found!=set->names.constEnd())return found.value();}
     for (const GlyphDef& def : kGlyphs) {
         if (name == QLatin1String(def.name)) {
             return def.glyph;
@@ -472,8 +509,9 @@ Glyph glyphFromName(const QString& name)
     return Glyph::None;
 }
 
-QVector<Glyph> allGlyphs()
+QVector<Glyph> allGlyphs(const QWidget* context)
 {
+    if(const auto* set=glyphSetFor(context))return set->order;
     QVector<Glyph> glyphs;
     glyphs.reserve(static_cast<int>(std::size(kGlyphs)));
     for (const GlyphDef& def : kGlyphs) {
@@ -482,8 +520,9 @@ QVector<Glyph> allGlyphs()
     return glyphs;
 }
 
-const QPainterPath& glyphPath(Glyph glyph)
+const QPainterPath& glyphPath(Glyph glyph,const QWidget* context)
 {
+    if(const auto* set=glyphSetFor(context)){auto found=set->paths.constFind(int(glyph));if(found!=set->paths.constEnd())return found.value();}
     QHash<int, QPainterPath>& cache = pathCache();
     const int key = static_cast<int>(glyph);
     const auto cached = cache.constFind(key);
@@ -496,12 +535,14 @@ const QPainterPath& glyphPath(Glyph glyph)
 }
 
 void paintGlyph(QPainter* painter, Glyph glyph, const QRectF& box, const QColor& color,
-                double rotationDeg)
+                double rotationDeg, double strokeWidth,const QWidget* context)
 {
     if (!painter || glyph == Glyph::None || box.isEmpty()) {
         return;
     }
-    const QPainterPath& path = glyphPath(glyph);
+    if(!context)context=dynamic_cast<const QWidget*>(painter->device());
+    const QPainterPath& path = glyphPath(glyph,context);
+    const auto* family=glyphSetFor(context);if(family&&!family->paths.contains(int(glyph)))family=nullptr;
     if (path.isEmpty()) {
         return;
     }
@@ -523,24 +564,25 @@ void paintGlyph(QPainter* painter, Glyph glyph, const QRectF& box, const QColor&
     painter->translate(-kViewBox / 2.0, -kViewBox / 2.0);
 
     QPen pen(color);
-    pen.setWidthF(kStrokeWidth);
+    pen.setWidthF((strokeWidth>0.0?strokeWidth:family?family->strokeWidth:kStrokeWidth)*(family?24.0/family->viewBox:1.0));
     pen.setCapStyle(Qt::RoundCap);
     pen.setJoinStyle(Qt::RoundJoin);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
-    painter->drawPath(path);
+    if(family){for(const auto& part:family->parts.value(int(glyph))){painter->save();painter->setOpacity(painter->opacity()*part.second);painter->drawPath(part.first);painter->restore();}}
+    else painter->drawPath(path);
     painter->restore();
 }
 
 QPixmap glyphPixmap(Glyph glyph, int size, const QColor& color, qreal devicePixelRatio,
-                    double rotationDeg)
+                    double rotationDeg,const QWidget* context)
 {
     if (size <= 0) {
         return {};
     }
     const qreal ratio = devicePixelRatio > 0.0 ? devicePixelRatio : qApp->devicePixelRatio();
     const int step = rotationStep(rotationDeg);
-    const QString key = pixmapKey(glyph, size, color, ratio, step);
+    const QString key = themeFor(context).icons.family+QStringLiteral("|")+pixmapKey(glyph, size, color, ratio, step);
 
     QHash<QString, QPixmap>& cache = pixmapCache();
     const auto cached = cache.constFind(key);
@@ -554,22 +596,22 @@ QPixmap glyphPixmap(Glyph glyph, int size, const QColor& color, qreal devicePixe
     {
         QPainter painter(&pixmap);
         paintGlyph(&painter, glyph, QRectF(0, 0, size, size), color,
-                   step * 360.0 / kRotationSteps);
+                   step * 360.0 / kRotationSteps,0.0,context);
     }
     cache.insert(key, pixmap);
     return pixmap;
 }
 
-QIcon glyphIcon(Glyph glyph, int size, const QColor& color)
+QIcon glyphIcon(Glyph glyph, int size, const QColor& color,const QWidget* context)
 {
     QIcon icon;
-    icon.addPixmap(glyphPixmap(glyph, size, color), QIcon::Normal);
+    icon.addPixmap(glyphPixmap(glyph, size, color,0.0,0.0,context), QIcon::Normal);
     // Qt's own disabled rendering desaturates towards grey, which on a dark
     // surface produces a glyph *lighter* than the enabled one. Supplying the
     // faded version keeps a disabled control reading as disabled.
     QColor faded = color;
     faded.setAlphaF(color.alphaF() * 0.42);
-    icon.addPixmap(glyphPixmap(glyph, size, faded), QIcon::Disabled);
+    icon.addPixmap(glyphPixmap(glyph, size, faded,0.0,0.0,context), QIcon::Disabled);
     return icon;
 }
 

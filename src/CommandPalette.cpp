@@ -101,6 +101,176 @@ private:
 
 } // namespace
 
+// ══════════════════════════════════════════════════════════════════════════
+//  the field that opens it
+// ══════════════════════════════════════════════════════════════════════════
+namespace {
+
+// `.omni{gap:8px; padding:0 10px}`, `.omni svg{14x14}`.
+constexpr int kOmniPaddingH = 10;
+constexpr int kOmniGap = 8;
+constexpr int kOmniGlyph = 13;
+
+} // namespace
+
+CommandField::CommandField(const QString& prompt, QWidget* parent)
+    : QAbstractButton(parent)
+    , m_prompt(prompt)
+{
+    setCursor(Qt::PointingHandCursor);
+    // Nothing is typed here, so nothing is focused here: a focus ring on a
+    // control that accepts no text says it is a field when it is a door.
+    setFocusPolicy(Qt::NoFocus);
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    setFixedHeight(themeFor(this).controlHeight(ControlSize::Small));
+}
+
+void CommandField::setPrompt(const QString& prompt)
+{
+    if (m_prompt == prompt) {
+        return;
+    }
+    m_prompt = prompt;
+    updateGeometry();
+    update();
+}
+
+QKeySequence CommandField::shortcut() const
+{
+    return QAbstractButton::shortcut();
+}
+
+void CommandField::setShortcut(const QKeySequence& shortcut)
+{
+    setShortcutHint(shortcut);
+    QAbstractButton::setShortcut(shortcut);
+}
+void CommandField::setShortcutHint(const QKeySequence& shortcut)
+{
+    QAbstractButton::setShortcut({});
+    if (shortcut.isEmpty()) {
+        delete m_cap;
+        m_cap = nullptr;
+    } else {
+        if (!m_cap) {
+            m_cap = new KeyCap(shortcut, this);
+            // The cap is a label on the door, not a second door: a press
+            // anywhere on the field is the same press.
+            m_cap->setAttribute(Qt::WA_TransparentForMouseEvents);
+        } else {
+            m_cap->setKeys(shortcut);
+        }
+        m_cap->show();
+    }
+    layOutCap();
+    updateGeometry();
+    update();
+}
+
+QRect CommandField::capRect() const
+{
+    if (!m_cap) {
+        return QRect();
+    }
+    const QSize cap = m_cap->sizeHint();
+    return QRect(width() - kOmniPaddingH - cap.width(), (height() - cap.height()) / 2,
+                 cap.width(), cap.height());
+}
+
+void CommandField::layOutCap()
+{
+    if (m_cap) {
+        m_cap->setGeometry(capRect());
+    }
+}
+
+QSize CommandField::sizeHint() const
+{
+    const QFontMetrics metrics(roleFont(this, TypeRole::Caption));
+    int width = kOmniPaddingH + kOmniGlyph + kOmniGap
+        + metrics.horizontalAdvance(m_prompt) + kOmniPaddingH;
+    if (m_cap) {
+        width += kOmniGap + m_cap->sizeHint().width();
+    }
+    // Inside its own bounds. The titlebar places this one by hand rather than
+    // through a layout, and a hand-placed widget is sized from its hint -- so
+    // a hint that ignored `setFixedWidth` would quietly ignore the width the
+    // design states (`.omni{max-width:460px}`).
+    return QSize(qBound(minimumWidth(), width, maximumWidth()), height());
+}
+
+QSize CommandField::minimumSizeHint() const
+{
+    int width = 2 * kOmniPaddingH + kOmniGlyph + kOmniGap;
+    if (m_cap) {
+        width += kOmniGap + m_cap->sizeHint().width();
+    }
+    return QSize(width, height());
+}
+
+void CommandField::paintEvent(QPaintEvent*)
+{
+    const ThemeProfile& profile = themeFor(this);
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    // `.omni{background:var(--bg); border:1px solid var(--hair)}` -- the page
+    // ground, not a panel: the field reads as a well cut into the titlebar.
+    const QRectF box = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
+    const double radius = profile.radius(SurfaceRole::Input);
+    painter.setPen(QPen(underMouse() ? profile.colors.borderHover
+                                     : profile.colors.border, 1));
+    painter.setBrush(underMouse() ? profile.colors.surfaceHover
+                                  : profile.colors.panelBg);
+    painter.drawRoundedRect(box, radius, radius);
+
+    paintGlyph(&painter, Glyph::Search,
+               QRectF(kOmniPaddingH, (height() - kOmniGlyph) / 2.0, kOmniGlyph,
+                      kOmniGlyph),
+               profile.colors.textDisabled);
+
+    const int left = kOmniPaddingH + kOmniGlyph + kOmniGap;
+    const QRect cap = capRect();
+    const int right = cap.isEmpty() ? width() - kOmniPaddingH : cap.left() - kOmniGap;
+
+    QFont font = roleFont(this, TypeRole::Body);
+    font.setPixelSize(profile.type.sm);
+    painter.setFont(font);
+    painter.setPen(profile.colors.textDisabled);
+    const QRect text(left, 0, qMax(0, right - left), height());
+    painter.drawText(text, Qt::AlignVCenter | Qt::AlignLeft,
+                     painter.fontMetrics().elidedText(m_prompt, Qt::ElideRight,
+                                                      text.width()));
+}
+
+void CommandField::resizeEvent(QResizeEvent* event)
+{
+    QAbstractButton::resizeEvent(event);
+    layOutCap();
+}
+
+void CommandField::enterEvent(QEnterEvent* event)
+{
+    QAbstractButton::enterEvent(event);
+    update();
+}
+
+void CommandField::leaveEvent(QEvent* event)
+{
+    QAbstractButton::leaveEvent(event);
+    update();
+}
+
+bool CommandField::event(QEvent* event)
+{
+    if (event->type() == ThemeChangeEvent::type()) {
+        setFixedHeight(themeFor(this).controlHeight(ControlSize::Small));
+        layOutCap();
+        update();
+    }
+    return QAbstractButton::event(event);
+}
+
 CommandPalette::CommandPalette(QWidget* parent)
     : QWidget(parent)
 {
@@ -533,7 +703,8 @@ void CommandPalette::paintEvent(QPaintEvent*)
     painter.drawRoundedRect(card, style.radius, style.radius);
 
     painter.setPen(QPen(profile.colors.borderSubtle, 1));
-    painter.drawLine(0, kInputHeight, width(), kInputHeight);
+    paintHairline(&painter, QPoint(0, kInputHeight), QPoint(width() - 1, kInputHeight),
+                  painter.pen().color(), qMax(1, painter.pen().width()));
 
     if (m_matches.isEmpty()) {
         QFont font = rowFont(this, false);

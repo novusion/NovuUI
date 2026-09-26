@@ -47,6 +47,8 @@ QWidget* buildEmptyState(const PreviewContext& ctx)
     auto* page = new QWidget(ctx.parent);
     QVBoxLayout* column = previewPage(page);
 
+    auto* actionable=new EmptyState(Glyph::Design,"No screens","Create the first screen to begin.",page);
+    actionable->actions()->addWidget(primaryButton("New screen",actionable));column->addWidget(actionable);
     const QString longText = ctx.data->text(QStringLiteral("long_text"));
 
     {

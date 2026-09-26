@@ -120,6 +120,7 @@ private:
     void applyWindowFlags();
     void applyTheme();
     void applyNativeFrame();
+    void applyWindowMask();
     void syncStateFromWindow();
 
     QWidget* m_window = nullptr;
@@ -183,6 +184,15 @@ class ToolWindow : public AppWindow
 
 public:
     explicit ToolWindow(QWidget* parent = nullptr);
+    // Collapse to the title bar while retaining the content and restore size.
+    void setRolled(bool rolled);
+    bool isRolled() const { return m_rolled; }
+protected:
+    void keyPressEvent(QKeyEvent* event) override;
+private:
+    bool m_rolled=false;
+    QSize m_unrolledSize,m_unrolledMinimum,m_unrolledMaximum;
+
 };
 
 // Every Novu dialog: Settings, Confirm, Import, Error, Create/Edit,

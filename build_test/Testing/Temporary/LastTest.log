@@ -1,0 +1,78 @@
+Start testing: Sep 26 08:51 Central Europe Daylight Time
+----------------------------------------------------------
+1/5 Testing: window_chrome
+1/5 Test: window_chrome
+Command: "J:/Github/NovuUI/build_test/tests/Release/tst_window_chrome.exe"
+Directory: J:/Github/NovuUI/build_test/tests
+"window_chrome" start time: Sep 26 08:51 Central Europe Daylight Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"window_chrome" end time: Sep 26 08:51 Central Europe Daylight Time
+"window_chrome" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/5 Testing: popover_dismissal
+2/5 Test: popover_dismissal
+Command: "J:/Github/NovuUI/build_test/tests/Release/tst_popover_dismissal.exe"
+Directory: J:/Github/NovuUI/build_test/tests
+"popover_dismissal" start time: Sep 26 08:51 Central Europe Daylight Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"popover_dismissal" end time: Sep 26 08:51 Central Europe Daylight Time
+"popover_dismissal" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/5 Testing: card_interaction
+3/5 Test: card_interaction
+Command: "J:/Github/NovuUI/build_test/tests/Release/tst_card_interaction.exe"
+Directory: J:/Github/NovuUI/build_test/tests
+"card_interaction" start time: Sep 26 08:51 Central Europe Daylight Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.07 sec
+----------------------------------------------------------
+Test Passed.
+"card_interaction" end time: Sep 26 08:51 Central Europe Daylight Time
+"card_interaction" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/5 Testing: widget_editor
+4/5 Test: widget_editor
+Command: "J:/Github/NovuUI/build_test/tests/Release/tst_widget_editor.exe"
+Directory: J:/Github/NovuUI/build_test/tests
+"widget_editor" start time: Sep 26 08:51 Central Europe Daylight Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"widget_editor" end time: Sep 26 08:51 Central Europe Daylight Time
+"widget_editor" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/5 Testing: gallery
+5/5 Test: gallery
+Command: "J:/Github/NovuUI/build_test/tests/Release/tst_gallery.exe"
+Directory: J:/Github/NovuUI/build_test/tests
+"gallery" start time: Sep 26 08:51 Central Europe Daylight Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =  16.70 sec
+----------------------------------------------------------
+Test Passed.
+"gallery" end time: Sep 26 08:52 Central Europe Daylight Time
+"gallery" time elapsed: 00:00:16
+----------------------------------------------------------
+
+End testing: Sep 26 08:52 Central Europe Daylight Time

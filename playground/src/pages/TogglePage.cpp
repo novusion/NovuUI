@@ -167,6 +167,24 @@ QWidget* buildSegmented(const PreviewContext& ctx)
 
     // ── glyphs ───────────────────────────────────────────────────────────
     {
+        Card* card = exampleCard(page, QStringLiteral("Rail switcher"),
+                                 QStringLiteral("The shared panel-face variant used by "
+                                                "Properties | Screen and every matching rail."));
+        QVBoxLayout* body = card->body();
+        auto* rail = new QWidget(card);
+        rail->setFixedWidth(320);
+        auto* railRow = new QHBoxLayout(rail);
+        railRow->setContentsMargins(10, 9, 10, 8);
+        auto* faces = new Segmented({QStringLiteral("Properties"), QStringLiteral("Screen")},
+                                    rail);
+        faces->setVariant(Segmented::Variant::RailSwitcher);
+        faces->setEnabled(!disabledScenario);
+        railRow->addWidget(faces);
+        body->addWidget(rail, 0, Qt::AlignLeft);
+        column->addWidget(card);
+    }
+
+    {
         Card* card = exampleCard(page, QStringLiteral("Glyphs"),
                                  QStringLiteral("The same control with icons instead of "
                                                 "words — not a second class."));

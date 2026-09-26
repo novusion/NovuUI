@@ -78,11 +78,14 @@ public:
     // `.kb-g` — the tracked uppercase caption over a set of rows.
     void addGroup(const QString& title);
     // `.kb-r` — a description and the keys that reach it.
-    void addShortcut(const QString& label, const QString& keys);
+    void addShortcut(const QString& label, const QString& keys,const QString& note = {});
     void addShortcut(const QString& label, const QKeySequence& sequence);
     void clear();
 
     int rowCount() const;
+    int visibleRowCount() const;
+    void setCompact(bool compact) { m_compact=compact;updateGeometry();update(); }
+    void setEmptyText(const QString& text) { m_emptyText=text;updateGeometry();update(); }
     int groupCount() const;
 
     // Only the rows whose label or keys contain `query`, groups that end up
@@ -106,6 +109,7 @@ private:
         QString label;
         QStringList caps;
         QString keys;
+        QString note;
     };
 
     QVector<Entry> visibleEntries() const;
@@ -113,6 +117,8 @@ private:
 
     QVector<Entry> m_entries;
     QString m_filter;
+    QString m_emptyText;
+    bool m_compact=false;
 };
 
 // Draws one chord at `right`, right-aligned, vertically centred in `box`, and

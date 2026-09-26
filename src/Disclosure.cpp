@@ -33,6 +33,8 @@ constexpr int kBlockPaddingTop = 8;
 constexpr int kBlockPaddingBottom = 6;
 constexpr int kBlockGap = 7;
 constexpr int kBlockChevron = 11;
+// `.disclose .cv svg{stroke-width:2.2}`.
+constexpr double kChevronStroke = 2.2;
 
 // `.sb-add { width:18px; height:18px; border-radius:5px }`
 constexpr int kActionSide = 18;
@@ -63,7 +65,8 @@ QFont headerFont(const QWidget* context, Disclosure::Variant variant)
         return font;
     }
     QFont font = roleFont(context, TypeRole::Body);
-    font.setPixelSize(profile.type.sm);
+    // `.disclose{font-size:12.5px}` - the `md` step, not `sm`.
+    font.setPixelSize(profile.type.md);
     return font;
 }
 
@@ -479,8 +482,11 @@ void Disclosure::paintEvent(QPaintEvent*)
     // a shut one.
     const QRectF chevron(left, (header.height() - chevronSide) / 2.0,
                          chevronSide, chevronSide);
+    // `.disclose .cv svg{stroke-width:2.2}` and `.sb-bhead .cv svg` the same:
+    // a disclosure is a control, and the icon set's own 1.7 draws it as a
+    // hairline at this size.
     paintGlyph(&painter, Glyph::ChevronDown, chevron, ink,
-               kShutAngle * (1.0 - m_chevron));
+               kShutAngle * (1.0 - m_chevron), kChevronStroke);
 
     int x = static_cast<int>(chevron.right()) + kInlineGap;
     int rightEdge = width() - right;
@@ -541,7 +547,7 @@ void Disclosure::paintEvent(QPaintEvent*)
                                    textBox.width()));
 
     // The focus ring, drawn last so it is never under the plate.
-    if (hasFocus()) {
+    if (hasFocus() && !focusRingSuppressed(this)) {
         painter.setPen(QPen(profile.colors.accent, profile.border(BorderRole::Focus)));
         painter.setBrush(Qt::NoBrush);
         const double radius = m_variant == Variant::Block ? profile.radii.small + 3

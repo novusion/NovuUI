@@ -50,13 +50,26 @@ public:
     // A plaque names a thing; a circle names a party. The shape is the whole
     // of the difference, and getting it the wrong way round is how a chat
     // transcript ends up looking like a list of applications.
-    enum class Shape { Plaque, Round };
+    //
+    // Gem is the third: the Novusion family mark itself -- an isometric cube
+    // of three faces, drawn in three tints of the profile's accent. It is not
+    // a plate with something on it, so it carries no glyph and no initials.
+    // Every product in the family wears it, and wears it in its own accent:
+    // that is the whole point of a family mark, and it is why the tints are
+    // derived from the profile rather than listed per application.
+    enum class Shape { Plaque, Round, Gem };
 
-    // Who, rather than what state. `.avatar`, `.avatar.acc`, `.avatar.agent`.
+    // What the mark stands for. `.avatar`, `.avatar.acc`, `.avatar.agent`.
+    //
+    // Three of these name a party and the fourth names a condition, which is
+    // deliberate: the design's failed-page mark is the same plaque in the
+    // danger ink, and a caller that had to reach for a raw colour to draw it
+    // would be the one place in a screen where a colour is not a token.
     enum class Tone {
         Neutral,  // a person, or a thing with no identity of its own
         Accent,   // the current user, or this application
         Agent,    // an AI participant — the design's violet, and its own colour
+        Danger,   // a thing that failed — `.bpage .mark` on an error page
     };
 
     explicit AppMark(Glyph glyph, QWidget* parent = nullptr, Size size = Size::Medium);

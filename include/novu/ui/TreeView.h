@@ -107,6 +107,16 @@ public:
     Mark mark(const QString& id) const;
     void setNodeEnabled(const QString& id, bool enabled);
 
+    // A node whose children are fetched on demand - a drive or a folder in
+    // a file picker, most often - has none yet when it is added, and with
+    // no way to say so it drew exactly like an empty one: no chevron, no
+    // way to open it at all. This states the chevron anyway; the actual
+    // children still arrive the normal way, added from an expandToggled()
+    // handler once the caller has them. Never needed for a node children
+    // were added to up front, which already shows its chevron.
+    void setNodeExpandable(const QString& id, bool expandable);
+    bool isNodeExpandable(const QString& id) const;
+
     // ── state ────────────────────────────────────────────────────────────
     bool isExpanded(const QString& id) const;
     void setExpanded(const QString& id, bool expanded);
@@ -131,6 +141,12 @@ public:
     // test into a search.
     bool isCompact() const { return m_compact; }
     void setCompact(bool compact);
+    void setRowHeight(int height);
+    void setBranchesVisible(bool visible) { m_branchesVisible=visible;viewport()->update(); }
+    void setGuidesVisible(bool visible) { m_guidesVisible=visible;viewport()->update(); }
+    void setMeta(const QString& id,const QString& text);
+    QString meta(const QString& id) const;
+
 
     StyleSpec styleSpec() const;
     StyleSpec rowStyleSpec(int row) const;
@@ -161,6 +177,7 @@ private:
         QStringList children;
         QString label;
         QString tag;
+        QString meta;
         Badge::Tone tagTone = Badge::Tone::Neutral;
         QVector<Glyph> marks;
         Glyph glyph = Glyph::None;
@@ -170,7 +187,14 @@ private:
         int depth = 0;
         bool expanded = false;
         bool enabled = true;
+        // See setNodeExpandable() - true says a chevron belongs here even
+        // while children is still empty.
+        bool expandable = false;
     };
+
+    // Whether a chevron belongs on this node at all - real children, or a
+    // caller stating there will be some once it has asked for them.
+    static bool canExpand(const Node& entry);
 
     void rebuildRows();
     void flatten(const QString& id, int depth);
@@ -193,6 +217,8 @@ private:
     int m_pressed = -1;
     bool m_pressedChevron = false;
     bool m_compact = false;
+    bool m_branchesVisible=true,m_guidesVisible=true;
+    int m_rowHeight=0;
 };
 
 } // namespace novu::ui

@@ -10,6 +10,7 @@
 #include "novu/ui/Segmented.h"
 #include "novu/ui/Separator.h"
 #include "novu/ui/Sidebar.h"
+#include "novu/ui/Splitter.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
 
@@ -26,7 +27,7 @@ namespace {
 
 void fillWorkspaces(NavList* nav)
 {
-    nav->addSection(QStringLiteral("Workspaces"));
+    nav->addSection(QStringLiteral("Workspaces"), QStringLiteral("sec.workspaces"));
     nav->addItem(QStringLiteral("ws.novusion"), QStringLiteral("Novusion"), Glyph::Folder);
     nav->setExpandable(QStringLiteral("ws.novusion"), true);
     nav->setExpanded(QStringLiteral("ws.novusion"), true);
@@ -45,7 +46,7 @@ void fillWorkspaces(NavList* nav)
     nav->addItem(QStringLiteral("ws.archive"), QStringLiteral("Archive 2024"), Glyph::Archive);
     nav->setStatus(QStringLiteral("ws.archive"), StatusDot::Tone::Neutral);
 
-    nav->addSection(QStringLiteral("System"));
+    nav->addSection(QStringLiteral("System"), QStringLiteral("sec.system"));
     nav->addItem(QStringLiteral("sys.activity"), QStringLiteral("Activity"), Glyph::Activity);
     nav->addItem(QStringLiteral("sys.diagnostics"), QStringLiteral("Diagnostics"),
                  Glyph::Diagnostics);
@@ -171,6 +172,124 @@ QWidget* buildNavList(const PreviewContext& ctx)
              QStringLiteral("Labels, counts, twisties and captions all go; the glyphs centre "
                             "and the active marker stays, because at this width the marker is "
                             "the only thing distinguishing the current row from a hovered one."));
+        column->addWidget(card);
+    }
+
+    // ── captions that shut ───────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Sections that collapse"),
+                                 QStringLiteral("A caption with a twisty, and the "
+                                                "level under it."));
+        QVBoxLayout* body = card->body();
+
+        auto* nav = new NavList(card);
+        nav->addSection(QStringLiteral("Modules"), QStringLiteral("sec-modules"));
+        nav->setSectionCollapsible(QStringLiteral("sec-modules"), true);
+        nav->addSection(QStringLiteral("Core"), QStringLiteral("sec-core"));
+        nav->setSectionCollapsible(QStringLiteral("sec-core"), true);
+        nav->addItem(QStringLiteral("summary"), QStringLiteral("Summary"), Glyph::Overview);
+        nav->addItem(QStringLiteral("chat"), QStringLiteral("Chat"), Glyph::Chat);
+        nav->setCount(QStringLiteral("chat"), 5);
+        nav->addSection(QStringLiteral("Workspaces"), QStringLiteral("sec-ws"));
+        nav->setSectionCollapsible(QStringLiteral("sec-ws"), true);
+        nav->setSectionAction(QStringLiteral("sec-ws"), Glyph::Plus,
+                              QStringLiteral("New workspace"));
+        nav->addItem(QStringLiteral("grp"), QStringLiteral("UNGROUPED"), Glyph::Folder);
+        nav->setExpandable(QStringLiteral("grp"), true);
+        nav->setExpanded(QStringLiteral("grp"), true);
+        nav->addChild(QStringLiteral("ws1"), QStringLiteral("Pokec"), Glyph::Workspace);
+        nav->addChild(QStringLiteral("ws2"), QStringLiteral("Local_Models"),
+                      Glyph::Workspace);
+        nav->setBadge(QStringLiteral("ws2"), QStringLiteral("Missing"),
+                      NavList::CountTone::Alert);
+        nav->setCurrentKey(QStringLiteral("chat"));
+        body->addWidget(nav);
+
+        note(body, card,
+             QStringLiteral("A caption with a key folds without being asked to. It was "
+                            "opt-in, and of the four modules sharing this rail exactly "
+                            "one remembered to opt in — which is how one component came "
+                            "to behave four ways in one window."));
+        note(body, card,
+             QStringLiteral("setSectionCollapsible() and setSectionAction() looked "
+                            "their caption up through indexOfKey(), which skips "
+                            "captions so setCurrentKey() cannot land on one — so both "
+                            "searched for a row that could not be found and silently "
+                            "did nothing, in every application that called them."));
+        note(body, card,
+             QStringLiteral("A caption directly under another caption is a heading "
+                            "and its first group, not two things being separated, so "
+                            "it takes a step rather than the full section gap. And a "
+                            "word can go where a count would: `Missing` says what a "
+                            "warning dot cannot."));
+        column->addWidget(card);
+    }
+
+    // ── the four states, at once ─────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Both folds, side by side"),
+                                 QStringLiteral("A caption and a twisty are "
+                                                "different states of different "
+                                                "things."));
+        QVBoxLayout* body = card->body();
+
+        // Same content four times, so the only difference on screen is which
+        // fold is shut. Anything that reads differently between two of these
+        // is a defect, not a variant.
+        const struct { const char* caption; bool section; bool tree; } states[] = {
+            {"Both open", true, true},
+            {"Group shut", true, false},
+            {"Caption shut", false, true},
+            {"Caption shut, group open underneath", false, true},
+        };
+
+        QHBoxLayout* row = exampleRow(body, card, QStringLiteral("States"));
+        for (const auto& state : states) {
+            auto* holder = new QWidget(card);
+            auto* stack = new QVBoxLayout(holder);
+            stack->setContentsMargins(0, 0, 0, 0);
+            stack->setSpacing(6);
+            stack->addWidget(label(QString::fromLatin1(state.caption), holder,
+                                   TypeRole::Eyebrow, Ink::Muted));
+
+            auto* nav = new NavList(holder);
+            nav->addSection(QStringLiteral("Workspaces"), QStringLiteral("sec"));
+            nav->setSectionAction(QStringLiteral("sec"), Glyph::Plus,
+                                  QObject::tr("New workspace"));
+            nav->addItem(QStringLiteral("ws"), QStringLiteral("Novusion"), Glyph::Folder);
+            nav->setExpandable(QStringLiteral("ws"), true);
+            nav->setExpanded(QStringLiteral("ws"), state.tree);
+            nav->addChild(QStringLiteral("ws.docs"), QStringLiteral("Documents"));
+            nav->setCount(QStringLiteral("ws.docs"), 128);
+            nav->addChild(QStringLiteral("ws.mail"), QStringLiteral("Mail"));
+            nav->setCount(QStringLiteral("ws.mail"), 7, NavList::CountTone::Alert);
+            nav->addItem(QStringLiteral("archive"), QStringLiteral("Archive 2024"),
+                         Glyph::Archive);
+            nav->addSection(QStringLiteral("System"), QStringLiteral("sec2"));
+            nav->addItem(QStringLiteral("settings"), QStringLiteral("Settings"),
+                         Glyph::Settings);
+            nav->setCurrentKey(QStringLiteral("ws.docs"));
+            nav->setSectionExpanded(QStringLiteral("sec"), state.section);
+            nav->setFixedWidth(206);
+
+            stack->addWidget(nav, 0, Qt::AlignTop);
+            stack->addStretch(1);
+            row->addWidget(holder, 0, Qt::AlignTop);
+        }
+        row->addStretch(1);
+
+        note(body, card,
+             QStringLiteral("The last two carry the same data and differ only in what "
+                            "the caption was told, which is the point: shutting "
+                            "WORKSPACES does not forget which workspace was open "
+                            "inside it, and reopening it finds the tree as it was "
+                            "left. The list owns both folds — an application supplies "
+                            "rows and is not asked to hide any of them."));
+        note(body, card,
+             QStringLiteral("The current row keeps its selection through every fold, "
+                            "including one that takes it off screen. A rail that loses "
+                            "the page you are on because you tidied a group above it "
+                            "is the defect this replaces."));
         column->addWidget(card);
     }
 
@@ -303,6 +422,160 @@ QWidget* buildSidebar(const PreviewContext& ctx)
                             "does not forget which workspaces were open inside it. The plus "
                             "beside a caption adds to the block rather than collapsing it, "
                             "because it is hit-tested before the header is."));
+        column->addWidget(card);
+    }
+
+    // ── a second, independent scrolling region ───────────────────────────
+    {
+        Card* card = exampleCard(
+            page, QStringLiteral("A rail with two regions"),
+            QStringLiteral("One shared scroll area meant a long tree crowded out "
+                           "the block underneath it. A Splitter the user can drag "
+                           "settles how much of the rail goes to which."));
+        QVBoxLayout* body = card->body();
+
+        auto* rail = new Sidebar(card);
+        rail->setIdentity(Glyph::Folder, QStringLiteral("NovuExplorer"),
+                          QStringLiteral("v0.99.5"));
+        rail->setFixedHeight(600);
+
+        NavList* workspaces = rail->nav();
+        workspaces->addSection(QStringLiteral("Workspaces"), QStringLiteral("sec.ws"));
+        const struct { const char* name; int count; } spaces[] = {
+            {"General", 2}, {"Novu", 26}, {"Boldbrick", 2}, {"Esanti", 1},
+        };
+        for (const auto& space : spaces) {
+            const QString key = QString::fromLatin1(space.name).toLower();
+            workspaces->addItem(key, QString::fromLatin1(space.name), Glyph::Workspace);
+            workspaces->setCount(key, space.count);
+        }
+        workspaces->addItem(QStringLiteral("autotelic"), QStringLiteral("Autotelic"),
+                            Glyph::Workspace);
+        workspaces->setCount(QStringLiteral("autotelic"), 4);
+        workspaces->setExpandable(QStringLiteral("autotelic"), true);
+        workspaces->setExpanded(QStringLiteral("autotelic"), true);
+        const char* subcategories[] = {"General", "Dodge", "VAS_Vehicles", "New category"};
+        for (const char* sub : subcategories) {
+            workspaces->addChild(QStringLiteral("autotelic.")
+                                     + QString::fromLatin1(sub).toLower(),
+                                 QString::fromLatin1(sub));
+        }
+        workspaces->setCurrentKey(QStringLiteral("autotelic.vas_vehicles"));
+
+        QVBoxLayout* hubNav = rail->secondaryNavigation();
+        NavList* hub = new NavList(rail->secondaryNavigationWidget());
+        hub->addSection(QStringLiteral("Hub"), QStringLiteral("sec.hub"));
+        hub->addItem(QStringLiteral("share"), QStringLiteral("Send / Share"), Glyph::Link);
+        hub->setCount(QStringLiteral("share"), 5);
+        hub->addSection(QStringLiteral("Quick access"), QStringLiteral("sec.quick"));
+        hub->setSectionAction(QStringLiteral("sec.quick"), Glyph::Plus,
+                              QObject::tr("Add to quick access"));
+        hub->addItem(QStringLiteral("downloads"), QStringLiteral("Downloads"), Glyph::Star);
+        hub->addItem(QStringLiteral("documents"), QStringLiteral("Documents"), Glyph::Star);
+        hub->addItem(QStringLiteral("music"), QStringLiteral("Music"), Glyph::Star);
+        hubNav->insertWidget(hubNav->count() - 1, hub);
+        // The component's own default favours a long tree over a short Hub
+        // block, which is the common case - this example's own two lists
+        // are closer in length, so it starts from a balanced split instead
+        // of demonstrating its own default's worst case.
+        rail->navigationSplitter()->setSizes({260, 260});
+
+        QHBoxLayout* row = exampleRow(body, card, QStringLiteral("Rail"));
+        row->addWidget(rail, 0, Qt::AlignTop);
+
+        auto* swap = new Button(QStringLiteral("Swap order"), Button::Variant::Secondary,
+                                card);
+        swap->setControlSize(ControlSize::Small);
+        QObject::connect(swap, &Button::clicked, rail, [rail] {
+            rail->setNavigationOrderSwapped(!rail->isNavigationOrderSwapped());
+        });
+        row->addWidget(swap, 0, Qt::AlignTop);
+        row->addStretch(1);
+
+        note(body, card,
+             QStringLiteral("Drag the handle between Workspaces and Hub - it is a real "
+                            "Splitter, with the same collapse arrows every other one in "
+                            "NovuUI has, so either region can be put away entirely "
+                            "without losing its place. Swap order moves the stacking "
+                            "only; each region keeps its own content and its own scroll "
+                            "position."));
+        column->addWidget(card);
+    }
+
+    // ── the same rail, both widths ───────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("The same rail, both widths"),
+                                 QStringLiteral("Identity, transport, sections, "
+                                                "tree, badges, selection — and "
+                                                "what survives the narrowing."));
+        QVBoxLayout* body = card->body();
+
+        QHBoxLayout* row = exampleRow(body, card, QStringLiteral("Widths"));
+        for (bool collapsed : {false, true}) {
+            auto* holder = new QWidget(card);
+            auto* stack = new QVBoxLayout(holder);
+            stack->setContentsMargins(0, 0, 0, 0);
+            stack->setSpacing(6);
+            stack->addWidget(label(collapsed ? QStringLiteral("COLLAPSED")
+                                             : QStringLiteral("EXPANDED"),
+                                   holder, TypeRole::Eyebrow, Ink::Muted));
+
+            auto* rail = new Sidebar(holder);
+            rail->setIdentity(Glyph::Trades, QStringLiteral("Trade"),
+                              QStringLiteral("NovuTrade v0.67.11"));
+            rail->setFixedHeight(400);
+
+            ConnectionStrip* strip = rail->connection();
+            strip->setHost(QStringLiteral("api.kraken.com"));
+            strip->setDetail(QStringLiteral("38 ms"));
+
+            NavList* nav = rail->nav();
+            nav->addSection(QStringLiteral("Now"), QStringLiteral("sec.now"));
+            nav->addItem(QStringLiteral("overview"), QStringLiteral("Overview"),
+                         Glyph::Overview);
+            nav->addItem(QStringLiteral("portfolio"), QStringLiteral("Portfolio"),
+                         Glyph::Wallet);
+            nav->addSection(QStringLiteral("Trading"), QStringLiteral("sec.trading"));
+            nav->setSectionBadge(QStringLiteral("sec.trading"), QStringLiteral("4"));
+            nav->addItem(QStringLiteral("bots"), QStringLiteral("Bots"), Glyph::Bots);
+            nav->setExpandable(QStringLiteral("bots"), true);
+            nav->setExpanded(QStringLiteral("bots"), true);
+            nav->setStatus(QStringLiteral("bots"), StatusDot::Tone::Success);
+            nav->addChild(QStringLiteral("bots.grid"), QStringLiteral("Grid BTC"));
+            nav->addChild(QStringLiteral("bots.dca"), QStringLiteral("DCA ETH"));
+            nav->setBadge(QStringLiteral("bots.dca"), QStringLiteral("Paused"),
+                          NavList::CountTone::Alert);
+            nav->addItem(QStringLiteral("trades"), QStringLiteral("Trades"), Glyph::Trades);
+            nav->setCount(QStringLiteral("trades"), 12);
+            nav->addItem(QStringLiteral("positions"), QStringLiteral("Positions"),
+                         Glyph::Positions);
+            nav->setCount(QStringLiteral("positions"), 2, NavList::CountTone::Alert);
+            nav->addSection(QStringLiteral("Module"), QStringLiteral("sec.module"));
+            nav->addItem(QStringLiteral("settings"), QStringLiteral("Trade settings"),
+                         Glyph::Settings);
+            nav->setCurrentKey(QStringLiteral("bots.grid"));
+            // A fold that is already shut before the rail narrows, so the two
+            // states can be seen not to be the same state.
+            nav->setSectionExpanded(QStringLiteral("sec.module"), false);
+            rail->setCollapsed(collapsed);
+
+            stack->addWidget(rail, 0, Qt::AlignTop);
+            stack->addStretch(1);
+            row->addWidget(holder, 0, Qt::AlignTop);
+        }
+        row->addStretch(1);
+
+        note(body, card,
+             QStringLiteral("Collapsed, the head keeps its mark and loses its words, the "
+                            "transport becomes its light alone, captions and counts go, "
+                            "and the glyphs centre. What does not go is state: MODULE is "
+                            "still shut and the current row is still the current row, so "
+                            "coming back finds the rail as it was left."));
+        note(body, card,
+             QStringLiteral("These are two independent systems. The rail's width is one "
+                            "question; whether a caption or a twisty is open is another, "
+                            "asked per group. Collapsing the rail answers neither of the "
+                            "others, and folding a group does not narrow anything."));
         column->addWidget(card);
     }
 

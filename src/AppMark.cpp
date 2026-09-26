@@ -41,6 +41,41 @@ constexpr int kAvatarSide = 26;
 const QColor kAgentHue(QStringLiteral("#8B6FD4"));
 const QColor kAgentInk(QStringLiteral("#C9B6F5"));
 
+// The family mark, in its own 48x48 space: a left face, a right face and a
+// top face. The numbers are the design's own polygons; only the tints are
+// resolved, so a NovuHub gem and a NovuAI gem are one drawing.
+void paintGem(QPainter* painter, const QRectF& box, const QColor& accent)
+{
+    static const QPointF kLeft[] = {{23.58, 23.76}, {23.58, 10.74},
+                                    {12.30, 17.25}, {12.30, 30.27}};
+    static const QPointF kRight[] = {{24.42, 23.76}, {24.42, 10.74},
+                                     {35.70, 17.25}, {35.70, 30.27}};
+    static const QPointF kTop[] = {{24.00, 24.49}, {35.27, 31.00},
+                                   {24.00, 37.51}, {12.73, 31.00}};
+
+    const double scale = box.width() / 48.0;
+    painter->save();
+    painter->translate(box.topLeft());
+    painter->scale(scale, scale);
+    painter->setPen(Qt::NoPen);
+
+    // One hue, three faces: the light the cube is under is the only thing
+    // that separates them, so they are mixes of the accent rather than three
+    // colours a profile would have to keep in step.
+    const auto mix = [](const QColor& a, const QColor& b, double t) {
+        return QColor(int(a.red() + (b.red() - a.red()) * t),
+                      int(a.green() + (b.green() - a.green()) * t),
+                      int(a.blue() + (b.blue() - a.blue()) * t));
+    };
+    painter->setBrush(mix(accent, QColor(0, 0, 0), 0.22));
+    painter->drawPolygon(kLeft, 4);
+    painter->setBrush(accent);
+    painter->drawPolygon(kRight, 4);
+    painter->setBrush(mix(accent, QColor(255, 255, 255), 0.33));
+    painter->drawPolygon(kTop, 4);
+    painter->restore();
+}
+
 int sideFor(AppMark::Size size)
 {
     switch (size) {
@@ -190,6 +225,10 @@ StyleSpec AppMark::styleSpec() const
         spec.background = token(ColorRole::Accent, 0.16);
         spec.border = token(ColorRole::Accent, 0.45);
         spec.foreground = token(ColorRole::Accent);
+    } else if (m_tone == Tone::Danger) {
+        spec.background = statusToken(SemanticRole::Danger, ColorRole::StatusText, 0.13);
+        spec.border = statusToken(SemanticRole::Danger, ColorRole::StatusText, 0.45);
+        spec.foreground = statusToken(SemanticRole::Danger, ColorRole::StatusText);
     }
 
     spec.radius = SurfaceRole::Card;
@@ -221,6 +260,13 @@ void AppMark::paintEvent(QPaintEvent*)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
+    // The family mark is the drawing, not something drawn on a plate, so it
+    // takes none of the plate's fill, outline or ink.
+    if (m_shape == Shape::Gem) {
+        paintGem(&painter, QRectF(0, 0, edge, edge), profile.colors.accent);
+        return;
+    }
+
     const QRectF plate = QRectF(0, 0, edge, edge)
                              .adjusted(borderWidth / 2.0, borderWidth / 2.0,
                                        -borderWidth / 2.0, -borderWidth / 2.0);
@@ -245,6 +291,11 @@ void AppMark::paintEvent(QPaintEvent*)
         outline = withAlpha(kAgentHue, 0.50);
         ink = kAgentInk;
         break;
+    case Tone::Danger:
+        fill = withAlpha(profile.semantic.danger.text, 0.13);
+        outline = withAlpha(profile.semantic.danger.text, 0.45);
+        ink = profile.semantic.danger.text;
+        break;
     case Tone::Neutral:
         break;
     }
@@ -258,8 +309,11 @@ void AppMark::paintEvent(QPaintEvent*)
         // raised. A toned mark is a flat tint instead, because a gradient under
         // a colour reads as a gradient in that colour.
         QLinearGradient ground(plate.topLeft(), plate.bottomRight());
-        ground.setColorAt(0.0, profile.colors.panelBg);
-        ground.setColorAt(1.0, profile.colors.panelBgAlt);
+        // `--panel` to `--card`: the two surfaces above the page ground, not
+        // the page ground itself - a plaque mixed from panelBg sits a step too
+        // dark and stops reading as raised against the card it is on.
+        ground.setColorAt(0.0, profile.colors.panelBgAlt);
+        ground.setColorAt(1.0, profile.colors.surfaceHover);
         painter.setBrush(ground);
     }
     painter.drawRoundedRect(plate, radius, radius);

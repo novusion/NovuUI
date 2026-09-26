@@ -1,6 +1,7 @@
 #pragma once
 
 #include "novu/ui/Icon.h"
+#include "novu/ui/StyleSpec.h"
 #include "novu/ui/ThemeProfile.h"
 
 #include <QAbstractButton>
@@ -37,6 +38,14 @@ public:
         // header, anywhere a border would draw a box around the window's own
         // furniture.
         Ghost,
+        // The design's `.winbtn`: a title bar control. The same 30x24 box and
+        // 6px radius the three window controls use, no border in any state,
+        // and the panel surface under the pointer - which is what makes the
+        // theme toggle beside Minimize read as one row of controls rather
+        // than as a toolbar dropped onto the bar. Distinct from Ghost, which
+        // grows an outline on hover and takes the control height of the
+        // product rather than the window chrome's own box.
+        Chrome,
     };
 
     explicit IconButton(Glyph glyph, QWidget* parent = nullptr);
@@ -56,6 +65,11 @@ public:
     bool isDestructive() const { return m_destructive; }
     void setDestructive(bool destructive);
 
+    // A favourite can use a filled semantic glyph without a selected plate.
+    void setCheckedGlyphStyle(ColorToken ink,bool filled=true,bool plate=false){m_checkedInk=ink;m_checkedFilled=filled;m_checkedPlate=plate;m_ownChecked=true;update();}
+    void setGlyphSize(int pixels){m_glyphSize=pixels;update();}
+    // An icon-only ordinary action uses the button family's box.
+    void setActionPlate(bool enabled){m_actionPlate=enabled;updateGeometry();update();}
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override { return sizeHint(); }
 
@@ -71,6 +85,10 @@ private:
     ControlSize m_size = ControlSize::Medium;
     bool m_destructive = false;
     bool m_hovered = false;
+    bool m_ownChecked=false,m_checkedFilled=false,m_checkedPlate=true;
+    ColorToken m_checkedInk;
+    int m_glyphSize=0;
+    bool m_actionPlate=false;
 };
 
 // The row action every table offers: small, ghost, one glyph. A named factory

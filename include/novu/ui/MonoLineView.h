@@ -4,6 +4,7 @@
 
 #include <QAbstractScrollArea>
 #include <QFont>
+#include <QSize>
 
 namespace novu::ui {
 
@@ -52,6 +53,33 @@ public:
     StyleSpec styleSpec() const;
     ResolvedStyle resolvedStyle() const;
 
+    // ── sizing ───────────────────────────────────────────────────────────
+    //
+    // A scroll area has no height of its own: it takes whatever a layout
+    // gives it, which is right for a log filling a panel and wrong for the
+    // other half of the cases. A diff quoted inside a chat turn, a log inside
+    // a card, a manifest under a file row -- each is as tall as what it holds
+    // and scrolls only past a cap, and a column cannot lay that out unless
+    // the view says how tall it is.
+    //
+    // Left to do it themselves, callers multiply rowHeight() by rowCount()
+    // and add the padding, which is this class's own arithmetic written a
+    // second time -- and written without the leading, which is the part that
+    // differs between a log and a diff.
+
+    // What the rows need, padding included, whatever the viewport is.
+    int contentHeight() const;
+
+    // Report contentHeight() as the size hint, up to `maxRows` (0 = no cap);
+    // past the cap the view scrolls as before. Off by default: a view that
+    // fills a panel should keep filling it.
+    void setFitToContent(bool fit, int maxRows = 0);
+    bool fitsContent() const { return m_fitToContent; }
+    int maxVisibleRows() const { return m_maxRows; }
+
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
+
 protected:
     explicit MonoLineView(QWidget* parent = nullptr);
 
@@ -89,6 +117,9 @@ protected:
 
 private:
     void updateScrollRange(bool keepAtEnd);
+
+    bool m_fitToContent = false;
+    int m_maxRows = 0;
 };
 
 } // namespace novu::ui

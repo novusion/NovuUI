@@ -64,35 +64,23 @@ QWidget* barWithActions(QWidget* parent, const QString& title)
     bar->setMaximizable(true);
     bar->setWindowActive(true);
 
-    // `.winbtn{width:30px;height:24px}` in the approved design - the same box
-    // WindowControlButton already draws Minimize/Maximize/Close at, and every
-    // one of these three shares that CSS class with them. IconButton does not
-    // know this on its own: it is deliberately square, sized from the
-    // profile's own ControlSize scale, because that is right everywhere else
-    // it is used - a toolbar, a panel header. Only in a title bar's trailing
-    // row does it have to match a neighbour it was not designed next to, so
-    // the caller pins it to that neighbour's box rather than TitleBar
-    // reaching into a widget it does not own to resize it.
-    const WindowTokens& chromeTokens = themeFor(bar).window;
-    const QSize winbtnBox(chromeTokens.controlWidth, chromeTokens.controlHeight);
-
-    // Ghost, not Outlined: chrome furniture takes no plate until the pointer
-    // arrives, so the bar reads as one surface rather than a toolbar dropped
-    // onto it. This is IconButton's own stated reason for the variant.
-    auto* theme = new IconButton(Glyph::Sun, IconButton::Variant::Ghost, bar);
-    theme->setFixedSize(winbtnBox);
+    // `.winbtn`: the same 30x24 box and 6px radius WindowControlButton already
+    // draws Minimize/Maximize/Close at, so the theme toggle, the menu button
+    // and the sidebar toggle read as one row of controls rather than a
+    // toolbar dropped onto the bar. IconButton's own Chrome variant is this
+    // exact case - see its own doc - so the caller no longer has to reach in
+    // and pin a Ghost button's size and hope its radius happens to agree.
+    auto* theme = new IconButton(Glyph::Sun, IconButton::Variant::Chrome, bar);
     theme->setToolTip(QStringLiteral("Toggle theme"));
     theme->setCheckable(true);
     QObject::connect(theme, &IconButton::toggled, theme, [theme](bool on) {
         theme->setGlyph(on ? Glyph::Moon : Glyph::Sun);
     });
 
-    auto* menu = new IconButton(Glyph::More, IconButton::Variant::Ghost, bar);
-    menu->setFixedSize(winbtnBox);
+    auto* menu = new IconButton(Glyph::More, IconButton::Variant::Chrome, bar);
     menu->setToolTip(QStringLiteral("Application menu"));
 
-    auto* sidebar = new IconButton(Glyph::Sidebar, IconButton::Variant::Ghost, bar);
-    sidebar->setFixedSize(winbtnBox);
+    auto* sidebar = new IconButton(Glyph::Sidebar, IconButton::Variant::Chrome, bar);
     sidebar->setToolTip(QStringLiteral("Show or hide the sidebar"));
     sidebar->setCheckable(true);
     sidebar->setChecked(true);
@@ -104,6 +92,8 @@ QWidget* barWithActions(QWidget* parent, const QString& title)
     divider->setLength(18);
 
     bar->setTrailing({theme, menu, sidebar, divider});
+    auto* command=label(QStringLiteral("Search workspace or run a command"),bar,TypeRole::Caption,Ink::Muted);
+    bar->setCentre(command);bar->setCentrePosition(1.0/3.0);
     return bar;
 }
 
@@ -170,6 +160,9 @@ void openReferenceTool(const QString& profileId)
     window->setAttribute(Qt::WA_DeleteOnClose);
     ThemeScope::apply(window, profileId);
     window->setTitle(QStringLiteral("Detached panel"));
+    auto* roll=new IconButton(Glyph::Minus,IconButton::Variant::Ghost,window);roll->setToolTip("Roll or restore the tool window");window->titleBar()->setTrailing({roll});
+    QObject::connect(roll,&IconButton::clicked,window,[window]{window->setRolled(!window->isRolled());});
+
     window->setIcon(brandMarkIcon(themeFor(window).window.iconSize, window));
 
     auto* body = new QWidget(window->content());

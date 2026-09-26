@@ -40,6 +40,8 @@ class Segmented : public ItemStrip
     Q_OBJECT
 
 public:
+    enum class Variant { Natural, RailSwitcher };
+
     explicit Segmented(QWidget* parent = nullptr);
     // The common case in one line, since a picker almost always knows its
     // options up front.
@@ -63,6 +65,21 @@ public:
 
     ControlSize controlSize() const { return m_size; }
     void setControlSize(ControlSize size);
+
+    // A panel-face switcher in a rail/header. This is the shared visual used
+    // by Properties | Screen: full available width, medium metrics and equal
+    // segments. Keeping it as a variant prevents each product screen from
+    // rebuilding the same contract with three independent setter calls.
+    Variant variant() const { return m_variant; }
+    void setVariant(Variant variant);
+
+    // The segments divide the tray between them instead of each taking the
+    // width of its own label -- `.seg button{flex:1}`, which is what a rail
+    // head wants: two faces of one panel read as two halves of one control,
+    // not as a short word beside a long one. Off by default, so a toolbar
+    // picker still sizes to its labels.
+    void setFill(bool fill);
+    bool fills() const { return m_fill; }
 
     // The inspection seam: the tray's own contract, and one segment's.
     StyleSpec styleSpec() const;
@@ -108,6 +125,8 @@ private:
 
     QVector<Segment> m_segments;
     ControlSize m_size = ControlSize::Medium;
+    bool m_fill = false;
+    Variant m_variant = Variant::Natural;
 };
 
 } // namespace novu::ui

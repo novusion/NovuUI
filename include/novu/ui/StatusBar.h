@@ -1,5 +1,6 @@
 #pragma once
 
+#include "novu/ui/Icon.h"
 #include "novu/ui/StatusDot.h"
 #include "novu/ui/StyleSpec.h"
 
@@ -56,6 +57,13 @@ public:
     int addStatus(const QString& text, StatusDot::Tone tone, Slot slot = Slot::Leading);
     int addSeparator(Slot slot = Slot::Leading);
 
+    // A leading mark on an item. The approved strips name what a reading is
+    // about before they give it -- a branch in front of the branch, a cog in
+    // front of the memory figure, an arrow in front of Push -- and an item
+    // that could not carry one left every caller to fake it with a character
+    // in the string.
+    void setItemGlyph(int id, Glyph glyph);
+
     // By handle. Setting the text of a separator does nothing rather than
     // asserting: a caller that stores handles in an array and updates them in a
     // loop should not have to special-case the dividers.
@@ -105,6 +113,7 @@ private:
         Slot slot = Slot::Leading;
         QString text;
         StatusDot::Tone tone = StatusDot::Tone::Neutral;
+        Glyph glyph = Glyph::None;
         bool visible = true;
         // Filled during paint, so itemRect() answers about what is on screen
         // rather than about what a second measuring pass would compute.
@@ -114,6 +123,8 @@ private:
     const Entry* find(int handle) const;
     Entry* find(int handle);
     int entryWidth(const Entry& entry) const;
+    QRect paintEntryGlyph(QPainter* painter, const Entry& entry,
+                          const QRect& box, const QColor& ink) const;
     void layoutTrailing();
     void layoutLeading();
 

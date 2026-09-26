@@ -170,6 +170,42 @@ QWidget* build(const PreviewContext& ctx)
         column->addWidget(card);
     }
 
+    // ── quoted inline ────────────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Quoted inline"),
+                                 QStringLiteral("A patch inside a column, as tall "
+                                                "as the patch."));
+        QVBoxLayout* body = card->body();
+
+        auto* quoted = new DiffView(card);
+        quoted->setUnifiedDiff(QString::fromLatin1(kSample));
+        quoted->setShowLineNumbers(false);
+        quoted->setFitToContent(true, 8);
+        body->addWidget(quoted);
+
+        body->addWidget(label(QStringLiteral("%1 rows · row height %2 · content %3 · "
+                                             "hint %4, capped at 8 rows")
+                                  .arg(quoted->rowCount())
+                                  .arg(quoted->rowHeight())
+                                  .arg(quoted->contentHeight())
+                                  .arg(quoted->sizeHint().height()),
+                              card, TypeRole::Mono, Ink::Muted));
+
+        note(body, card,
+             QStringLiteral("A scroll area has no height of its own, which is right for a "
+                            "log filling a panel and wrong for a patch quoted in a chat "
+                            "turn or a manifest under a file row. setFitToContent() makes "
+                            "the view report what its rows need, and the cap is the point "
+                            "past which a quotation stops being one and starts scrolling."));
+        note(body, card,
+             QStringLiteral("The row height is the font size times the design's "
+                            "line-height, 1.65 here and 1.75 for a log. Multiplying the "
+                            "font's metric height instead — ascent plus descent plus "
+                            "leading — adds about a third to every row, in every "
+                            "application at once."));
+        column->addWidget(card);
+    }
+
     column->addStretch(1);
     return page;
 }
@@ -189,7 +225,7 @@ ComponentSpec diffViewComponent()
     spec.sourcePath = QStringLiteral("src/DiffView.cpp");
     spec.designedFor = {QStringLiteral("novuai")};
     spec.usedBy = {};
-    spec.variants = {QStringLiteral("Context"), QStringLiteral("Added"),
+    spec.variants = {QStringLiteral("Fit to content"), QStringLiteral("Context"), QStringLiteral("Added"),
                      QStringLiteral("Removed"), QStringLiteral("Hunk"),
                      QStringLiteral("File")};
     spec.states = {QStringLiteral("With line numbers"), QStringLiteral("Without")};

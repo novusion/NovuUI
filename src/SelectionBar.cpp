@@ -186,7 +186,8 @@ void SelectionBar::paintEvent(QPaintEvent*)
     painter.fillRect(rect(), style.background);
 
     painter.setPen(QPen(style.border, qMax(1, profile.border(BorderRole::Divider))));
-    painter.drawLine(0, 0, width(), 0);
+    paintHairline(&painter, QPoint(0, 0), QPoint(width() - 1, 0),
+                  painter.pen().color(), qMax(1, painter.pen().width()));
 
     const QFont font = countFont(this);
     const QFontMetrics fm(font);

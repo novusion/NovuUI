@@ -1,6 +1,8 @@
 #include "novu/ui/Layout.h"
+#include "novu/ui/Text.h"
 
 #include "novu/ui/StyleSheet.h"
+#include "novu/ui/StyleSpec.h"
 #include "novu/ui/ThemeManager.h"
 
 #include <QFont>
@@ -20,10 +22,7 @@ QLabel* roleLabel(QWidget* parent, const QString& text, TypeRole role, const QCo
     const ThemeProfile& profile = themeFor(parent);
     const TypeStyle style = profile.text(role);
     auto* label = new QLabel(text, parent);
-    QFont font = label->font();
-    font.setPixelSize(style.size);
-    font.setWeight(static_cast<QFont::Weight>(style.weight));
-    label->setFont(font);
+    label->setFont(roleFont(label, role));
     QPalette palette = label->palette();
     palette.setColor(QPalette::WindowText, colour);
     label->setPalette(palette);
@@ -90,12 +89,29 @@ QVBoxLayout* pageLayout(QWidget* page)
     const ThemeProfile& profile = themeFor(page);
     auto* layout = new QVBoxLayout(page);
     const int padding = profile.space(SpacingRole::PagePadding);
-    // Tighter at the top than at the sides. The page header is the first
-    // thing under the window chrome and the full page padding above it left
-    // the title floating; the approved design insets it by one step less.
-    layout->setContentsMargins(padding, profile.spacing.lg, padding, padding);
+    // `.page-body{padding:16px 20px 22px}` - three numbers, not one. Tighter
+    // at the top because the page header is already above it; looser at the
+    // bottom so the last card does not sit on the status bar. A profile that
+    // states neither keeps the single padding it always had.
+    const int top = profile.roleSpacing.value(
+        static_cast<int>(SpacingRole::PagePaddingTop), profile.spacing.lg);
+    const int bottom = profile.roleSpacing.value(
+        static_cast<int>(SpacingRole::PagePaddingBottom), padding);
+    layout->setContentsMargins(padding, top, padding, bottom);
     layout->setSpacing(profile.space(SpacingRole::CardGap));
     return layout;
+}
+
+void fillScrollViewport(QScrollArea* area, ColorRole role)
+{
+    if (!area) {
+        return;
+    }
+    QWidget* viewport = area->viewport();
+    QPalette palette = viewport->palette();
+    palette.setColor(QPalette::Window, token(role).resolve(themeFor(area)));
+    viewport->setPalette(palette);
+    viewport->setAutoFillBackground(true);
 }
 
 QVBoxLayout* scrollPage(QWidget* page, QScrollArea** areaOut)
@@ -118,7 +134,8 @@ QVBoxLayout* scrollPage(QWidget* page, QScrollArea** areaOut)
     area->setObjectName(QLatin1String(name::scrollArea));
     area->setWidgetResizable(true);
     area->setFrameShape(QFrame::NoFrame);
-    area->viewport()->setAutoFillBackground(false);
+    // The page ground, painted: see fillScrollViewport().
+    fillScrollViewport(area);
 
     auto* content = new QWidget(area);
     content->setAutoFillBackground(false);

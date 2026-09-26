@@ -70,8 +70,9 @@ void SplitterHandle::setCollapseArrows(bool arrows)
 
 QSize SplitterHandle::sizeHint() const
 {
-    return orientation() == Qt::Horizontal ? QSize(kHandleThickness, 1)
-                                           : QSize(1, kHandleThickness);
+    const int thickness=splitter()->handleWidth();
+    return orientation() == Qt::Horizontal ? QSize(thickness, 1)
+                                           : QSize(1, thickness);
 }
 
 int SplitterHandle::positionAlong(const QPoint& point) const
@@ -171,7 +172,13 @@ void SplitterHandle::mousePressEvent(QMouseEvent* event)
         return;
     }
     m_pressedZone = -1;
-    QSplitterHandle::mousePressEvent(event);
+    // Qt expands sub-5px handles with invisible hit margins. The native
+    // drag offset must be relative to the visible handle, not that margin.
+    const QPoint inset=contentsRect().topLeft();
+    if(!inset.isNull()){
+        QMouseEvent adjusted(event->type(),event->position()-inset,event->globalPosition(),event->button(),event->buttons(),event->modifiers());
+        QSplitterHandle::mousePressEvent(&adjusted);
+    }else QSplitterHandle::mousePressEvent(event);
 }
 
 void SplitterHandle::mouseReleaseEvent(QMouseEvent* event)
@@ -298,15 +305,20 @@ void SplitterHandle::paintEvent(QPaintEvent*)
         const double tip = pointsToStart ? arrow.along - kArrowHalf : arrow.along + kArrowHalf;
         const double base = pointsToStart ? arrow.along + kArrowHalf : arrow.along - kArrowHalf;
 
+        // `horizontal` orientation lays the panels side by side, so the handle
+        // between them is a *vertical* bar and its arrows have to point
+        // sideways - left to collapse the left panel, right for the right one.
+        // These two branches drew the other axis: a horizontal splitter's
+        // arrows pointed up/down, which is what the panels next to it never do.
         QPolygonF triangle;
         if (horizontal) {
-            triangle << QPointF(centre - kArrowHalf, base)
-                     << QPointF(centre + kArrowHalf, base)
-                     << QPointF(centre, tip);
-        } else {
             triangle << QPointF(base, centre - kArrowHalf)
                      << QPointF(base, centre + kArrowHalf)
                      << QPointF(tip, centre);
+        } else {
+            triangle << QPointF(centre - kArrowHalf, base)
+                     << QPointF(centre + kArrowHalf, base)
+                     << QPointF(centre, tip);
         }
         painter.drawPolygon(triangle);
     }

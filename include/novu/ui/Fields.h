@@ -32,8 +32,21 @@ public:
     // market symbols above all.
     void setSearchable(bool searchable);
 
+    // The list is showing. Exposed because the closed and open states are
+    // drawn differently -- `.select.open` takes the accent border and turns
+    // its chevron over -- and a test should not have to look for a popup
+    // window to know which one is on screen.
+    bool isOpen() const { return m_open; }
+
 protected:
     void paintEvent(QPaintEvent* event) override;
+    void showPopup() override;
+    void hidePopup() override;
+
+private:
+    void setOpen(bool open);
+
+    bool m_open = false;
 };
 
 // A checkbox that says which mark it wants.

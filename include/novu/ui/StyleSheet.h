@@ -55,6 +55,12 @@ inline constexpr const char* size = "novuSize";
 // box or a text area, and still focuses and disables normally.
 inline constexpr const char* invalid = "novuInvalid";
 
+// A select whose list is showing. `.select.open{border-color:var(--acc)}` --
+// the open state is a border colour, so it is stated as a property and left
+// to the sheet rather than painted onto the widget, for the same reason
+// `invalid` is.
+inline constexpr const char* open = "novuOpen";
+
 } // namespace prop
 
 // Object names, for the few containers that must be addressed without a bare

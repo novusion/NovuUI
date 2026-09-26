@@ -1,6 +1,7 @@
 #pragma once
 
 #include "novu/ui/Card.h"
+#include "novu/ui/Icon.h"
 #include "novu/ui/Text.h"
 
 #include <QString>
@@ -26,7 +27,25 @@ public:
     void setValue(const QString& value, Ink tone = Ink::Default);
     void setCaption(const QString& caption);
 
+    // The glyph in front of the caption - `.stat .lab svg`, which every
+    // approved dashboard draws and which this card had no way to carry. None
+    // by default, so a card that never asked for one is unchanged.
+    Glyph glyph() const { return m_glyph; }
+    void setGlyph(Glyph glyph);
+
+    // Which type role the caption takes. The designs do not agree on it -
+    // NovuSpace's `.stat .lab` is mono, uppercase and tracked (Eyebrow) while
+    // a plain caption is neither - so it is the product's to state rather
+    // than this component's to decide.
+    TypeRole captionRole() const { return m_captionRole; }
+    void setCaptionRole(TypeRole role);
+
 private:
+    void applyCaption();
+
+    Glyph m_glyph = Glyph::None;
+    TypeRole m_captionRole = TypeRole::Caption;
+    QLabel* m_icon = nullptr;
     QLabel* m_caption = nullptr;
     QLabel* m_value = nullptr;
 };

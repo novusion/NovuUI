@@ -29,6 +29,8 @@ add_library(NovuUI STATIC
     include/novu/ui/IconButton.h
     include/novu/ui/Segmented.h
     include/novu/ui/SelectionBar.h
+    include/novu/ui/WidgetEditor.h
+    src/WidgetEditor.cpp
     include/novu/ui/Separator.h
     include/novu/ui/Settings.h
     include/novu/ui/StatusDot.h
@@ -40,6 +42,7 @@ add_library(NovuUI STATIC
     include/novu/ui/Style.h
     include/novu/ui/StyleSheet.h
     include/novu/ui/Text.h
+    include/novu/ui/AutoGridLayout.h
     include/novu/ui/FlowLayout.h
     include/novu/ui/DropTarget.h
     include/novu/ui/Swatch.h
@@ -55,10 +58,13 @@ add_library(NovuUI STATIC
     include/novu/ui/FeedbackForm.h
     include/novu/ui/GateCard.h
     include/novu/ui/HelpOverlay.h
+    include/novu/ui/AddressBar.h
     include/novu/ui/AppMark.h
     include/novu/ui/DiffView.h
     include/novu/ui/Disclosure.h
     include/novu/ui/Drawer.h
+    include/novu/ui/FilePicker.h
+    include/novu/ui/ItemList.h
     include/novu/ui/ItemStrip.h
     include/novu/ui/Keys.h
     include/novu/ui/LogView.h
@@ -71,11 +77,13 @@ add_library(NovuUI STATIC
     include/novu/ui/Sidebar.h
     include/novu/ui/Slider.h
     include/novu/ui/Splitter.h
+    include/novu/ui/SplashScreen.h
     include/novu/ui/StatusBar.h
     include/novu/ui/Tooltip.h
     include/novu/ui/Tile.h
     include/novu/ui/Toast.h
     include/novu/ui/TreeView.h
+    include/novu/ui/VirtualListView.h
     include/novu/ui/TitleBar.h
     include/novu/ui/WindowShell.h
     src/Theme.cpp
@@ -105,6 +113,7 @@ add_library(NovuUI STATIC
     src/Style.cpp
     src/StyleSheet.cpp
     src/Text.cpp
+    src/AutoGridLayout.cpp
     src/FlowLayout.cpp
     src/DropTarget.cpp
     src/Swatch.cpp
@@ -120,10 +129,13 @@ add_library(NovuUI STATIC
     src/FeedbackForm.cpp
     src/GateCard.cpp
     src/HelpOverlay.cpp
+    src/AddressBar.cpp
     src/AppMark.cpp
     src/DiffView.cpp
     src/Disclosure.cpp
     src/Drawer.cpp
+    src/FilePicker.cpp
+    src/ItemList.cpp
     src/ItemStrip.cpp
     src/Keys.cpp
     src/LogView.cpp
@@ -136,11 +148,13 @@ add_library(NovuUI STATIC
     src/Sidebar.cpp
     src/Slider.cpp
     src/Splitter.cpp
+    src/SplashScreen.cpp
     src/StatusBar.cpp
     src/Tooltip.cpp
     src/Tile.cpp
     src/Toast.cpp
     src/TreeView.cpp
+    src/VirtualListView.cpp
     src/TitleBar.cpp
     src/WindowShell.cpp
 )

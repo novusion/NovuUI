@@ -7,9 +7,11 @@
 #include "novu/ui/Button.h"
 #include "novu/ui/Card.h"
 #include "novu/ui/Feedback.h"
+#include "novu/ui/IconButton.h"
 #include "novu/ui/PageHeader.h"
 #include "novu/ui/Separator.h"
 #include "novu/ui/StatusBar.h"
+#include "novu/ui/TitleBar.h"
 #include "novu/ui/StyleSheet.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
@@ -145,9 +147,8 @@ QWidget* buildProductMark(const PreviewContext& ctx)
         note(body, card,
              QStringLiteral("Left and bottom are this profile's own textSecondary and "
                             "textDisabled - not a colour invented for the mark, the same "
-                            "tokens every other painted component reads. NovuVoice keeps the "
-                            "family stand-in because it has no approved mockup of its own yet, "
-                            "the same reason its accent is unresolved."));
+                            "tokens every other painted component reads. NovuVoice uses the "
+                            "muted rose stated by its approved brand mockup."));
         column->addWidget(card);
     }
 
@@ -344,6 +345,53 @@ QWidget* buildPageHeader(const PreviewContext& ctx)
              QStringLiteral("A one-segment path draws no trail and reserves no line for it. "
                             "The last header has its divider off, which is what a header "
                             "inside a card wants — the card already has an edge."));
+        column->addWidget(card);
+    }
+
+    // -- chrome button states ------------------------------------------------
+    {
+        Card* card = exampleCard(page, QStringLiteral("Title bar controls, state by state"),
+                                 QStringLiteral("`.winbtn` - one box and one hover plate "
+                                                "for the actions and the three controls "
+                                                "alike."));
+        QVBoxLayout* body = card->body();
+
+        const WindowTokens& w = themeFor(card).window;
+        const auto row = [&](const QString& caption, bool hover, bool pressed) {
+            QHBoxLayout* line = exampleRow(body, card, caption);
+            const QVector<Glyph> glyphs{Glyph::Sun, Glyph::More, Glyph::Sidebar};
+            for (const Glyph glyph : glyphs) {
+                auto* action = new IconButton(glyph, IconButton::Variant::Chrome, card);
+                action->setDown(pressed);
+                action->setAttribute(Qt::WA_UnderMouse, hover);
+                line->addWidget(action);
+            }
+            const QVector<WindowControlButton::Control> controls{
+                WindowControlButton::Control::Minimize,
+                WindowControlButton::Control::Maximize,
+                WindowControlButton::Control::Close};
+            for (const WindowControlButton::Control control : controls) {
+                auto* button = new WindowControlButton(control, card);
+                button->setWindowActive(true);
+                button->setDown(pressed);
+                button->setAttribute(Qt::WA_UnderMouse, hover);
+                line->addWidget(button);
+            }
+            line->addStretch(1);
+        };
+        row(QStringLiteral("Normal"), false, false);
+        row(QStringLiteral("Pressed"), false, true);
+
+        note(body, card,
+             QStringLiteral("All six are the same %1x%2 box with a %3px radius: "
+                            "`.winbtn{width:30px;height:24px;border-radius:6px}`. The "
+                            "actions are IconButton's Chrome variant, which carries no "
+                            "outline in any state and fills to the panel surface under "
+                            "the pointer - Ghost grows an outline and takes the product's "
+                            "control height instead, which gave the bar a hover plate its "
+                            "full height. Close is neutral until hovered, then the danger "
+                            "tint; hover over the row above to see both.")
+                 .arg(w.controlWidth).arg(w.controlHeight).arg(w.controlRadius));
         column->addWidget(card);
     }
 

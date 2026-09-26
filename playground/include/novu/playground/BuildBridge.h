@@ -1,10 +1,9 @@
 #pragma once
 
 #include <QObject>
+#include <QProcess>
 #include <QString>
 #include <QStringList>
-
-class QProcess;
 
 namespace novu::playground {
 
@@ -72,7 +71,7 @@ signals:
 
 private:
     void setState(BuildState state, const QString& detail);
-    void onFinished(int exitCode);
+    void onFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
     QProcess* m_process = nullptr;
     BuildState m_state = BuildState::Ready;

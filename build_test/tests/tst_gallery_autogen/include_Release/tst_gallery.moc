@@ -1,0 +1,884 @@
+/****************************************************************************
+** Meta object code from reading C++ file 'tst_gallery.cpp'
+**
+** Created by: The Qt Meta Object Compiler version 69 (Qt 6.10.3)
+**
+** WARNING! All changes made in this file will be lost!
+*****************************************************************************/
+
+#include <QtCore/qmetatype.h>
+
+#include <QtCore/qtmochelpers.h>
+
+#include <memory>
+
+
+#include <QtCore/qxptype_traits.h>
+#if !defined(Q_MOC_OUTPUT_REVISION)
+#error "The header file 'tst_gallery.cpp' doesn't include <QObject>."
+#elif Q_MOC_OUTPUT_REVISION != 69
+#error "This file was generated using the moc from 6.10.3. It"
+#error "cannot be used with the include files from this version of Qt."
+#error "(The moc has changed too much.)"
+#endif
+
+#ifndef Q_CONSTINIT
+#define Q_CONSTINIT
+#endif
+
+QT_WARNING_PUSH
+QT_WARNING_DISABLE_DEPRECATED
+QT_WARNING_DISABLE_GCC("-Wuseless-cast")
+namespace {
+struct qt_meta_tag_ZN11GalleryTestE_t {};
+} // unnamed namespace
+
+template <> constexpr inline auto GalleryTest::qt_create_metaobjectdata<qt_meta_tag_ZN11GalleryTestE_t>()
+{
+    namespace QMC = QtMocConstants;
+    QtMocHelpers::StringRefStorage qt_stringData {
+        "GalleryTest",
+        "chipTokenIsNotAToggle",
+        "",
+        "navSectionApiReachesItsCaption",
+        "aNestedRowShowsItsLevelTheWayTheProfileSays",
+        "aSelectIsAButtonThatOpensItsMenu",
+        "aRaisedCardKeepsItsOutlineOnAPanel",
+        "segmentsCanShareTheTrayBetweenThem",
+        "theFamilyMarkIsOneDrawingInEveryAccent",
+        "paragraphAnswersForTheWidthItHas",
+        "monoLineViewFitsItsRowsWhenAsked",
+        "monoRowHeightIsTheDesignsLineHeight",
+        "commandFieldIsADoorNotAField",
+        "initTestCase",
+        "everyGlyphStaysInsideItsViewBox",
+        "curvedGlyphsResolveTheirCoordinatesInOrder",
+        "registryIsPopulated",
+        "componentIdsAreUnique",
+        "componentMetadataIsComplete",
+        "componentSourceFilesExist",
+        "categoriesAreOrdered",
+        "everyComponentBuildsInEveryScenario",
+        "everyComponentBuildsInEveryProfile",
+        "searchFindsComponents_data",
+        "searchFindsComponents",
+        "emptySearchReturnsEverything",
+        "everyComponentDeclaresItsApplications",
+        "declaredUsageIsMeasuredAndNotIntended",
+        "theCatalogueDescribesEveryComponent",
+        "theApplicationFilterNarrowsAndNothingElse",
+        "filteringByANonApplicationReturnsNothing",
+        "searchThatMatchesNothingReturnsNothing",
+        "scenarioKeysRoundTrip",
+        "unknownScenarioKeyFallsBackToNormal",
+        "sampleDataLoads",
+        "scenarioShapesRows",
+        "missingSampleDataDirectoryFailsGracefully",
+        "malformedSampleDataFailsGracefully",
+        "unknownSetReturnsNothing",
+        "feedbackRefusesAnIncompleteReport",
+        "feedbackSendsOnceAndOnlyOnce",
+        "feedbackFailureLetsTheUserRetry",
+        "feedbackAttachesNothingTheUserDidNotAgreeTo",
+        "feedbackDisablesLogsWhenTheHostHasNone",
+        "feedbackIgnoresAnAnswerItIsNotWaitingFor",
+        "helpOverlayLetsTheApplicationThrough",
+        "helpOverlayFollowsItsHost",
+        "helpOverlayDropsNotesWhoseTargetIsGone",
+        "helpOverlayTonesComeFromTheSharedPalette",
+        "novuTradeMatchesTheApprovedMockupTokens",
+        "applicationProfilesShareOnePalette",
+        "everyProfileSharesTheSemanticPalette",
+        "theOnlyStatusOverrideIsTheLightProfile",
+        "semanticColoursReadAgainstTheirOwnSurface",
+        "infoIsAStatusAndNotTheApplicationAccent",
+        "badgeTonesResolveThroughTheSharedPalette",
+        "aFamilyHueIsTheSameHueInEveryProduct",
+        "aTagPaletteDoesNotDuplicateSharedHues",
+        "chartSeriesAreEcosystemColoursAndNotStatusColours",
+        "metricTokensAreReadByTheComponentsThatDrawThem",
+        "onlyOneDropHighlightCanBeLitAtOnce",
+        "aDropHighlightReportsWhetherThePictureChanged",
+        "theTwoDropHighlightsAreDifferentWeights",
+        "translucentTokensKeepTheirAlphaInTheSheet",
+        "scrollBarsFollowTheMockup",
+        "scrollAreasAreNeverLeftUnstyled",
+        "themeSwitchingUsesTheRealThemeManager",
+        "themeOverlayIsRegisteredLive",
+        "themeOverlayCannotOverwriteABuiltinProfile",
+        "componentsKeepTokensRatherThanResolvedColours",
+        "theSameButtonResolvesDifferentlyPerProfile",
+        "aComponentsVisualContractIsReadableAsData",
+        "loopingAnimationsShareOneClock",
+        "theSharedClockRunsOnlyWhileSomethingIsAnimating",
+        "aBannerNeverSizesItselfToItsMessage",
+        "aOneLineBannerDoesNotBorrowTheWrappedLineSpacing",
+        "anItemListElidesBeforeItCrossesItsCardEdge",
+        "aSwitchTravelsRatherThanJumping",
+        "aPickerActsOnPressAndReleaseTogether",
+        "aFieldReportsWhatIsWrongWithItsControl",
+        "aFieldGivesItsControlTheFullHeightItAskedFor",
+        "aBottomPanelNeverDecidesWhetherItIsOpen",
+        "anAvatarDerivesItsInitialsAndItsColour",
+        "aSliderReportsWhereItsPartsAre",
+        "aSwatchAsksOneQuestionOrMany",
+        "aSettingsShellHoldsShapeAndNotSettings",
+        "settingsShellCollapsesItsNavigationThroughNavListsOwnMechanism",
+        "aFormsPrimaryActionEndsWhereItsFieldsEnd",
+        "switchingProfileMovesTheColoursAndNotTheContract",
+        "aProductOwnsItsAccentAndNothingElse",
+        "aLiveProfileEditReachesWidgetsAlreadyBuilt",
+        "aNavigationTreeIsOneWidgetAndNotThreeHundred",
+        "aNavRowsTwistyIsADifferentTargetFromTheRow",
+        "navigationSkipsCaptionsAndDisabledRows",
+        "aKeyedCaptionFoldsWithoutBeingAskedTo",
+        "aColumnStatesItsOwnFaceInkAndAlignment",
+        "aNoteWrapsCarriesAGlyphAndKeepsItsBoldLead",
+        "anUnderlinedTabStripIsNotADocumentStrip",
+        "aFloatingWindowCanAlwaysBeLeft",
+        "aTableIsAsTallAsItsRows",
+        "shuttingARowHidesTheRowsUnderIt",
+        "theThreeWaysToHideARowDoNotOverwriteEachOther",
+        "railCollapseAndSectionDisclosureAreSeparateStates",
+        "aFoldedCaptionSurvivesTheRailBeingRebuilt",
+        "thewholeCaptionFoldsItsBlockButThePlusDoesNot",
+        "bothStripsShareOneHitTestImplementation",
+        "moduleBarReservesEnoughWidthForItsOwnLabel",
+        "navListRowsNeverOverlapAcrossItsSupportedWidthRange",
+        "navListRowHeightIsTheSameForItemChildAndCurrent",
+        "navListMinimumWidthReflectsWhatItsWidestRowActuallyNeeds",
+        "navListCollapseRoundTripPreservesHierarchyAndSelection",
+        "navListBothFoldsGiveEquivalentRowsTheSameGeometry",
+        "aGlyphLessRowStillMarksItsPlaceOnACollapsedRail",
+        "navListSurvivesAContinuousWideNarrowCollapsedResizeCycle",
+        "aTypeRoleCarriesMoreThanAFont",
+        "aScrollAreaIsNotAHoleInTheWindow",
+        "aCardKeepsTheBodyMetricsItWasGiven",
+        "aHeaderlessCardPaysNoGapForItsHeader",
+        "anInlineHeaderIsOneRowRatherThanThree",
+        "anOutlinedButtonIsTransparentUntilHovered",
+        "anIconButtonMatchesAButtonsHeightAtTheSameControlSize",
+        "aTableDrawsRowRulesAndNoColumnRules",
+        "aTableIdentityAcceptsAClassificationBadge",
+        "anAccentedTableRowIsNotTheSameAsAnOrdinarySelection",
+        "aFlexibleColumnGivesWayBeforeTheTableScrolls",
+        "aTableToldNotToStretchKeepsItsNaturalWidth",
+        "columnsThatCompressAlikeCompressTogether",
+        "aContentColumnNeverElidesItsWidestCell",
+        "aClickedChromeControlDoesNotWearAFocusRing",
+        "aRowIsAtLeastAsTallAsWhatIsInIt",
+        "anAddressBarWeightsTheHostOverThePath",
+        "anEmptyStatesMarkReplacesItsGlyphAndBackAgain",
+        "anEmptyStatesActionsRowAppearsOnlyWhenFilled",
+        "anAccentedChipIsNotTheSameDrawingAsAPlainOne",
+        "aDisclosureHidesItsBodyWithoutForgettingIt",
+        "anActionInsideABlockDoesNotCollapseIt",
+        "chordsSplitIntoCapsAndLoneSeparatorsSurvive",
+        "aFilteredShortcutSheetDropsEmptyCaptions",
+        "statusBarItemsAreAddressedByHandle",
+        "aLogKeepsOnlyItsCap",
+        "aLogStopsFollowingWhenTheUserScrollsAway",
+        "aStoppedSpinnerReleasesTheClock",
+        "aSkeletonListIsOneWidgetWhateverItsLength",
+        "aSequencePastItsLastStepIsComplete",
+        "aTooltipResolvesAgainstTheWidgetItIsAbout",
+        "aSettingInErrorSaysSoInItsContract",
+        "aCollapsedRailCollapsesEveryListInIt",
+        "aRiskyChoiceIsWarningAndNotDanger",
+        "aRowActionWearsTheSameBorderAsAnyOtherButton",
+        "anActionPlateAndAChromeIconWearDifferentRadii",
+        "aSegmentIsNotAsRoundAsItsOwnTray",
+        "aComboBoxPopupRoundsAwayFromTheFieldItOpenedFrom",
+        "anAccentedRowDimsOnceItsListIsNotWhatHasFocus",
+        "aHoveredRowGreysWithoutHidingItsOwnText",
+        "theExtractedComponentsKeepTokensRatherThanColours",
+        "aMaskedValueDoesNotLeakItsLength",
+        "aTreeFlattensOnlyWhatIsOpen",
+        "aTreeChevronIsADifferentTargetFromTheRow",
+        "aLazyNodeShowsItsChevronBeforeItHasAnyChildren",
+        "aTreeRevealsANodeByOpeningItsAncestors",
+        "aTreeKeyboardWalksTheStructure",
+        "aDiffIsParsedRatherThanColouredByItsFirstCharacter",
+        "theLogAndTheDiffShareOneVirtualisation",
+        "aFloatingPanelCannotLeaveItsLayer",
+        "theLayerDecidesWhichPanelIsInFront",
+        "aRolledPanelKeepsWhatItHad",
+        "toastsStackToACapAndNoFurther",
+        "aToastHoldsWhileThePointerIsOnIt",
+        "aSelectionBarIsNotThereAtZero",
+        "aDialogHeadIsAddedOnceAndUpdatedAfter",
+        "anAvatarIsRoundAndAPlaqueIsNot",
+        "aCollapsedPanelComesBackAtTheWidthItHad",
+        "aSplitterArrowIsAButtonAndNotADragTarget",
+        "aTabCarriesItsColourAndStateThroughAReorder",
+        "aTabsCloseBoxIsItsOwnTarget",
+        "closingTheCurrentTabMovesToItsNeighbour",
+        "tabsShrinkTogetherRatherThanEachToItsOwnTitle",
+        "aLetteredTabKeepsItsMarkThroughAFailureOrASleep",
+        "aTabBarsTrailingWidgetTakesRoomFromTheTabs",
+        "anInactivePanelKeepsItsSelection",
+        "aCapacityBarColoursItselfAndAProgressBarDoesNot",
+        "anUnmeasuredReadingIsNotAMeasuredZero",
+        "bytesAreWrittenOneWay",
+        "aDrawerDimsWhatItIsAbout",
+        "aDrawerSlidesRatherThanSnapsIntoPlace",
+        "aBusyDialogDisablesItsWholeFooter",
+        "aFormErrorClearsBusyAndSitsAboveTheFooter",
+        "aPaletteFindsACommandByItsInitials",
+        "aPaletteRanksRatherThanMerelyFiltering",
+        "aGateCardNamesTheHostTheCredentialIsGoingTo",
+        "everyExtractedComponentIsInTheGallery",
+        "watcherSeesAFileCreatedAfterItStarted",
+        "watcherSeparatesSourceChangesFromDataChanges",
+        "shippedThemeOverlaysAllLoad",
+        "theBuildTreeExecutableIsNotTheOneHoldingTheLock",
+        "playgroundIsNotPartOfTheProductionTarget",
+        "productionSourcesDoNotReferenceThePlayground"
+    };
+
+    QtMocHelpers::UintData qt_methods {
+        // Slot 'chipTokenIsNotAToggle'
+        QtMocHelpers::SlotData<void()>(1, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'navSectionApiReachesItsCaption'
+        QtMocHelpers::SlotData<void()>(3, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aNestedRowShowsItsLevelTheWayTheProfileSays'
+        QtMocHelpers::SlotData<void()>(4, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aSelectIsAButtonThatOpensItsMenu'
+        QtMocHelpers::SlotData<void()>(5, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aRaisedCardKeepsItsOutlineOnAPanel'
+        QtMocHelpers::SlotData<void()>(6, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'segmentsCanShareTheTrayBetweenThem'
+        QtMocHelpers::SlotData<void()>(7, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'theFamilyMarkIsOneDrawingInEveryAccent'
+        QtMocHelpers::SlotData<void()>(8, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'paragraphAnswersForTheWidthItHas'
+        QtMocHelpers::SlotData<void()>(9, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'monoLineViewFitsItsRowsWhenAsked'
+        QtMocHelpers::SlotData<void()>(10, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'monoRowHeightIsTheDesignsLineHeight'
+        QtMocHelpers::SlotData<void()>(11, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'commandFieldIsADoorNotAField'
+        QtMocHelpers::SlotData<void()>(12, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'initTestCase'
+        QtMocHelpers::SlotData<void()>(13, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'everyGlyphStaysInsideItsViewBox'
+        QtMocHelpers::SlotData<void()>(14, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'curvedGlyphsResolveTheirCoordinatesInOrder'
+        QtMocHelpers::SlotData<void()>(15, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'registryIsPopulated'
+        QtMocHelpers::SlotData<void()>(16, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'componentIdsAreUnique'
+        QtMocHelpers::SlotData<void()>(17, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'componentMetadataIsComplete'
+        QtMocHelpers::SlotData<void()>(18, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'componentSourceFilesExist'
+        QtMocHelpers::SlotData<void()>(19, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'categoriesAreOrdered'
+        QtMocHelpers::SlotData<void()>(20, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'everyComponentBuildsInEveryScenario'
+        QtMocHelpers::SlotData<void()>(21, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'everyComponentBuildsInEveryProfile'
+        QtMocHelpers::SlotData<void()>(22, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'searchFindsComponents_data'
+        QtMocHelpers::SlotData<void()>(23, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'searchFindsComponents'
+        QtMocHelpers::SlotData<void()>(24, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'emptySearchReturnsEverything'
+        QtMocHelpers::SlotData<void()>(25, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'everyComponentDeclaresItsApplications'
+        QtMocHelpers::SlotData<void()>(26, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'declaredUsageIsMeasuredAndNotIntended'
+        QtMocHelpers::SlotData<void()>(27, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'theCatalogueDescribesEveryComponent'
+        QtMocHelpers::SlotData<void()>(28, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'theApplicationFilterNarrowsAndNothingElse'
+        QtMocHelpers::SlotData<void()>(29, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'filteringByANonApplicationReturnsNothing'
+        QtMocHelpers::SlotData<void()>(30, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'searchThatMatchesNothingReturnsNothing'
+        QtMocHelpers::SlotData<void()>(31, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'scenarioKeysRoundTrip'
+        QtMocHelpers::SlotData<void()>(32, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'unknownScenarioKeyFallsBackToNormal'
+        QtMocHelpers::SlotData<void()>(33, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'sampleDataLoads'
+        QtMocHelpers::SlotData<void()>(34, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'scenarioShapesRows'
+        QtMocHelpers::SlotData<void()>(35, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'missingSampleDataDirectoryFailsGracefully'
+        QtMocHelpers::SlotData<void()>(36, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'malformedSampleDataFailsGracefully'
+        QtMocHelpers::SlotData<void()>(37, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'unknownSetReturnsNothing'
+        QtMocHelpers::SlotData<void()>(38, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'feedbackRefusesAnIncompleteReport'
+        QtMocHelpers::SlotData<void()>(39, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'feedbackSendsOnceAndOnlyOnce'
+        QtMocHelpers::SlotData<void()>(40, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'feedbackFailureLetsTheUserRetry'
+        QtMocHelpers::SlotData<void()>(41, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'feedbackAttachesNothingTheUserDidNotAgreeTo'
+        QtMocHelpers::SlotData<void()>(42, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'feedbackDisablesLogsWhenTheHostHasNone'
+        QtMocHelpers::SlotData<void()>(43, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'feedbackIgnoresAnAnswerItIsNotWaitingFor'
+        QtMocHelpers::SlotData<void()>(44, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'helpOverlayLetsTheApplicationThrough'
+        QtMocHelpers::SlotData<void()>(45, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'helpOverlayFollowsItsHost'
+        QtMocHelpers::SlotData<void()>(46, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'helpOverlayDropsNotesWhoseTargetIsGone'
+        QtMocHelpers::SlotData<void()>(47, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'helpOverlayTonesComeFromTheSharedPalette'
+        QtMocHelpers::SlotData<void()>(48, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'novuTradeMatchesTheApprovedMockupTokens'
+        QtMocHelpers::SlotData<void()>(49, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'applicationProfilesShareOnePalette'
+        QtMocHelpers::SlotData<void()>(50, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'everyProfileSharesTheSemanticPalette'
+        QtMocHelpers::SlotData<void()>(51, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'theOnlyStatusOverrideIsTheLightProfile'
+        QtMocHelpers::SlotData<void()>(52, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'semanticColoursReadAgainstTheirOwnSurface'
+        QtMocHelpers::SlotData<void()>(53, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'infoIsAStatusAndNotTheApplicationAccent'
+        QtMocHelpers::SlotData<void()>(54, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'badgeTonesResolveThroughTheSharedPalette'
+        QtMocHelpers::SlotData<void()>(55, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aFamilyHueIsTheSameHueInEveryProduct'
+        QtMocHelpers::SlotData<void()>(56, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aTagPaletteDoesNotDuplicateSharedHues'
+        QtMocHelpers::SlotData<void()>(57, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'chartSeriesAreEcosystemColoursAndNotStatusColours'
+        QtMocHelpers::SlotData<void()>(58, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'metricTokensAreReadByTheComponentsThatDrawThem'
+        QtMocHelpers::SlotData<void()>(59, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onlyOneDropHighlightCanBeLitAtOnce'
+        QtMocHelpers::SlotData<void()>(60, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aDropHighlightReportsWhetherThePictureChanged'
+        QtMocHelpers::SlotData<void()>(61, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'theTwoDropHighlightsAreDifferentWeights'
+        QtMocHelpers::SlotData<void()>(62, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'translucentTokensKeepTheirAlphaInTheSheet'
+        QtMocHelpers::SlotData<void()>(63, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'scrollBarsFollowTheMockup'
+        QtMocHelpers::SlotData<void()>(64, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'scrollAreasAreNeverLeftUnstyled'
+        QtMocHelpers::SlotData<void()>(65, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'themeSwitchingUsesTheRealThemeManager'
+        QtMocHelpers::SlotData<void()>(66, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'themeOverlayIsRegisteredLive'
+        QtMocHelpers::SlotData<void()>(67, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'themeOverlayCannotOverwriteABuiltinProfile'
+        QtMocHelpers::SlotData<void()>(68, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'componentsKeepTokensRatherThanResolvedColours'
+        QtMocHelpers::SlotData<void()>(69, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'theSameButtonResolvesDifferentlyPerProfile'
+        QtMocHelpers::SlotData<void()>(70, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aComponentsVisualContractIsReadableAsData'
+        QtMocHelpers::SlotData<void()>(71, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'loopingAnimationsShareOneClock'
+        QtMocHelpers::SlotData<void()>(72, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'theSharedClockRunsOnlyWhileSomethingIsAnimating'
+        QtMocHelpers::SlotData<void()>(73, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aBannerNeverSizesItselfToItsMessage'
+        QtMocHelpers::SlotData<void()>(74, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aOneLineBannerDoesNotBorrowTheWrappedLineSpacing'
+        QtMocHelpers::SlotData<void()>(75, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anItemListElidesBeforeItCrossesItsCardEdge'
+        QtMocHelpers::SlotData<void()>(76, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aSwitchTravelsRatherThanJumping'
+        QtMocHelpers::SlotData<void()>(77, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aPickerActsOnPressAndReleaseTogether'
+        QtMocHelpers::SlotData<void()>(78, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aFieldReportsWhatIsWrongWithItsControl'
+        QtMocHelpers::SlotData<void()>(79, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aFieldGivesItsControlTheFullHeightItAskedFor'
+        QtMocHelpers::SlotData<void()>(80, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aBottomPanelNeverDecidesWhetherItIsOpen'
+        QtMocHelpers::SlotData<void()>(81, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anAvatarDerivesItsInitialsAndItsColour'
+        QtMocHelpers::SlotData<void()>(82, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aSliderReportsWhereItsPartsAre'
+        QtMocHelpers::SlotData<void()>(83, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aSwatchAsksOneQuestionOrMany'
+        QtMocHelpers::SlotData<void()>(84, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aSettingsShellHoldsShapeAndNotSettings'
+        QtMocHelpers::SlotData<void()>(85, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'settingsShellCollapsesItsNavigationThroughNavListsOwnMechanism'
+        QtMocHelpers::SlotData<void()>(86, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aFormsPrimaryActionEndsWhereItsFieldsEnd'
+        QtMocHelpers::SlotData<void()>(87, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'switchingProfileMovesTheColoursAndNotTheContract'
+        QtMocHelpers::SlotData<void()>(88, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aProductOwnsItsAccentAndNothingElse'
+        QtMocHelpers::SlotData<void()>(89, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aLiveProfileEditReachesWidgetsAlreadyBuilt'
+        QtMocHelpers::SlotData<void()>(90, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aNavigationTreeIsOneWidgetAndNotThreeHundred'
+        QtMocHelpers::SlotData<void()>(91, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aNavRowsTwistyIsADifferentTargetFromTheRow'
+        QtMocHelpers::SlotData<void()>(92, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'navigationSkipsCaptionsAndDisabledRows'
+        QtMocHelpers::SlotData<void()>(93, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aKeyedCaptionFoldsWithoutBeingAskedTo'
+        QtMocHelpers::SlotData<void()>(94, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aColumnStatesItsOwnFaceInkAndAlignment'
+        QtMocHelpers::SlotData<void()>(95, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aNoteWrapsCarriesAGlyphAndKeepsItsBoldLead'
+        QtMocHelpers::SlotData<void()>(96, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anUnderlinedTabStripIsNotADocumentStrip'
+        QtMocHelpers::SlotData<void()>(97, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aFloatingWindowCanAlwaysBeLeft'
+        QtMocHelpers::SlotData<void()>(98, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aTableIsAsTallAsItsRows'
+        QtMocHelpers::SlotData<void()>(99, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'shuttingARowHidesTheRowsUnderIt'
+        QtMocHelpers::SlotData<void()>(100, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'theThreeWaysToHideARowDoNotOverwriteEachOther'
+        QtMocHelpers::SlotData<void()>(101, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'railCollapseAndSectionDisclosureAreSeparateStates'
+        QtMocHelpers::SlotData<void()>(102, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aFoldedCaptionSurvivesTheRailBeingRebuilt'
+        QtMocHelpers::SlotData<void()>(103, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'thewholeCaptionFoldsItsBlockButThePlusDoesNot'
+        QtMocHelpers::SlotData<void()>(104, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'bothStripsShareOneHitTestImplementation'
+        QtMocHelpers::SlotData<void()>(105, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'moduleBarReservesEnoughWidthForItsOwnLabel'
+        QtMocHelpers::SlotData<void()>(106, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'navListRowsNeverOverlapAcrossItsSupportedWidthRange'
+        QtMocHelpers::SlotData<void()>(107, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'navListRowHeightIsTheSameForItemChildAndCurrent'
+        QtMocHelpers::SlotData<void()>(108, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'navListMinimumWidthReflectsWhatItsWidestRowActuallyNeeds'
+        QtMocHelpers::SlotData<void()>(109, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'navListCollapseRoundTripPreservesHierarchyAndSelection'
+        QtMocHelpers::SlotData<void()>(110, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'navListBothFoldsGiveEquivalentRowsTheSameGeometry'
+        QtMocHelpers::SlotData<void()>(111, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aGlyphLessRowStillMarksItsPlaceOnACollapsedRail'
+        QtMocHelpers::SlotData<void()>(112, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'navListSurvivesAContinuousWideNarrowCollapsedResizeCycle'
+        QtMocHelpers::SlotData<void()>(113, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aTypeRoleCarriesMoreThanAFont'
+        QtMocHelpers::SlotData<void()>(114, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aScrollAreaIsNotAHoleInTheWindow'
+        QtMocHelpers::SlotData<void()>(115, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aCardKeepsTheBodyMetricsItWasGiven'
+        QtMocHelpers::SlotData<void()>(116, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aHeaderlessCardPaysNoGapForItsHeader'
+        QtMocHelpers::SlotData<void()>(117, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anInlineHeaderIsOneRowRatherThanThree'
+        QtMocHelpers::SlotData<void()>(118, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anOutlinedButtonIsTransparentUntilHovered'
+        QtMocHelpers::SlotData<void()>(119, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anIconButtonMatchesAButtonsHeightAtTheSameControlSize'
+        QtMocHelpers::SlotData<void()>(120, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aTableDrawsRowRulesAndNoColumnRules'
+        QtMocHelpers::SlotData<void()>(121, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aTableIdentityAcceptsAClassificationBadge'
+        QtMocHelpers::SlotData<void()>(122, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anAccentedTableRowIsNotTheSameAsAnOrdinarySelection'
+        QtMocHelpers::SlotData<void()>(123, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aFlexibleColumnGivesWayBeforeTheTableScrolls'
+        QtMocHelpers::SlotData<void()>(124, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aTableToldNotToStretchKeepsItsNaturalWidth'
+        QtMocHelpers::SlotData<void()>(125, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'columnsThatCompressAlikeCompressTogether'
+        QtMocHelpers::SlotData<void()>(126, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aContentColumnNeverElidesItsWidestCell'
+        QtMocHelpers::SlotData<void()>(127, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aClickedChromeControlDoesNotWearAFocusRing'
+        QtMocHelpers::SlotData<void()>(128, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aRowIsAtLeastAsTallAsWhatIsInIt'
+        QtMocHelpers::SlotData<void()>(129, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anAddressBarWeightsTheHostOverThePath'
+        QtMocHelpers::SlotData<void()>(130, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anEmptyStatesMarkReplacesItsGlyphAndBackAgain'
+        QtMocHelpers::SlotData<void()>(131, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anEmptyStatesActionsRowAppearsOnlyWhenFilled'
+        QtMocHelpers::SlotData<void()>(132, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anAccentedChipIsNotTheSameDrawingAsAPlainOne'
+        QtMocHelpers::SlotData<void()>(133, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aDisclosureHidesItsBodyWithoutForgettingIt'
+        QtMocHelpers::SlotData<void()>(134, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anActionInsideABlockDoesNotCollapseIt'
+        QtMocHelpers::SlotData<void()>(135, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'chordsSplitIntoCapsAndLoneSeparatorsSurvive'
+        QtMocHelpers::SlotData<void()>(136, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aFilteredShortcutSheetDropsEmptyCaptions'
+        QtMocHelpers::SlotData<void()>(137, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'statusBarItemsAreAddressedByHandle'
+        QtMocHelpers::SlotData<void()>(138, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aLogKeepsOnlyItsCap'
+        QtMocHelpers::SlotData<void()>(139, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aLogStopsFollowingWhenTheUserScrollsAway'
+        QtMocHelpers::SlotData<void()>(140, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aStoppedSpinnerReleasesTheClock'
+        QtMocHelpers::SlotData<void()>(141, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aSkeletonListIsOneWidgetWhateverItsLength'
+        QtMocHelpers::SlotData<void()>(142, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aSequencePastItsLastStepIsComplete'
+        QtMocHelpers::SlotData<void()>(143, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aTooltipResolvesAgainstTheWidgetItIsAbout'
+        QtMocHelpers::SlotData<void()>(144, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aSettingInErrorSaysSoInItsContract'
+        QtMocHelpers::SlotData<void()>(145, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aCollapsedRailCollapsesEveryListInIt'
+        QtMocHelpers::SlotData<void()>(146, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aRiskyChoiceIsWarningAndNotDanger'
+        QtMocHelpers::SlotData<void()>(147, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aRowActionWearsTheSameBorderAsAnyOtherButton'
+        QtMocHelpers::SlotData<void()>(148, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anActionPlateAndAChromeIconWearDifferentRadii'
+        QtMocHelpers::SlotData<void()>(149, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aSegmentIsNotAsRoundAsItsOwnTray'
+        QtMocHelpers::SlotData<void()>(150, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aComboBoxPopupRoundsAwayFromTheFieldItOpenedFrom'
+        QtMocHelpers::SlotData<void()>(151, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anAccentedRowDimsOnceItsListIsNotWhatHasFocus'
+        QtMocHelpers::SlotData<void()>(152, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aHoveredRowGreysWithoutHidingItsOwnText'
+        QtMocHelpers::SlotData<void()>(153, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'theExtractedComponentsKeepTokensRatherThanColours'
+        QtMocHelpers::SlotData<void()>(154, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aMaskedValueDoesNotLeakItsLength'
+        QtMocHelpers::SlotData<void()>(155, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aTreeFlattensOnlyWhatIsOpen'
+        QtMocHelpers::SlotData<void()>(156, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aTreeChevronIsADifferentTargetFromTheRow'
+        QtMocHelpers::SlotData<void()>(157, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aLazyNodeShowsItsChevronBeforeItHasAnyChildren'
+        QtMocHelpers::SlotData<void()>(158, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aTreeRevealsANodeByOpeningItsAncestors'
+        QtMocHelpers::SlotData<void()>(159, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aTreeKeyboardWalksTheStructure'
+        QtMocHelpers::SlotData<void()>(160, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aDiffIsParsedRatherThanColouredByItsFirstCharacter'
+        QtMocHelpers::SlotData<void()>(161, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'theLogAndTheDiffShareOneVirtualisation'
+        QtMocHelpers::SlotData<void()>(162, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aFloatingPanelCannotLeaveItsLayer'
+        QtMocHelpers::SlotData<void()>(163, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'theLayerDecidesWhichPanelIsInFront'
+        QtMocHelpers::SlotData<void()>(164, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aRolledPanelKeepsWhatItHad'
+        QtMocHelpers::SlotData<void()>(165, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'toastsStackToACapAndNoFurther'
+        QtMocHelpers::SlotData<void()>(166, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aToastHoldsWhileThePointerIsOnIt'
+        QtMocHelpers::SlotData<void()>(167, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aSelectionBarIsNotThereAtZero'
+        QtMocHelpers::SlotData<void()>(168, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aDialogHeadIsAddedOnceAndUpdatedAfter'
+        QtMocHelpers::SlotData<void()>(169, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anAvatarIsRoundAndAPlaqueIsNot'
+        QtMocHelpers::SlotData<void()>(170, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aCollapsedPanelComesBackAtTheWidthItHad'
+        QtMocHelpers::SlotData<void()>(171, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aSplitterArrowIsAButtonAndNotADragTarget'
+        QtMocHelpers::SlotData<void()>(172, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aTabCarriesItsColourAndStateThroughAReorder'
+        QtMocHelpers::SlotData<void()>(173, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aTabsCloseBoxIsItsOwnTarget'
+        QtMocHelpers::SlotData<void()>(174, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'closingTheCurrentTabMovesToItsNeighbour'
+        QtMocHelpers::SlotData<void()>(175, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'tabsShrinkTogetherRatherThanEachToItsOwnTitle'
+        QtMocHelpers::SlotData<void()>(176, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aLetteredTabKeepsItsMarkThroughAFailureOrASleep'
+        QtMocHelpers::SlotData<void()>(177, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aTabBarsTrailingWidgetTakesRoomFromTheTabs'
+        QtMocHelpers::SlotData<void()>(178, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anInactivePanelKeepsItsSelection'
+        QtMocHelpers::SlotData<void()>(179, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aCapacityBarColoursItselfAndAProgressBarDoesNot'
+        QtMocHelpers::SlotData<void()>(180, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'anUnmeasuredReadingIsNotAMeasuredZero'
+        QtMocHelpers::SlotData<void()>(181, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'bytesAreWrittenOneWay'
+        QtMocHelpers::SlotData<void()>(182, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aDrawerDimsWhatItIsAbout'
+        QtMocHelpers::SlotData<void()>(183, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aDrawerSlidesRatherThanSnapsIntoPlace'
+        QtMocHelpers::SlotData<void()>(184, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aBusyDialogDisablesItsWholeFooter'
+        QtMocHelpers::SlotData<void()>(185, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aFormErrorClearsBusyAndSitsAboveTheFooter'
+        QtMocHelpers::SlotData<void()>(186, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aPaletteFindsACommandByItsInitials'
+        QtMocHelpers::SlotData<void()>(187, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aPaletteRanksRatherThanMerelyFiltering'
+        QtMocHelpers::SlotData<void()>(188, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'aGateCardNamesTheHostTheCredentialIsGoingTo'
+        QtMocHelpers::SlotData<void()>(189, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'everyExtractedComponentIsInTheGallery'
+        QtMocHelpers::SlotData<void()>(190, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'watcherSeesAFileCreatedAfterItStarted'
+        QtMocHelpers::SlotData<void()>(191, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'watcherSeparatesSourceChangesFromDataChanges'
+        QtMocHelpers::SlotData<void()>(192, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'shippedThemeOverlaysAllLoad'
+        QtMocHelpers::SlotData<void()>(193, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'theBuildTreeExecutableIsNotTheOneHoldingTheLock'
+        QtMocHelpers::SlotData<void()>(194, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'playgroundIsNotPartOfTheProductionTarget'
+        QtMocHelpers::SlotData<void()>(195, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'productionSourcesDoNotReferenceThePlayground'
+        QtMocHelpers::SlotData<void()>(196, 2, QMC::AccessPrivate, QMetaType::Void),
+    };
+    QtMocHelpers::UintData qt_properties {
+    };
+    QtMocHelpers::UintData qt_enums {
+    };
+    return QtMocHelpers::metaObjectData<GalleryTest, qt_meta_tag_ZN11GalleryTestE_t>(QMC::MetaObjectFlag{}, qt_stringData,
+            qt_methods, qt_properties, qt_enums);
+}
+Q_CONSTINIT const QMetaObject GalleryTest::staticMetaObject = { {
+    QMetaObject::SuperData::link<QObject::staticMetaObject>(),
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN11GalleryTestE_t>.stringdata,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN11GalleryTestE_t>.data,
+    qt_static_metacall,
+    nullptr,
+    qt_staticMetaObjectRelocatingContent<qt_meta_tag_ZN11GalleryTestE_t>.metaTypes,
+    nullptr
+} };
+
+void GalleryTest::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
+{
+    auto *_t = static_cast<GalleryTest *>(_o);
+    if (_c == QMetaObject::InvokeMetaMethod) {
+        switch (_id) {
+        case 0: _t->chipTokenIsNotAToggle(); break;
+        case 1: _t->navSectionApiReachesItsCaption(); break;
+        case 2: _t->aNestedRowShowsItsLevelTheWayTheProfileSays(); break;
+        case 3: _t->aSelectIsAButtonThatOpensItsMenu(); break;
+        case 4: _t->aRaisedCardKeepsItsOutlineOnAPanel(); break;
+        case 5: _t->segmentsCanShareTheTrayBetweenThem(); break;
+        case 6: _t->theFamilyMarkIsOneDrawingInEveryAccent(); break;
+        case 7: _t->paragraphAnswersForTheWidthItHas(); break;
+        case 8: _t->monoLineViewFitsItsRowsWhenAsked(); break;
+        case 9: _t->monoRowHeightIsTheDesignsLineHeight(); break;
+        case 10: _t->commandFieldIsADoorNotAField(); break;
+        case 11: _t->initTestCase(); break;
+        case 12: _t->everyGlyphStaysInsideItsViewBox(); break;
+        case 13: _t->curvedGlyphsResolveTheirCoordinatesInOrder(); break;
+        case 14: _t->registryIsPopulated(); break;
+        case 15: _t->componentIdsAreUnique(); break;
+        case 16: _t->componentMetadataIsComplete(); break;
+        case 17: _t->componentSourceFilesExist(); break;
+        case 18: _t->categoriesAreOrdered(); break;
+        case 19: _t->everyComponentBuildsInEveryScenario(); break;
+        case 20: _t->everyComponentBuildsInEveryProfile(); break;
+        case 21: _t->searchFindsComponents_data(); break;
+        case 22: _t->searchFindsComponents(); break;
+        case 23: _t->emptySearchReturnsEverything(); break;
+        case 24: _t->everyComponentDeclaresItsApplications(); break;
+        case 25: _t->declaredUsageIsMeasuredAndNotIntended(); break;
+        case 26: _t->theCatalogueDescribesEveryComponent(); break;
+        case 27: _t->theApplicationFilterNarrowsAndNothingElse(); break;
+        case 28: _t->filteringByANonApplicationReturnsNothing(); break;
+        case 29: _t->searchThatMatchesNothingReturnsNothing(); break;
+        case 30: _t->scenarioKeysRoundTrip(); break;
+        case 31: _t->unknownScenarioKeyFallsBackToNormal(); break;
+        case 32: _t->sampleDataLoads(); break;
+        case 33: _t->scenarioShapesRows(); break;
+        case 34: _t->missingSampleDataDirectoryFailsGracefully(); break;
+        case 35: _t->malformedSampleDataFailsGracefully(); break;
+        case 36: _t->unknownSetReturnsNothing(); break;
+        case 37: _t->feedbackRefusesAnIncompleteReport(); break;
+        case 38: _t->feedbackSendsOnceAndOnlyOnce(); break;
+        case 39: _t->feedbackFailureLetsTheUserRetry(); break;
+        case 40: _t->feedbackAttachesNothingTheUserDidNotAgreeTo(); break;
+        case 41: _t->feedbackDisablesLogsWhenTheHostHasNone(); break;
+        case 42: _t->feedbackIgnoresAnAnswerItIsNotWaitingFor(); break;
+        case 43: _t->helpOverlayLetsTheApplicationThrough(); break;
+        case 44: _t->helpOverlayFollowsItsHost(); break;
+        case 45: _t->helpOverlayDropsNotesWhoseTargetIsGone(); break;
+        case 46: _t->helpOverlayTonesComeFromTheSharedPalette(); break;
+        case 47: _t->novuTradeMatchesTheApprovedMockupTokens(); break;
+        case 48: _t->applicationProfilesShareOnePalette(); break;
+        case 49: _t->everyProfileSharesTheSemanticPalette(); break;
+        case 50: _t->theOnlyStatusOverrideIsTheLightProfile(); break;
+        case 51: _t->semanticColoursReadAgainstTheirOwnSurface(); break;
+        case 52: _t->infoIsAStatusAndNotTheApplicationAccent(); break;
+        case 53: _t->badgeTonesResolveThroughTheSharedPalette(); break;
+        case 54: _t->aFamilyHueIsTheSameHueInEveryProduct(); break;
+        case 55: _t->aTagPaletteDoesNotDuplicateSharedHues(); break;
+        case 56: _t->chartSeriesAreEcosystemColoursAndNotStatusColours(); break;
+        case 57: _t->metricTokensAreReadByTheComponentsThatDrawThem(); break;
+        case 58: _t->onlyOneDropHighlightCanBeLitAtOnce(); break;
+        case 59: _t->aDropHighlightReportsWhetherThePictureChanged(); break;
+        case 60: _t->theTwoDropHighlightsAreDifferentWeights(); break;
+        case 61: _t->translucentTokensKeepTheirAlphaInTheSheet(); break;
+        case 62: _t->scrollBarsFollowTheMockup(); break;
+        case 63: _t->scrollAreasAreNeverLeftUnstyled(); break;
+        case 64: _t->themeSwitchingUsesTheRealThemeManager(); break;
+        case 65: _t->themeOverlayIsRegisteredLive(); break;
+        case 66: _t->themeOverlayCannotOverwriteABuiltinProfile(); break;
+        case 67: _t->componentsKeepTokensRatherThanResolvedColours(); break;
+        case 68: _t->theSameButtonResolvesDifferentlyPerProfile(); break;
+        case 69: _t->aComponentsVisualContractIsReadableAsData(); break;
+        case 70: _t->loopingAnimationsShareOneClock(); break;
+        case 71: _t->theSharedClockRunsOnlyWhileSomethingIsAnimating(); break;
+        case 72: _t->aBannerNeverSizesItselfToItsMessage(); break;
+        case 73: _t->aOneLineBannerDoesNotBorrowTheWrappedLineSpacing(); break;
+        case 74: _t->anItemListElidesBeforeItCrossesItsCardEdge(); break;
+        case 75: _t->aSwitchTravelsRatherThanJumping(); break;
+        case 76: _t->aPickerActsOnPressAndReleaseTogether(); break;
+        case 77: _t->aFieldReportsWhatIsWrongWithItsControl(); break;
+        case 78: _t->aFieldGivesItsControlTheFullHeightItAskedFor(); break;
+        case 79: _t->aBottomPanelNeverDecidesWhetherItIsOpen(); break;
+        case 80: _t->anAvatarDerivesItsInitialsAndItsColour(); break;
+        case 81: _t->aSliderReportsWhereItsPartsAre(); break;
+        case 82: _t->aSwatchAsksOneQuestionOrMany(); break;
+        case 83: _t->aSettingsShellHoldsShapeAndNotSettings(); break;
+        case 84: _t->settingsShellCollapsesItsNavigationThroughNavListsOwnMechanism(); break;
+        case 85: _t->aFormsPrimaryActionEndsWhereItsFieldsEnd(); break;
+        case 86: _t->switchingProfileMovesTheColoursAndNotTheContract(); break;
+        case 87: _t->aProductOwnsItsAccentAndNothingElse(); break;
+        case 88: _t->aLiveProfileEditReachesWidgetsAlreadyBuilt(); break;
+        case 89: _t->aNavigationTreeIsOneWidgetAndNotThreeHundred(); break;
+        case 90: _t->aNavRowsTwistyIsADifferentTargetFromTheRow(); break;
+        case 91: _t->navigationSkipsCaptionsAndDisabledRows(); break;
+        case 92: _t->aKeyedCaptionFoldsWithoutBeingAskedTo(); break;
+        case 93: _t->aColumnStatesItsOwnFaceInkAndAlignment(); break;
+        case 94: _t->aNoteWrapsCarriesAGlyphAndKeepsItsBoldLead(); break;
+        case 95: _t->anUnderlinedTabStripIsNotADocumentStrip(); break;
+        case 96: _t->aFloatingWindowCanAlwaysBeLeft(); break;
+        case 97: _t->aTableIsAsTallAsItsRows(); break;
+        case 98: _t->shuttingARowHidesTheRowsUnderIt(); break;
+        case 99: _t->theThreeWaysToHideARowDoNotOverwriteEachOther(); break;
+        case 100: _t->railCollapseAndSectionDisclosureAreSeparateStates(); break;
+        case 101: _t->aFoldedCaptionSurvivesTheRailBeingRebuilt(); break;
+        case 102: _t->thewholeCaptionFoldsItsBlockButThePlusDoesNot(); break;
+        case 103: _t->bothStripsShareOneHitTestImplementation(); break;
+        case 104: _t->moduleBarReservesEnoughWidthForItsOwnLabel(); break;
+        case 105: _t->navListRowsNeverOverlapAcrossItsSupportedWidthRange(); break;
+        case 106: _t->navListRowHeightIsTheSameForItemChildAndCurrent(); break;
+        case 107: _t->navListMinimumWidthReflectsWhatItsWidestRowActuallyNeeds(); break;
+        case 108: _t->navListCollapseRoundTripPreservesHierarchyAndSelection(); break;
+        case 109: _t->navListBothFoldsGiveEquivalentRowsTheSameGeometry(); break;
+        case 110: _t->aGlyphLessRowStillMarksItsPlaceOnACollapsedRail(); break;
+        case 111: _t->navListSurvivesAContinuousWideNarrowCollapsedResizeCycle(); break;
+        case 112: _t->aTypeRoleCarriesMoreThanAFont(); break;
+        case 113: _t->aScrollAreaIsNotAHoleInTheWindow(); break;
+        case 114: _t->aCardKeepsTheBodyMetricsItWasGiven(); break;
+        case 115: _t->aHeaderlessCardPaysNoGapForItsHeader(); break;
+        case 116: _t->anInlineHeaderIsOneRowRatherThanThree(); break;
+        case 117: _t->anOutlinedButtonIsTransparentUntilHovered(); break;
+        case 118: _t->anIconButtonMatchesAButtonsHeightAtTheSameControlSize(); break;
+        case 119: _t->aTableDrawsRowRulesAndNoColumnRules(); break;
+        case 120: _t->aTableIdentityAcceptsAClassificationBadge(); break;
+        case 121: _t->anAccentedTableRowIsNotTheSameAsAnOrdinarySelection(); break;
+        case 122: _t->aFlexibleColumnGivesWayBeforeTheTableScrolls(); break;
+        case 123: _t->aTableToldNotToStretchKeepsItsNaturalWidth(); break;
+        case 124: _t->columnsThatCompressAlikeCompressTogether(); break;
+        case 125: _t->aContentColumnNeverElidesItsWidestCell(); break;
+        case 126: _t->aClickedChromeControlDoesNotWearAFocusRing(); break;
+        case 127: _t->aRowIsAtLeastAsTallAsWhatIsInIt(); break;
+        case 128: _t->anAddressBarWeightsTheHostOverThePath(); break;
+        case 129: _t->anEmptyStatesMarkReplacesItsGlyphAndBackAgain(); break;
+        case 130: _t->anEmptyStatesActionsRowAppearsOnlyWhenFilled(); break;
+        case 131: _t->anAccentedChipIsNotTheSameDrawingAsAPlainOne(); break;
+        case 132: _t->aDisclosureHidesItsBodyWithoutForgettingIt(); break;
+        case 133: _t->anActionInsideABlockDoesNotCollapseIt(); break;
+        case 134: _t->chordsSplitIntoCapsAndLoneSeparatorsSurvive(); break;
+        case 135: _t->aFilteredShortcutSheetDropsEmptyCaptions(); break;
+        case 136: _t->statusBarItemsAreAddressedByHandle(); break;
+        case 137: _t->aLogKeepsOnlyItsCap(); break;
+        case 138: _t->aLogStopsFollowingWhenTheUserScrollsAway(); break;
+        case 139: _t->aStoppedSpinnerReleasesTheClock(); break;
+        case 140: _t->aSkeletonListIsOneWidgetWhateverItsLength(); break;
+        case 141: _t->aSequencePastItsLastStepIsComplete(); break;
+        case 142: _t->aTooltipResolvesAgainstTheWidgetItIsAbout(); break;
+        case 143: _t->aSettingInErrorSaysSoInItsContract(); break;
+        case 144: _t->aCollapsedRailCollapsesEveryListInIt(); break;
+        case 145: _t->aRiskyChoiceIsWarningAndNotDanger(); break;
+        case 146: _t->aRowActionWearsTheSameBorderAsAnyOtherButton(); break;
+        case 147: _t->anActionPlateAndAChromeIconWearDifferentRadii(); break;
+        case 148: _t->aSegmentIsNotAsRoundAsItsOwnTray(); break;
+        case 149: _t->aComboBoxPopupRoundsAwayFromTheFieldItOpenedFrom(); break;
+        case 150: _t->anAccentedRowDimsOnceItsListIsNotWhatHasFocus(); break;
+        case 151: _t->aHoveredRowGreysWithoutHidingItsOwnText(); break;
+        case 152: _t->theExtractedComponentsKeepTokensRatherThanColours(); break;
+        case 153: _t->aMaskedValueDoesNotLeakItsLength(); break;
+        case 154: _t->aTreeFlattensOnlyWhatIsOpen(); break;
+        case 155: _t->aTreeChevronIsADifferentTargetFromTheRow(); break;
+        case 156: _t->aLazyNodeShowsItsChevronBeforeItHasAnyChildren(); break;
+        case 157: _t->aTreeRevealsANodeByOpeningItsAncestors(); break;
+        case 158: _t->aTreeKeyboardWalksTheStructure(); break;
+        case 159: _t->aDiffIsParsedRatherThanColouredByItsFirstCharacter(); break;
+        case 160: _t->theLogAndTheDiffShareOneVirtualisation(); break;
+        case 161: _t->aFloatingPanelCannotLeaveItsLayer(); break;
+        case 162: _t->theLayerDecidesWhichPanelIsInFront(); break;
+        case 163: _t->aRolledPanelKeepsWhatItHad(); break;
+        case 164: _t->toastsStackToACapAndNoFurther(); break;
+        case 165: _t->aToastHoldsWhileThePointerIsOnIt(); break;
+        case 166: _t->aSelectionBarIsNotThereAtZero(); break;
+        case 167: _t->aDialogHeadIsAddedOnceAndUpdatedAfter(); break;
+        case 168: _t->anAvatarIsRoundAndAPlaqueIsNot(); break;
+        case 169: _t->aCollapsedPanelComesBackAtTheWidthItHad(); break;
+        case 170: _t->aSplitterArrowIsAButtonAndNotADragTarget(); break;
+        case 171: _t->aTabCarriesItsColourAndStateThroughAReorder(); break;
+        case 172: _t->aTabsCloseBoxIsItsOwnTarget(); break;
+        case 173: _t->closingTheCurrentTabMovesToItsNeighbour(); break;
+        case 174: _t->tabsShrinkTogetherRatherThanEachToItsOwnTitle(); break;
+        case 175: _t->aLetteredTabKeepsItsMarkThroughAFailureOrASleep(); break;
+        case 176: _t->aTabBarsTrailingWidgetTakesRoomFromTheTabs(); break;
+        case 177: _t->anInactivePanelKeepsItsSelection(); break;
+        case 178: _t->aCapacityBarColoursItselfAndAProgressBarDoesNot(); break;
+        case 179: _t->anUnmeasuredReadingIsNotAMeasuredZero(); break;
+        case 180: _t->bytesAreWrittenOneWay(); break;
+        case 181: _t->aDrawerDimsWhatItIsAbout(); break;
+        case 182: _t->aDrawerSlidesRatherThanSnapsIntoPlace(); break;
+        case 183: _t->aBusyDialogDisablesItsWholeFooter(); break;
+        case 184: _t->aFormErrorClearsBusyAndSitsAboveTheFooter(); break;
+        case 185: _t->aPaletteFindsACommandByItsInitials(); break;
+        case 186: _t->aPaletteRanksRatherThanMerelyFiltering(); break;
+        case 187: _t->aGateCardNamesTheHostTheCredentialIsGoingTo(); break;
+        case 188: _t->everyExtractedComponentIsInTheGallery(); break;
+        case 189: _t->watcherSeesAFileCreatedAfterItStarted(); break;
+        case 190: _t->watcherSeparatesSourceChangesFromDataChanges(); break;
+        case 191: _t->shippedThemeOverlaysAllLoad(); break;
+        case 192: _t->theBuildTreeExecutableIsNotTheOneHoldingTheLock(); break;
+        case 193: _t->playgroundIsNotPartOfTheProductionTarget(); break;
+        case 194: _t->productionSourcesDoNotReferenceThePlayground(); break;
+        default: ;
+        }
+    }
+    (void)_a;
+}
+
+const QMetaObject *GalleryTest::metaObject() const
+{
+    return QObject::d_ptr->metaObject ? QObject::d_ptr->dynamicMetaObject() : &staticMetaObject;
+}
+
+void *GalleryTest::qt_metacast(const char *_clname)
+{
+    if (!_clname) return nullptr;
+    if (!strcmp(_clname, qt_staticMetaObjectStaticContent<qt_meta_tag_ZN11GalleryTestE_t>.strings))
+        return static_cast<void*>(this);
+    return QObject::qt_metacast(_clname);
+}
+
+int GalleryTest::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
+{
+    _id = QObject::qt_metacall(_c, _id, _a);
+    if (_id < 0)
+        return _id;
+    if (_c == QMetaObject::InvokeMetaMethod) {
+        if (_id < 195)
+            qt_static_metacall(this, _c, _id, _a);
+        _id -= 195;
+    }
+    if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
+        if (_id < 195)
+            *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
+        _id -= 195;
+    }
+    return _id;
+}
+QT_WARNING_POP

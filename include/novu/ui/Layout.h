@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/StyleSpec.h"
+#include "novu/ui/Theme.h"
 #include "novu/ui/ThemeProfile.h"
 
 #include <QString>
@@ -55,6 +57,19 @@ QVBoxLayout* pageLayout(QWidget* page);
 // The scroll area is transparent and frameless, so it adds no visible surface
 // of its own — it is a mechanism, not a container in the design sense.
 QVBoxLayout* scrollPage(QWidget* page, QScrollArea** areaOut = nullptr);
+
+// Gives a scroll area's viewport the surface it stands on.
+//
+// A viewport that paints nothing is not the same as one you can see through.
+// Qt treats a styled-background child as opaque and stops repainting the
+// parent under it, so on a window whose frame is translucent - which every
+// Novu shell is - the area comes out as a hole: the desktop, not the page.
+// It is not visible in a card (the card has just painted there itself) and it
+// is very visible on a page, which is why it went unnoticed.
+//
+// `role` is the surface the area is standing on: the page ground by default,
+// PanelBg inside a card.
+void fillScrollViewport(QScrollArea* area, ColorRole role = ColorRole::WindowBg);
 
 // Two-part header: a title (and optional subtitle) on the left, actions on the
 // right. Returns the right-hand layout so the caller can drop buttons in.

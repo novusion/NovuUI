@@ -154,8 +154,19 @@ public:
     int navigationWidth() const { return m_navWidth; }
     void setNavigationWidth(int px);
 
+    // The same rail every NovuUI sidebar collapses by: NavList's own
+    // setCollapsed() is what actually hides labels, captions and counts and
+    // centres the glyphs. This decides only what is not the list's to
+    // decide - the column's width, and the search field, which has no icon
+    // to shrink to and hides with the rest. Expanding restores exactly the
+    // hierarchy and selection NavList already keeps through its own
+    // collapse - see NavList::setCollapsed().
+    bool isNavigationCollapsed() const { return m_navCollapsed; }
+    void setNavigationCollapsed(bool collapsed);
+
 signals:
     void currentChanged(const QString& key);
+    void navigationCollapsedChanged(bool collapsed);
 
 protected:
     bool event(QEvent* event) override;
@@ -168,6 +179,7 @@ private:
     QLineEdit* m_search = nullptr;
     QStackedWidget* m_pages = nullptr;
     int m_navWidth = 200;
+    bool m_navCollapsed = false;
 };
 
 } // namespace novu::ui

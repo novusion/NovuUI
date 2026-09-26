@@ -51,7 +51,33 @@ enum class SurfaceRole {
     Card,
     Dialog,
     Button,
+    // A button that is only its glyph. The approved designs shape the two
+    // differently -- `.btn{border-radius:var(--r-pill)}` beside
+    // `.ibtn{border-radius:var(--r-sm)}` -- because a pill the size of an
+    // icon is a circle, and a row of circles in a title bar reads as a
+    // traffic light. A profile that says nothing here gets Button, so this
+    // role changes no existing one.
+    //
+    // This is `.nb` - the chrome ghost icon, no plate until hover - and it is
+    // the IconButton radius a profile states unless it also states
+    // ActionIcon below. Kept as the general-purpose role for exactly that
+    // reason: adding ActionIcon must not move every icon button that had
+    // nothing to do with it.
+    IconButton,
+    // `.btn.ico` - an icon-only *action* button, `IconButton::Variant::Outlined`
+    // with `setActionPlate(true)`: the hairline plate a table row, a card
+    // header or a toolbar reaches for. Separate from IconButton above because
+    // the two approved radii are one pixel apart and genuinely different
+    // (`.nb{border-radius:7px}` against `.btn.ico{border-radius:8px}`) - not
+    // a rounding choice, the two classes in the same sheet disagree. Falls
+    // back to IconButton when a profile says nothing, so adding this role
+    // changed no existing shape until a profile states it.
+    ActionIcon,
     Input,
+    // A closed select. Shaped apart from Input for the same reason: the
+    // designs draw a select as a pill and a text field as a rounded box, and
+    // one role cannot be both. Falls back to Input when unstated.
+    Select,
     Badge,
     Toolbar,
     Table,
@@ -61,6 +87,20 @@ enum class SurfaceRole {
     // to differ - but only as two roles a profile decides, never as two
     // numbers two applications picked.
     Window,
+    // A window the application draws inside its own: the design's `.floatwin`.
+    // It is neither the frame of the application nor a modal - it is smaller
+    // than one and less final than the other, and the approved design shapes
+    // it accordingly (13 against the window's 16 and the modal's 15). Falls
+    // back to Dialog when a profile says nothing, so adding it changed no
+    // existing shape.
+    FloatingWindow,
+    // One chip inside a `Segmented` tray - `.chip{border-radius:7px}` sitting
+    // inside `.chipset{border-radius:10px}` (Select). A tray and the plate
+    // lifted out of it are drawn at two different radii in the approved
+    // sheet; a segment that reused the tray's own Select radius came out a
+    // near-pill on a ~26-30px-tall control, not the crisp small chip the
+    // design draws. Falls back to Select when a profile says nothing.
+    Segment,
 };
 
 // Spacing scale. Same reasoning: steps are systemic, values are per profile.
@@ -81,6 +121,30 @@ enum class SpacingRole {
     FormRowGap,       // between label and control
     TableCellPadding,
     PagePadding,
+    // A table cell's own left and right padding, when the design states it
+    // apart from the vertical one - `td{padding:9px 13px}`. Added last and
+    // read with the vertical value as its fallback, so a profile that never
+    // states it keeps the single padding it always had.
+    TableCellPaddingH,
+    // The same split for a card body: `.card-body{padding:15px 16px}` sets
+    // the two apart, and CardPadding alone made every card a pixel taller
+    // than the design draws it. Falls back to CardPadding when a profile
+    // does not state it.
+    CardPaddingV,
+    // The gap between two blocks *inside* one card body.
+    //
+    // It used to borrow SectionGap, which NovuSpace states as 18 for
+    // `.rail-sec{margin-top:18px}` - a rail measurement. Every card in the
+    // application was then laid out at the sidebar's rhythm and read loose.
+    // Falls back to SectionGap, so a profile that never states it is
+    // unchanged.
+    CardBodyGap,
+    // `.page-body{padding:16px 20px 22px}` - the page's own inset is three
+    // different numbers, not one. The top is a step tighter because the page
+    // header is already above it, and the bottom is a step looser so the last
+    // card does not sit on the status bar. Both fall back to PagePadding.
+    PagePaddingTop,
+    PagePaddingBottom,
 };
 
 struct TypeScale
@@ -126,6 +190,8 @@ struct TypeScale
     QStringList monoFallbackFamilies = {QStringLiteral("Cascadia Mono"),
                                         QStringLiteral("Consolas"),
                                         QStringLiteral("Courier New")};
+    // Use natural outlines and advances instead of platform grid fitting.
+    bool unhintedMetrics = false;
 };
 
 // What a piece of text *is*. A component asks for a role and gets size and
@@ -153,16 +219,62 @@ enum class TypeRole {
     // design drew a tracked mono line. Declared last so the existing
     // enumerators keep their values.
     Eyebrow,
+    // The window's own bottom strip. Not Body: a status strip is read at a
+    // glance and never read closely, and every approved design sets it a step
+    // or two under the body size -- NovuAI's `.statusbar{font-size:var(--fs-sm)}`
+    // against a 13px body. A profile that does not state it falls back to Body,
+    // so the role changes nothing until it is asked for. Declared last so the
+    // existing enumerators keep their values.
+    StatusBar,
 };
 
 struct TypeStyle
 {
-    int size = 13;
+    TypeStyle(qreal pixels = 13, int fontWeight = 400, bool mono = false,
+              double leading = 0.0, double tracking = 0.0, bool caps = false)
+        : size(pixels), weight(fontWeight), monospace(mono),
+          lineHeight(leading), letterSpacing(tracking), uppercase(caps) {}
+    TypeStyle(int pixels, int fontWeight = 400, bool mono = false,
+              double leading = 0.0, double tracking = 0.0, bool caps = false)
+        : TypeStyle(static_cast<qreal>(pixels), fontWeight, mono, leading, tracking, caps) {}
+    qreal size = 13;
     int weight = 400;   // QFont::Weight numeric
     bool monospace = false;
+
+    // The three properties the approved CSS states per role and a font alone
+    // cannot carry. Declared after the first three so every existing
+    // positional initialiser keeps meaning what it meant.
+    //
+    // lineHeight is the CSS multiple (`line-height:1.05`), 0 meaning "the
+    // font's own" - which is what a QLabel does by default and is taller than
+    // a display face laid out to a stated line box. letterSpacing is in em,
+    // as the CSS states it (`letter-spacing:.06em`, `-.02em`). uppercase is
+    // `text-transform:uppercase`, which belongs to the role rather than to
+    // every call site that has to remember to call toUpper().
+    double lineHeight = 0.0;
+    double letterSpacing = 0.0;
+    bool uppercase = false;
 };
 
 // Control geometry that must not stagger within a toolbar.
+// The inks a navigation rail uses, named rather than numbered. The approved
+// designs disagree about both of them and both are right for their own rail:
+// NovuSpace sets `.navbtn{color:var(--text3)}` with `.on{color:var(--acc-l)}`,
+// NovuAI sets `.sb-item{color:var(--text2)}` with `.on{color:var(--text)}` --
+// a rail that has already spent its accent on the bar beside the row does not
+// spend it again on the label. A component cannot choose; a profile can.
+enum class NavInk { Muted, Secondary, Primary, Accent };
+
+// `.cnt` is an outline over the window in one design and `.sb-count` a filled
+// chip in the other.
+enum class NavCountStyle { Outlined, Filled };
+
+// How a nested row shows that it is nested. `.navbtn.child .dot` puts a mark
+// beside each child; `.tkids{border-left:1px solid var(--hair)}` runs one rule
+// down the whole level instead. A rule reads as a level and a dot reads as a
+// row, which is why the two designs chose differently.
+enum class NavChildMark { Dot, Guide };
+
 struct ControlMetrics
 {
     int height = 32;
@@ -174,6 +286,22 @@ struct ControlMetrics
     // 34, and NovuAI draws its module rows at 27. NavList reads this.
     int navRowHeight = 30;
 
+    // The ink a current navigation row takes, and the gap under a caption.
+    //
+    // The approved designs disagree, and both are right for their own rail:
+    // NovuSpace's `.navbtn.on{color:var(--acc-l)}` names the accent, because
+    // its rail is the only accented thing on the page; NovuAI's
+    // `.sb-item.on{color:var(--text)}` names the primary ink, because its
+    // accent is already spent on the active bar beside the row. A component
+    // cannot choose between them -- a profile can.
+    NavInk navRestInk = NavInk::Muted;
+    NavInk navCurrentInk = NavInk::Accent;
+    NavCountStyle navCountStyle = NavCountStyle::Outlined;
+    NavChildMark navChildMark = NavChildMark::Dot;
+    // `.sb-head{padding-bottom:5px}` against NovuSpace's own step. The gap
+    // above a caption is SpacingRole::SectionGap; this is the one below it.
+    int navSectionBottom = 8;
+
     // One nesting step, for every tree in the application.
     //
     // A token because it had already drifted: NovuAI's own sheet records that
@@ -183,6 +311,22 @@ struct ControlMetrics
     //
     // 17 is the only value any authority states.
     int treeStep = 17;
+    // Compact buttons may keep the product pill or use a smaller corner.
+    RadiusStep smallButtonRadius = RadiusStep::Small;
+    int segmentedPadding=3;
+    int segmentedHeight=0; // zero keeps content-derived height
+    int buttonPadding=13;
+    int buttonPaddingSmall=8;
+    int buttonPaddingLarge=13;
+    bool buttonPaddingIncludesBorder=true;
+    // Negative retains the muted disabled palette; otherwise composite the
+    // entire ordinary button at this opacity, including its surface.
+    qreal buttonDisabledOpacity=-1;
+    bool scrollThumbOnAreaHover=false;
+    int scrollThumbInset=0;
+    int selectHeight=0,selectSmallHeight=0;
+    int iconHeight=0,iconSmallHeight=0;
+
 };
 
 enum class ControlSize { Small, Medium, Large };
@@ -254,6 +398,7 @@ struct IconMetrics
     int small = 14;
     int medium = 16;
     int large = 20;
+    QString family; // empty keeps the shared default outlines
 };
 
 // Window chrome: the title bar and its three controls.
@@ -290,11 +435,20 @@ struct WindowTokens
     int controlHeight = 24;
 
     // Leading inset before the window icon, and the gap between icon, title
-    // and any trailing widget an application adds. The controls themselves sit
-    // flush against the trailing edge - a gap there would leave a dead strip
-    // where the pointer expects Close on a maximised window.
+    // and any trailing widget an application adds.
     int titleBarPadding = 12;
     int titleBarGap = 8;
+    // The trailing edge past the last control, before the window's own edge -
+    // the same clearance titleBarPadding gives the icon on the other side, so
+    // Close is never flush against the window's own outer edge. Was zero for
+    // every profile but NovuAI's, on the Fitts's-law argument that a
+    // maximised window wants Close reachable by slamming the pointer into the
+    // screen corner; in practice every WindowShell here draws its own frame
+    // rather than deferring to real OS chrome, and a Close sitting one
+    // hairline off the edge simply read as cramped rather than as an
+    // optimised target. One authoritative inset for every WindowShell kind
+    // and state now, set once here rather than by any one profile or sample.
+    int titleBarTrailingInset = 8;
 
     int borderWidth = 1;
     // The grab band along the frame edge, in logical pixels. Hit-testing is
@@ -314,16 +468,33 @@ struct WindowTokens
     // profile that wants a flat bar simply sets them equal.
     QColor titleBarBg{QStringLiteral("#1A1F25")};
     QColor titleBarBgBottom{QStringLiteral("#151A20")};
+    // The rail runs its own gradient, and the design states it separately
+    // from the title bar's: `--rail-top:#1A1F26` / `--rail-bot:#161B21`,
+    // where the bar ends on `--titlebar-bot:#151A20`. One pixel-value apart
+    // and deliberately so - the rail does not fade quite as far as the frame.
+    QColor railBg{QStringLiteral("#1A1F26")};
+    QColor railBgBottom{QStringLiteral("#161B21")};
     QColor titleBarBgInactive{QStringLiteral("#161A1F")};
     QColor titleText{QStringLiteral("#E3E8F0")};
     QColor titleTextInactive{QStringLiteral("#6E7A8E")};
     QColor border{QStringLiteral("#232830")};
+
+    // `.titlebar{border-bottom:1px solid var(--hair2)}` - the rule between two
+    // surfaces, which is the heavier hairline. Separate from `border` above,
+    // which is the window's own outer edge; derived from the palette, so a
+    // profile that says nothing still gets it right.
+    QColor titleBarBorder;
 
     // Neutral control states, shared by Minimize and Maximize/Restore.
     QColor controlHoverBg{QStringLiteral("#2A3038")};
     QColor controlPressedBg{QStringLiteral("#2F353F")};
     QColor controlGlyph{QStringLiteral("#A8B2C3")};
     QColor controlGlyphInactive{QStringLiteral("#6E7A8E")};
+
+    // `.winbtn{border-radius:6px}` - the painted hover box of a title bar
+    // control is a small rounded square around the glyph, not the full height
+    // of the bar and not a hard-edged block.
+    int controlRadius = 6;
 
     // Close is neutral until the pointer is on it. Permanently red is what the
     // applications did before, and it made every window look like it was
@@ -360,14 +531,43 @@ struct ThemeProfile
     QHash<int, int> roleSpacing;   // SpacingRole  -> pixels
     QHash<int, TypeStyle> roleType;// TypeRole     -> TypeStyle
     QHash<int, int> roleBorder;    // BorderRole   -> pixels
+    QHash<int, int> roleRadiusPx;  // SurfaceRole  -> pixels, exactly
 
     int radius(SurfaceRole role) const
     {
+        // A role may state its radius outright, in pixels.
+        //
+        // The step scale is the right shape for a *system*: five steps, and a
+        // product decides what each one is worth. It is the wrong shape for
+        // this particular design, which draws eight distinct radii - 8 on a
+        // small button, 10 on a button, 11 on a note, 12 on a popover, 13 on a
+        // floating window, 14 on a card, 15 on a modal, 16 on the frame - and
+        // deliberately: those surfaces sit inside one another, and the
+        // difference between 13 and 16 is what keeps a window inside a window
+        // from reading as the same box twice. Forced onto five steps, four of
+        // the eight were one to three pixels wrong.
+        //
+        // So a profile may pin a role exactly. The steps stay, and stay the
+        // default: this is the exception, stated per role, not a replacement.
+        const auto exact = roleRadiusPx.constFind(static_cast<int>(role));
+        if (exact != roleRadiusPx.constEnd()) {
+            return exact.value();
+        }
         const auto it = roleRadius.constFind(static_cast<int>(role));
-        const RadiusStep step = it == roleRadius.constEnd()
-            ? RadiusStep::Small
-            : static_cast<RadiusStep>(it.value());
-        return radii.value(step);
+        if (it != roleRadius.constEnd()) {
+            return radii.value(static_cast<RadiusStep>(it.value()));
+        }
+        // A role a profile has not spoken about falls back to the one it
+        // refines, never to a bare default. That is what lets a role be added
+        // without every existing profile changing shape the day it appears.
+        switch (role) {
+        case SurfaceRole::IconButton:    return radius(SurfaceRole::Button);
+        case SurfaceRole::ActionIcon:    return radius(SurfaceRole::IconButton);
+        case SurfaceRole::Select:        return radius(SurfaceRole::Input);
+        case SurfaceRole::FloatingWindow: return radius(SurfaceRole::Dialog);
+        case SurfaceRole::Segment:       return radius(SurfaceRole::Select);
+        default:                         return radii.value(RadiusStep::Small);
+        }
     }
 
     int space(SpacingRole role) const
@@ -377,7 +577,17 @@ struct ThemeProfile
 
     TypeStyle text(TypeRole role) const
     {
-        return roleType.value(static_cast<int>(role), TypeStyle{type.md, 400, false});
+        const auto it = roleType.constFind(static_cast<int>(role));
+        if (it != roleType.constEnd()) {
+            return it.value();
+        }
+        // A role a profile has not stated falls back to the one it refines,
+        // so a role can be added without every profile changing the day it
+        // appears.
+        if (role == TypeRole::StatusBar) {
+            return text(TypeRole::Body);
+        }
+        return TypeStyle{type.md, 400, false};
     }
 
     int border(BorderRole role) const
@@ -398,6 +608,12 @@ struct ThemeProfile
     void setRoleRadius(SurfaceRole role, RadiusStep step)
     {
         roleRadius.insert(static_cast<int>(role), static_cast<int>(step));
+    }
+    // The exception to the step scale: this role is exactly this many pixels.
+    // See radius() for when that is the right thing to say.
+    void setRoleRadiusPx(SurfaceRole role, int px)
+    {
+        roleRadiusPx.insert(static_cast<int>(role), px);
     }
     void setRoleSpacing(SpacingRole role, int px)
     {

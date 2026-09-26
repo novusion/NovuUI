@@ -1,7 +1,9 @@
 #include "novu/ui/Fields.h"
 
 #include "novu/ui/Style.h"
+#include "novu/ui/StyleSheet.h"
 #include "novu/ui/Text.h"
+#include "novu/ui/Icon.h"
 #include "novu/ui/ThemeManager.h"
 
 #include <QAbstractItemView>
@@ -11,11 +13,21 @@
 #include <QDateEdit>
 #include <QLineEdit>
 #include <QListView>
+#include <QStyleFactory>
 #include <QPainter>
+#include <QStyle>
 #include <QPolygonF>
 #include <QTextCharFormat>
 
 namespace novu::ui {
+
+namespace {
+
+// `.select .cv svg{11x11}` sitting `.select{padding:0 11px}` in.
+constexpr int kChevronSide = 11;
+constexpr int kChevronInset = 9;
+
+} // namespace
 
 namespace {
 
@@ -35,7 +47,22 @@ ComboBox::ComboBox(QWidget* parent)
     // stylesheet defines. QComboBox's built-in view is a private subclass whose
     // delegate paints the row from the palette, which is why the hover on these
     // lists was invisible however the stylesheet was written.
-    setView(new QListView(this));
+    auto* popupView = new QListView(this);
+    // Qt6's windows11 style draws CE_ItemViewItem as an inset, individually
+    // rounded Fluent pill per row, regardless of what the stylesheet's own
+    // ::item rules say - the four items came out as four separate rounded
+    // boxes with a gap between each rather than one continuous list rounded
+    // only at its own top and bottom. Fusion draws that control as a plain
+    // rect and actually honours palette/stylesheet colours for it, which is
+    // the documented workaround for this exact popup - not a downgrade, since
+    // nothing else about this view asks the platform style for anything.
+    if (QStyle* fusion = QStyleFactory::create(QStringLiteral("Fusion"))) {
+        // QWidget::setStyle() does not take ownership; parented here so it is
+        // freed with the view rather than leaking one per combo box.
+        fusion->setParent(popupView);
+        popupView->setStyle(fusion);
+    }
+    setView(popupView);
 
     // And the palette to match, for the same reason: a styled delegate falls
     // back to Highlight for the row under the pointer.
@@ -77,15 +104,45 @@ void ComboBox::paintEvent(QPaintEvent* event)
 {
     QComboBox::paintEvent(event);
 
+    // `.select .cv svg{width:11px; height:11px}` and
+    // `.select.open .cv{transform:rotate(180deg)}`.
+    //
+    // The chevron the rest of the library draws, not a filled triangle. The
+    // triangle was a second drawing of one idea, and at this size it reads as
+    // a spin box rather than as the disclosure every other Novu control uses
+    // -- a tree twisty, a section caption and a select all point the same way.
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
-    const qreal cx = width() - 14.0;
-    const qreal cy = height() / 2.0;
-    p.setPen(Qt::NoPen);
-    p.setBrush(themeFor(this).colors.textSecondary);
-    p.drawPolygon(QPolygonF({QPointF(cx - 4.5, cy - 2.0),
-                             QPointF(cx + 4.5, cy - 2.0),
-                             QPointF(cx, cy + 3.5)}));
+    const QRectF box(width() - kChevronInset - kChevronSide,
+                     (height() - kChevronSide) / 2.0, kChevronSide, kChevronSide);
+    paintGlyph(&p, Glyph::ChevronDown, box, themeFor(this).colors.textDisabled,
+               m_open ? 180.0 : 0.0);
+}
+
+void ComboBox::setOpen(bool open)
+{
+    if (m_open == open) {
+        return;
+    }
+    m_open = open;
+    // The border is the sheet's, so the state is carried as a property rather
+    // than painted here: one answer per question.
+    setProperty(prop::open, open);
+    style()->unpolish(this);
+    style()->polish(this);
+    update();
+}
+
+void ComboBox::showPopup()
+{
+    setOpen(true);
+    QComboBox::showPopup();
+}
+
+void ComboBox::hidePopup()
+{
+    setOpen(false);
+    QComboBox::hidePopup();
 }
 
 ComboBox* comboBox(const QStringList& items, QWidget* parent, int width)

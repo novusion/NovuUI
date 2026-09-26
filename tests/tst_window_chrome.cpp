@@ -11,9 +11,11 @@
 // code computes would keep passing after the paint code stopped using it.
 
 #include "novu/ui/Text.h"
+#include "novu/ui/StyleSheet.h"
 #include "novu/ui/ThemeManager.h"
 #include "novu/ui/ThemeProfile.h"
 #include "novu/ui/ThemeScope.h"
+#include "novu/ui/IconButton.h"
 #include "novu/ui/TitleBar.h"
 #include "novu/ui/WindowShell.h"
 
@@ -32,9 +34,30 @@ class WindowChromeTest : public QObject
     Q_OBJECT
 
 private slots:
+    void toolRollRetainsContentAndRestoresGeometry(){
+        ToolWindow window;auto* body=new QLabel("Persistent content",window.content());window.contentLayout()->addWidget(body);window.resize(440,545);window.show();QCoreApplication::processEvents();
+        const QSize before=window.size();window.setRolled(true);QCoreApplication::processEvents();QVERIFY(window.isRolled());QVERIFY(window.height()<before.height());QVERIFY(!body->isVisible());
+        window.setRolled(false);QCoreApplication::processEvents();QCOMPARE(window.size(),before);QVERIFY(body->isVisible());QCOMPARE(body->text(),QString("Persistent content"));QTest::keyClick(&window,Qt::Key_Escape);QVERIFY(!window.isVisible());
+    }
+
+    void centreCanDistributeTheAvailableSpace() {
+        TitleBar bar;
+        auto* identity=new QLabel("Identity",&bar);identity->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Preferred);bar.setLeading(identity);
+        auto* field=new QLabel("Search workspace or run a command",&bar);bar.setCentre(field);
+        bar.resize(1000,bar.height());bar.show();QCoreApplication::processEvents();
+        bar.setCentrePosition(0);const int left=field->x();
+        bar.setCentrePosition(1);const int right=field->x();
+        QVERIFY(right>left);
+        bar.setCentrePosition(1.0/3.0);
+        QVERIFY(qAbs(field->x()-(left+(right-left)/3.0))<=1);
+        QVERIFY(field->geometry().left()>identity->geometry().right());
+        bar.setCentrePosition(-1);
+        QVERIFY(qAbs(field->geometry().center().x()-bar.rect().center().x())<=1);
+    }
     // tokens
     void everyProfileDefinesWindowGeometry();
     void controlGeometryIsIdenticalAcrossProfiles();
+    void everyTitleBarButtonIsTheSameControlBox();
     void windowColoursAreDerivedFromTheProfilePalette();
     void radiusRolesResolveForWindowsAndDialogs();
 
@@ -48,6 +71,7 @@ private slots:
     // title bar
     void titleBarHeightIsTheToken();
     void hidingControlsLeavesTheOthersUntouched();
+    void aTrailingInsetMovesTheControlsOffTheEdge();
     void maximizeBecomesRestore();
     void aLongCaptionElidesInsteadOfWidening();
     void captionDoesNotSetAFloorUnderTheWidth();
@@ -113,17 +137,60 @@ void WindowChromeTest::everyProfileDefinesWindowGeometry()
     }
 }
 
+// `.winbtn{width:30px;height:24px;border-radius:6px}` - and there is one such
+// rule, for the actions and the three controls alike. An action that takes the
+// bar's own height instead paints a hover plate the full height of the chrome,
+// which is the difference between a row of controls and a toolbar dropped onto
+// the title bar.
+void WindowChromeTest::everyTitleBarButtonIsTheSameControlBox()
+{
+    auto* surface = new QWidget();
+    ThemeScope::apply(surface, QStringLiteral("novuspace"));
+    const WindowTokens& w = themeFor(surface).window;
+
+    auto* bar = new TitleBar(surface);
+    bar->setMinimizable(true);
+    bar->setMaximizable(true);
+
+    auto* action = new IconButton(Glyph::Sun, IconButton::Variant::Chrome, bar);
+    QCOMPARE(action->sizeHint(), QSize(w.controlWidth, w.controlHeight));
+
+    bar->setTrailing({action});
+    bar->resize(600, w.titleBarHeight);
+    // The bar sizes its furniture when it applies the theme, which a layout
+    // pass is enough to reach - the test does not need a window on screen.
+    QCoreApplication::sendEvent(bar, new QEvent(QEvent::PolishRequest));
+
+    // Sized by the bar, not by the button's own control height.
+    QCOMPARE(action->size(), QSize(w.controlWidth, w.controlHeight));
+    QVERIFY(action->height() < w.titleBarHeight);
+
+    // The same box the three controls have.
+    auto* control = new WindowControlButton(WindowControlButton::Control::Minimize, bar);
+    QCOMPARE(control->sizeHint(), action->sizeHint());
+
+    // And no outline in any state: the bar's furniture is plates, not boxes.
+    QCOMPARE(action->variant(), IconButton::Variant::Chrome);
+    QVERIFY(w.controlRadius > 0);
+}
+
 void WindowChromeTest::controlGeometryIsIdenticalAcrossProfiles()
 {
     // The task that created these tokens exists because three applications
     // each chose their own control size. A profile may restyle the bar; it may
-    // not resize it, or the products drift apart again through the theme
-    // instead of through the code.
+    // not resize the controls in it, or the products drift apart again through
+    // the theme instead of through the code.
+    //
+    // The bar's own height is the exception, and deliberately so: it is a
+    // number each approved design states for itself - NovuSpace's
+    // `.titlebar{height:42px}` against the system's own 44 - and a product
+    // whose chrome is two pixels taller than its mockup moves every pixel of
+    // the page under it. What must not vary is what sits *inside* the bar.
     const QStringList ids = ThemeManager::instance().profileIds();
     const WindowTokens& first = ThemeManager::instance().profile(ids.first()).window;
     for (const QString& id : ids) {
         const WindowTokens& w = ThemeManager::instance().profile(id).window;
-        QCOMPARE(w.titleBarHeight, first.titleBarHeight);
+        QVERIFY(w.titleBarHeight >= 40 && w.titleBarHeight <= 48);
         QCOMPARE(w.controlWidth, first.controlWidth);
         QCOMPARE(w.controlHeight, first.controlHeight);
         QCOMPARE(w.titleBarPadding, first.titleBarPadding);
@@ -140,8 +207,11 @@ void WindowChromeTest::windowColoursAreDerivedFromTheProfilePalette()
         QCOMPARE(p.window.titleBarBg, p.colors.headerBg);
         QCOMPARE(p.window.titleText, p.colors.textPrimary);
         QCOMPARE(p.window.titleTextInactive, p.colors.textDisabled);
-        QCOMPARE(p.window.border, p.colors.border);
-        QCOMPARE(p.window.controlHoverBg, p.colors.surfaceHover);
+        QCOMPARE(p.window.border, p.colors.borderHover);
+        // `.winbtn:hover{background:var(--panel)}` - the panel surface, one
+        // step under the card. It was surfaceHover, which is the card's own
+        // hover and reads a shade too light against the bar.
+        QCOMPARE(p.window.controlHoverBg, p.colors.panelBgAlt);
         QCOMPARE(p.window.closeHoverBg, p.colors.danger);
         QVERIFY(p.window.closePressedBg != p.window.closeHoverBg);
     }
@@ -246,6 +316,33 @@ void WindowChromeTest::titleBarHeightIsTheToken()
     QCOMPARE(bar.maximumHeight(), w.titleBarHeight);
 }
 
+// The mechanism behind the one authoritative titleBarTrailingInset every
+// profile now shares (see ThemeProfile.h): a profile that states a wider
+// inset than the default moves Close by exactly that much, proving the row's
+// own trailing margin - not a Close-specific fix - is what places it.
+void WindowChromeTest::aTrailingInsetMovesTheControlsOffTheEdge()
+{
+    QWidget host;
+    host.resize(600, 80);
+
+    ThemeProfile inset = ThemeManager::instance().profile(
+        ThemeManager::instance().defaultProfileId());
+    inset.id = QStringLiteral("test-trailing-inset");
+    inset.window.titleBarTrailingInset = 20;
+    ThemeManager::instance().registerProfile(inset);
+
+    TitleBar bar(&host);
+    applyStyleSheet(&bar, inset.id);
+    bar.setTitle(QStringLiteral("Inset"));
+    bar.resize(600, bar.sizeHint().height());
+    bar.layout()->activate();
+
+    // 20px clear of the bar's own right edge - and the caption's own right
+    // limit moves with it, so a wide title still elides before it reaches
+    // Close.
+    QCOMPARE(bar.width() - 1 - bar.closeButton()->geometry().right(), 20);
+}
+
 void WindowChromeTest::hidingControlsLeavesTheOthersUntouched()
 {
     QWidget host;
@@ -263,14 +360,15 @@ void WindowChromeTest::hidingControlsLeavesTheOthersUntouched()
     full.layout()->activate();
     closeOnly.layout()->activate();
 
-    // Same bar height, same Close box, and Close still flush against the
-    // trailing edge. A dialog therefore reads as the same product as the
-    // window behind it.
+    // Same bar height, same Close box, and Close sits the same authoritative
+    // inset off the trailing edge either way. A dialog therefore reads as the
+    // same product as the window behind it.
     QCOMPARE(closeOnly.height(), full.height());
     QCOMPARE(closeOnly.closeButton()->size(), full.closeButton()->size());
     QCOMPARE(closeOnly.closeButton()->geometry().right(),
              full.closeButton()->geometry().right());
-    QCOMPARE(closeOnly.closeButton()->geometry().right(), closeOnly.width() - 1);
+    QCOMPARE(closeOnly.width() - 1 - closeOnly.closeButton()->geometry().right(),
+             themeFor(&closeOnly).window.titleBarTrailingInset);
     QVERIFY(!closeOnly.minimizeButton()->isVisibleTo(&closeOnly));
     QVERIFY(!closeOnly.maximizeButton()->isVisibleTo(&closeOnly));
     QVERIFY(closeOnly.closeButton()->isVisibleTo(&closeOnly));
@@ -310,7 +408,8 @@ void WindowChromeTest::aLongCaptionElidesInsteadOfWidening()
     QLabel* rendered = bar.findChild<QLabel*>();
     QVERIFY(rendered);
     // Controls stay on the frame: the caption gave way, not the chrome.
-    QCOMPARE(bar.closeButton()->geometry().right(), bar.width() - 1);
+    QCOMPARE(bar.width() - 1 - bar.closeButton()->geometry().right(),
+             themeFor(&bar).window.titleBarTrailingInset);
     QVERIFY(bar.closeButton()->geometry().left() >= 0);
 }
 

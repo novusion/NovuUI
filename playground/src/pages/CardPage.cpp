@@ -6,6 +6,7 @@
 #include "novu/ui/Badge.h"
 #include "novu/ui/Button.h"
 #include "novu/ui/Card.h"
+#include "novu/ui/Separator.h"
 #include "novu/ui/Text.h"
 
 #include <QHBoxLayout>
@@ -25,7 +26,10 @@ QWidget* build(const PreviewContext& ctx)
 {
     auto* page = new QWidget(ctx.parent);
     QVBoxLayout* column = previewPage(page);
+    auto* annotationCard=new Card("An annotated note",page);annotationCard->setLeadingAccent(token(ColorRole::Accent,.5));annotationCard->setSelectionOpacity(.11,.32);column->addWidget(annotationCard);
 
+    auto* dashed=new Card(page);dashed->setHeaderVisible(false);dashed->setSurface(Card::Surface::Raised);dashed->setBorderStyle(Qt::DashLine,true);dashed->setRadiusStep(RadiusStep::Small);
+    dashed->body()->addWidget(paragraph("A dashed note uses the stronger theme border and the raised surface.",dashed,TypeRole::Caption,Ink::Muted));column->addWidget(dashed);
     const bool longText = ctx.scenario == Scenario::LongText;
     const QString title = longText
         ? ctx.data->text(QStringLiteral("long_text")).left(90)
@@ -54,6 +58,19 @@ QWidget* build(const PreviewContext& ctx)
                                  "one they have to ask about."),
                   titled, TypeRole::Body, Ink::Secondary));
         column->addWidget(titled);
+    }
+
+    {
+        auto* action = new Card(QStringLiteral("Interactive card"), page);
+        action->setInteractive(true);
+        action->setSurface(Card::Surface::Window);
+        action->setSelected(true);
+        auto* result = label(QStringLiteral("Click, Enter or Space to activate"), action);
+        action->body()->addWidget(result);
+        QObject::connect(action, &Card::clicked, result, [result] {
+            result->setText(QStringLiteral("Card activated"));
+        });
+        column->addWidget(action);
     }
 
     // ── trailing widgets ─────────────────────────────────────────────────
@@ -121,6 +138,87 @@ QWidget* build(const PreviewContext& ctx)
         column->addWidget(card);
     }
 
+    // ── body metrics and the header rule ─────────────────────────────────
+    {
+        auto* card = new Card(QStringLiteral("setBodyMetrics() / setHeaderDivider()"), page);
+        card->setSubtitle(QStringLiteral("A card whose content is not the usual stack"));
+        QVBoxLayout* body = card->body();
+
+        auto* flush = new Card(QStringLiteral("Flush body"), card);
+        flush->setSubtitle(QStringLiteral("`.card-body.flush{padding:0}`"));
+        // A table, a list of rows that carry their own padding, anything that
+        // has to meet the card's own edge.
+        flush->setBodyMetrics(QMargins(0, 0, 0, 0), 0);
+        for (int i = 0; i < 3; ++i) {
+            auto* row = new QWidget(flush);
+            auto* line = new QHBoxLayout(row);
+            line->setContentsMargins(16, 9, 16, 9);
+            line->addWidget(label(QStringLiteral("Row %1").arg(i + 1), row, TypeRole::Body,
+                                  Ink::Secondary));
+            flush->body()->addWidget(row);
+            if (i < 2) {
+                flush->body()->addWidget(new Separator(Qt::Horizontal,
+                                                       Separator::Weight::Hairline, flush));
+            }
+        }
+        body->addWidget(flush);
+
+        auto* undivided = new Card(QStringLiteral("No header rule"), card);
+        undivided->setHeaderDivider(false);
+        undivided->body()->addWidget(label(QStringLiteral("Header and body as one block."),
+                                           undivided, TypeRole::Body, Ink::Secondary));
+        body->addWidget(undivided);
+
+        note(body, card,
+             QStringLiteral("Both have to be said through the card: applyTheme() runs again "
+                            "on every theme change and on the first polish, and what it "
+                            "re-applies is exactly the body's padding and gap - so a margin "
+                            "set straight on body() survives until that polish and then "
+                            "silently reverts. The header rule is `.card-head"
+                            "{border-bottom:1px solid var(--hair)}`, on by default."));
+        column->addWidget(card);
+    }
+
+    // ── raised ───────────────────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("On a panel"),
+                                 QStringLiteral("`.card.raised` — a card that sits "
+                                                "on a panel rather than on the page."));
+        QVBoxLayout* body = card->body();
+
+        for (int i = 0; i < 3; ++i) {
+            auto* row = new Card(card);
+            row->setHeaderVisible(false);
+            row->setSurface(Card::Surface::Raised);
+            row->setBodyMetrics(QMargins(9, 7, 9, 7), 3);
+            row->body()->addWidget(label(QStringLiteral("Reuse GitService.stage()"),
+                                         row, TypeRole::Body, Ink::Secondary));
+            row->body()->addWidget(label(QStringLiteral("Commit panel wiring"), row,
+                                         TypeRole::Mono, Ink::Muted));
+            body->addWidget(row);
+        }
+
+        note(body, card,
+             QStringLiteral("A page's cards take the page ground behind a hairline. "
+                            "A row inside a rail cannot: the hairline against a "
+                            "surface one step away from it reads as a seam, so the "
+                            "raised kind takes the panel shade and drops the "
+                            "outline. Both are the same component."));
+        column->addWidget(card);
+    }
+
+    auto* contract = new Card(QStringLiteral("Window surface / panel hover"), page);
+    contract->setSurface(Card::Surface::Window);
+    contract->setRadiusStep(RadiusStep::Medium);
+    contract->setHeaderMetrics(QMargins(13,12,13,11),26);
+    contract->setHoverSurface(Card::Surface::Raised);
+    contract->setHoverAccentBorder(true);
+    contract->setInteractive(true);
+    column->addWidget(contract);
+    auto* elevated = new Card(QStringLiteral("Elevated surface"), page);
+    elevated->setSurface(Card::Surface::Elevated);
+    elevated->setBorderStyle(Qt::SolidLine, true);
+    column->addWidget(elevated);
     column->addStretch(1);
     return page;
 }

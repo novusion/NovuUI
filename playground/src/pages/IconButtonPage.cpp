@@ -47,6 +47,8 @@ QWidget* build(const PreviewContext& ctx)
 {
     auto* page = new QWidget(ctx.parent);
     QVBoxLayout* column = previewPage(page);
+    auto* favourite=new IconButton(Glyph::Star,IconButton::Variant::Ghost,page);favourite->setCheckable(true);favourite->setChecked(true);
+    favourite->setCheckedGlyphStyle(statusToken(SemanticRole::Warning,ColorRole::StatusText));column->addWidget(favourite);
     const bool disabledScenario = ctx.scenario == Scenario::Disabled;
 
     // ── the matrix ───────────────────────────────────────────────────────

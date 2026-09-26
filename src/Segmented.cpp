@@ -14,10 +14,22 @@ namespace {
 
 // The design's `.chipset`: 3px of air inside the tray, 2px between segments,
 // and 4px/11px inside a segment.
-constexpr int kTrayPadding = 3;
+
 constexpr int kSegmentGap = 2;
 constexpr int kSegmentPaddingH = 11;
 constexpr int kSegmentPaddingV = 4;
+constexpr int kCountGap = 5;
+
+QPair<QString, QString> splitCount(const QString& text)
+{
+    const int separator = text.lastIndexOf(QStringLiteral("  "));
+    if (separator < 0) return {text, QString()};
+    const QString count = text.mid(separator).trimmed();
+    bool numeric = !count.isEmpty();
+    for (const QChar ch : count) numeric = numeric && ch.isDigit();
+    return numeric ? QPair<QString, QString>{text.left(separator).trimmed(), count}
+                   : QPair<QString, QString>{text, QString()};
+}
 
 } // namespace
 
@@ -99,7 +111,7 @@ QString Segmented::stripItemTooltip(int index) const
 
 int Segmented::stripLead() const
 {
-    return kTrayPadding;
+    return themeFor(this).controls.segmentedPadding;
 }
 
 int Segmented::stripGap() const
@@ -109,12 +121,12 @@ int Segmented::stripGap() const
 
 int Segmented::stripTop() const
 {
-    return kTrayPadding;
+    return themeFor(this).controls.segmentedPadding;
 }
 
 int Segmented::stripItemHeight() const
 {
-    return height() - 2 * kTrayPadding;
+    return height() - 2 * themeFor(this).controls.segmentedPadding;
 }
 
 int Segmented::stripItemWidth(int index) const
@@ -122,15 +134,56 @@ int Segmented::stripItemWidth(int index) const
     if (index < 0 || index >= m_segments.size()) {
         return 0;
     }
+    if (m_fill) {
+        // Divided evenly, with the remainder spread over the first few so the
+        // segments still add up to the tray exactly -- a rounded share left a
+        // one-pixel gap at the trailing edge that read as a misdrawn border.
+        const int count = m_segments.size();
+        const int gaps = (count - 1) * stripGap();
+        const int usable = qMax(0, width() - 2 * themeFor(this).controls.segmentedPadding - gaps);
+        return usable / count + (index < usable % count ? 1 : 0);
+    }
     return segmentWidth(m_segments.at(index));
+}
+
+void Segmented::setFill(bool fill)
+{
+    if (m_variant == Variant::RailSwitcher && !fill) {
+        return;
+    }
+    if (m_fill == fill) {
+        return;
+    }
+    m_fill = fill;
+    refresh();
 }
 
 void Segmented::setControlSize(ControlSize size)
 {
+    if (m_variant == Variant::RailSwitcher && size != ControlSize::Medium) {
+        return;
+    }
     if (m_size == size) {
         return;
     }
     m_size = size;
+    refresh();
+}
+
+void Segmented::setVariant(Variant variant)
+{
+    if (m_variant == variant) {
+        return;
+    }
+    m_variant = variant;
+    if (variant == Variant::RailSwitcher) {
+        m_size = ControlSize::Medium;
+        m_fill = true;
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    } else {
+        m_fill = false;
+        setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    }
     refresh();
 }
 
@@ -145,7 +198,10 @@ StyleSpec Segmented::styleSpec() const
     // The tray: an inset well, the same one an input sits in, so a picker and a
     // field in the same toolbar read as the same depth.
     StyleSpec spec;
-    spec.radius = SurfaceRole::Input;
+    // A picker is a select, not a text field: the approved designs shape the
+    // two apart (`.seg` and `.select` are both pills where `.omni` is a box),
+    // and Select falls back to Input for any profile that has not said so.
+    spec.radius = SurfaceRole::Select;
     spec.borderWidth = BorderRole::Input;
     spec.type = m_size == ControlSize::Small ? TypeRole::Eyebrow : TypeRole::Caption;
     spec.background = token(ColorRole::PanelBg);
@@ -163,17 +219,31 @@ StyleSpec Segmented::segmentStyleSpec(int index) const
     // rather than a tint - a tinted segment reads as a status, and this is a
     // choice.
     StyleSpec spec;
-    spec.radius = SurfaceRole::Button;
-    spec.radiusStepOverride = static_cast<int>(RadiusStep::Small);
+    // `.chip{border-radius:7px}` inside `.chipset{border-radius:10px}` - the
+    // plate lifted out of the tray is drawn at its own, smaller radius, not
+    // the tray's Select radius (that read as a near-pill, not a chip).
+    spec.radius = SurfaceRole::Segment;
     spec.borderWidth = BorderRole::Input;
-    spec.type = m_size == ControlSize::Small ? TypeRole::Eyebrow : TypeRole::Caption;
+    // `.chip{font-size:11.5px;font-weight:500;line-height:1.3}` at every size:
+    // the Caption role, which is that size, and nothing else. A small chipset
+    // used to resolve to Eyebrow, which is the *mono, uppercase, tracked*
+    // caption that names a group - so `Day Week Month Custom` came out as
+    // `DAY WEEK MONTH CUSTOM` in a face the sheet never puts on a control.
+    // The control size decides the padding and the height, not the type.
+    spec.type = TypeRole::Caption;
+    // The Caption role carries the body weight, and a chipset drawn at 400
+    // reads lighter than every other control on the same toolbar.
+    spec.weight = 500;
 
     spec.background = token(ColorRole::Transparent);
     spec.border = token(ColorRole::Transparent);
     spec.foreground = token(ColorRole::TextDisabled);
     spec.hoverForeground = token(ColorRole::TextSecondary);
 
-    spec.checkedBackground = token(ColorRole::PanelBgAlt);
+    // `.seg button.on{background:var(--card-h)}` -- the active surface, which
+    // is what this is: PanelBgAlt names a second panel, not a state, and a
+    // segment that reads as a panel does not read as lifted.
+    spec.checkedBackground = token(ColorRole::SurfaceActive);
     spec.checkedForeground = token(ColorRole::TextPrimary);
     spec.checkedBorder = token(ColorRole::Transparent);
 
@@ -197,14 +267,21 @@ int Segmented::segmentWidth(const Segment& segment) const
         return glyphSizeFor(this, m_size) + 2 * kSegmentPaddingH;
     }
     const QFontMetrics fm(resolve(segmentStyleSpec(-1), this).font);
-    return fm.horizontalAdvance(segment.text) + 2 * kSegmentPaddingH;
+    const auto parts = splitCount(segment.text);
+    int content = fm.horizontalAdvance(parts.first);
+    if (!parts.second.isEmpty()) {
+        QFont countFont = roleMonoFont(this, TypeRole::Mono);
+        countFont.setPixelSize(themeFor(this).type.xxs);
+        content += kCountGap + QFontMetrics(countFont).horizontalAdvance(parts.second);
+    }
+    return content + 2 * kSegmentPaddingH;
 }
 
 QSize Segmented::sizeHint() const
 {
     const QFontMetrics fm(resolve(segmentStyleSpec(-1), this).font);
-    const int height = qMax(themeFor(this).controlHeight(m_size),
-                            fm.height() + 2 * kSegmentPaddingV + 2 * kTrayPadding);
+    const int height = themeFor(this).controls.segmentedHeight>0?themeFor(this).controls.segmentedHeight:qMax(themeFor(this).controlHeight(m_size),
+                            fm.height() + 2 * kSegmentPaddingV + 2 * themeFor(this).controls.segmentedPadding);
     // stripWidth() is the lead, the gaps and every item, which is exactly what
     // this used to add up by hand.
     return QSize(stripWidth(), height);
@@ -222,7 +299,6 @@ bool Segmented::event(QEvent* event)
 void Segmented::paintEvent(QPaintEvent*)
 {
     const ResolvedStyle tray = resolvedStyle();
-    const ThemeProfile& profile = themeFor(this);
 
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
@@ -234,15 +310,10 @@ void Segmented::paintEvent(QPaintEvent*)
     painter.setBrush(tray.background);
     painter.drawRoundedRect(well, tray.radius, tray.radius);
 
-    if (hasFocus()) {
-        QColor ring = profile.colors.accent;
-        ring.setAlphaF(0.75);
-        painter.setPen(QPen(ring, profile.border(BorderRole::Focus)));
-        painter.setBrush(Qt::NoBrush);
-        painter.drawRoundedRect(QRectF(rect()).adjusted(1, 1, -1, -1),
-                                tray.radius, tray.radius);
-    }
-
+    // No accent ring around the tray on focus: the current segment's own
+    // raised surface already says which one is on, and a second, group-wide
+    // outline on top of it was reading as its own, unrelated colour rather
+    // than as a focus cue.
     for (int i = 0; i < m_segments.size(); ++i) {
         const Segment& segment = m_segments.at(i);
         const ResolvedStyle style = resolve(segmentStyleSpec(i), this, height());
@@ -281,9 +352,38 @@ void Segmented::paintEvent(QPaintEvent*)
                                   box.center().y() - size / 2.0 + 0.5, size, size);
             paintGlyph(&painter, segment.glyph, glyphBox, ink);
         } else {
+            const auto parts = splitCount(segment.text);
             painter.setFont(style.font);
-            painter.setPen(ink);
-            painter.drawText(box, Qt::AlignCenter, segment.text);
+            const int labelWidth = QFontMetrics(style.font).horizontalAdvance(parts.first);
+            if (parts.second.isEmpty()) {
+                painter.setPen(ink);
+                painter.drawText(box, Qt::AlignCenter, parts.first);
+            } else {
+                QFont countFont = roleMonoFont(this, TypeRole::Mono);
+                countFont.setPixelSize(themeFor(this).type.xxs);
+                const int countWidth = QFontMetrics(countFont).horizontalAdvance(parts.second);
+                const int totalWidth = labelWidth + kCountGap + countWidth;
+                const int left = box.center().x() - totalWidth / 2;
+                painter.setPen(ink);
+                painter.drawText(QRect(left, box.top(), labelWidth, box.height()),
+                                 Qt::AlignVCenter | Qt::AlignLeft, parts.first);
+                painter.setFont(countFont);
+                // A count belongs to the selected face just as much as its
+                // label does. The frozen NovuAI task switcher uses the accent
+                // for the active number ("To Do 3") and keeps the remaining
+                // counts quiet, so the user can read both selection and scale
+                // without turning every number into a badge.
+                QColor countInk = on
+                    ? themeFor(this).colors.accent
+                    : (themeFor(this).colors.textTertiary.isValid()
+                           ? themeFor(this).colors.textTertiary
+                           : themeFor(this).colors.textDisabled);
+                if (!isEnabled()) countInk.setAlphaF(countInk.alphaF() * 0.42);
+                painter.setPen(countInk);
+                painter.drawText(QRect(left + labelWidth + kCountGap, box.top(),
+                                       countWidth, box.height()),
+                                 Qt::AlignVCenter | Qt::AlignLeft, parts.second);
+            }
         }
     }
 }

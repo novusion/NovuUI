@@ -69,6 +69,36 @@ QWidget* build(const PreviewContext& ctx)
         column->addWidget(card);
     }
 
+    // ── glyph and caption role ───────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("Glyph and caption role"),
+                                 QStringLiteral("What `.stat .lab` carries: a 14px glyph "
+                                                "in front of the caption, and the caption "
+                                                "in whichever role the product states."));
+        QVBoxLayout* body = card->body();
+        QHBoxLayout* row = exampleRow(body, card, QString());
+
+        auto* plain = new StatCard(QStringLiteral("Workspaces"), QStringLiteral("6"), card);
+        row->addWidget(plain);
+
+        auto* glyphed = new StatCard(QStringLiteral("Workspaces"), QStringLiteral("6"), card);
+        glyphed->setGlyph(Glyph::Folder);
+        row->addWidget(glyphed);
+
+        auto* eyebrow = new StatCard(QStringLiteral("Workspaces"), QStringLiteral("6"), card);
+        eyebrow->setGlyph(Glyph::Folder);
+        eyebrow->setCaptionRole(TypeRole::Eyebrow);
+        row->addWidget(eyebrow);
+        row->addStretch(1);
+
+        note(body, card,
+             QStringLiteral("None by default, so a card that never asked for a glyph is "
+                            "unchanged. The caption's role is the product's to state: "
+                            "NovuSpace's `.stat .lab` is mono, uppercase and tracked "
+                            "(Eyebrow); a plain caption is none of those."));
+        column->addWidget(card);
+    }
+
     // ── the grid ─────────────────────────────────────────────────────────
     {
         Card* card = exampleCard(page, QStringLiteral("statGrid() / MiniStat"),

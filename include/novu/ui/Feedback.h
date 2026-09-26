@@ -1,6 +1,7 @@
 #pragma once
 
 #include "novu/ui/Badge.h"
+#include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
 #include "novu/ui/ThemeProfile.h"
 
@@ -9,10 +10,16 @@
 #include <QVector>
 
 #include <QFrame>
+
+#include <memory>
 #include <QString>
 #include <QWidget>
 
+class QHBoxLayout;
 class QLabel;
+class QVBoxLayout;
+
+class QTextDocument;
 
 namespace novu::ui {
 
@@ -25,16 +32,76 @@ class EmptyState : public QWidget
 {
     Q_OBJECT
 
+// ── the mark, and what may hang off it ───────────────────────────────────
+//
+// The design draws this shape twice and the second one is not an empty state
+// at all: `.bpage`, the browser viewport before a page has painted, is the
+// same centred column with a plaque instead of a bare glyph, the address in
+// the monospace face under the heading, buttons under the sentence and the
+// tab's session chip at the foot.
+//
+// They are one component because they are one drawing. Everything past the
+// first three arguments is optional and takes no room until it is set, so the
+// plain case stays the plain case.
 public:
     EmptyState(const QString& glyph, const QString& title,
                const QString& subtitle, QWidget* parent = nullptr);
+    // The same, with the mark said as a glyph rather than an icon-font
+    // codepoint. Preferred: `svg("folder")` in the design is a glyph, and a
+    // string reaches for whatever the icon font happens to have.
+    EmptyState(Glyph glyph, const QString& title, const QString& subtitle,
+               QWidget* parent = nullptr);
 
     void setTitle(const QString& title);
     void setSubtitle(const QString& subtitle);
+    // The design states prose measures in `ch`; applications resolve that
+    // profile-specific measure to pixels and hand it to the shared state.
+    void setTextMaximumWidth(int width);
+    int textMaximumWidth() const { return m_textWidth; }
+
+    // A composed mark — an AppMark plaque carrying a letter or a glyph — in
+    // place of the bare one. Takes ownership; nullptr restores the glyph.
+    void setMark(QWidget* mark);
+    QWidget* mark() const { return m_mark; }
+
+    // `.bpage .u` — one line in the monospace face between the title and the
+    // sentence: the address, the path, the identifier of the thing that is not
+    // there. Empty hides it rather than leaving its line height.
+    void setDetail(const QString& detail);
+    QString detail() const { return m_detail; }
+
+    // `.empty .acts` — what would make the state stop being empty. Empty by
+    // default and takes no height until something is put in it.
+    QHBoxLayout* actions() const;
+
+    // `.bpage .sess` — one widget under the actions, centred. The session chip
+    // in the design; anything a caller has to say about the state after its
+    // buttons.
+    void setFooter(QWidget* footer);
+    QWidget* footer() const { return m_footer; }
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+    void rebuildMarkRow();
+    // The design draws two rhythms for this column and the mark says which:
+    // a bare glyph is an empty state inside a card, a plaque is a page's own.
+    void applyRhythm();
+
+    QWidget* m_inner = nullptr;
+    QVBoxLayout* m_column = nullptr;
+    int m_textWidth = 430;
+    QWidget* m_glyphMark = nullptr;
+    QWidget* m_mark = nullptr;
     QLabel* m_title = nullptr;
+    QLabel* m_detailLabel = nullptr;
     QLabel* m_subtitle = nullptr;
+    QWidget* m_actions = nullptr;
+    QWidget* m_footer = nullptr;
+    QHBoxLayout* m_footerRow = nullptr;
+    bool m_plaque = false;
+    QString m_detail;
 };
 
 // A tinted strip carrying one sentence of context, optionally with an action.
@@ -50,9 +117,25 @@ public:
     InfoBanner(const QString& text, Badge::Tone tone = Badge::Tone::Info,
                QWidget* parent = nullptr, QWidget* trailing = nullptr);
 
+    // The sentence. `<b>…</b>` inside it is drawn in the primary ink at the
+    // design's own weight, which is what `.note b{color:var(--text);
+    // font-weight:600}` says — the sheet's notes are all "**what happened.**
+    // what it means", and a banner that drew the markup literally printed the
+    // tags on the screen.
     QString text() const { return m_text; }
     void setText(const QString& text);
     void setTone(Badge::Tone tone);
+
+    // `.note svg{width:15px;height:15px;margin-top:2px;color:<tone>}` — the
+    // glyph at the leading edge, and the only part of a note that carries the
+    // tone. Set from the tone by default; Glyph::None removes it.
+    void setGlyph(Glyph glyph);
+    Glyph glyph() const { return m_glyph; }
+
+    // A note is a block of prose, not a strip: it wraps and its height
+    // follows what it says at the width it is given.
+    int heightForWidth(int width) const override;
+    bool hasHeightForWidth() const override { return true; }
 
     // Width is a preference, never a measurement. A banner is handed the
     // messages nobody budgeted for - a linker error, a stack trace, a path
@@ -65,12 +148,26 @@ public:
 protected:
     void paintEvent(QPaintEvent* event) override;
 
+protected:
+    void resizeEvent(QResizeEvent* event) override;
+
 private:
-    // The sentence is painted rather than held in a child QLabel: it is one
-    // line of prose nobody interacts with, and the label was both a second
-    // widget and the thing whose sizeHint had to be fought.
+    // The sentence is painted rather than held in a child QLabel: it is prose
+    // nobody interacts with, and the label was both a second widget and the
+    // thing whose sizeHint had to be fought.
+    //
+    // Laid out through a QTextDocument because the design puts inline bold in
+    // it. Rebuilt on a text, tone or width change, never per paint.
+    static Glyph glyphForTone(Badge::Tone tone);
+    void syncHeight();
+    void rebuildDocument();
+    int textLaneWidth(int width) const;
+
     QString m_text;
     Badge::Tone m_tone = Badge::Tone::Info;
+    Glyph m_glyph = Glyph::None;
+    bool m_glyphFromTone = true;
+    std::unique_ptr<QTextDocument> m_document;
 };
 
 // A proportion: how much of something is done, or how much of it is used.
@@ -118,6 +215,8 @@ public:
 
     // Nothing has been measured. The track is drawn empty and no fill at all,
     // which is a different picture from a measured zero.
+    void setTrackMetrics(int height,int radius){m_trackHeight=qMax(1,height);m_trackRadius=qMax(0,radius);updateGeometry();update();}
+    void setTrackBackground(ColorToken colour){m_trackBackground=colour;update();}
     bool isUnknown() const { return m_unknown; }
     void setUnknown(bool unknown);
 
@@ -144,6 +243,8 @@ protected:
 
 private:
     int m_value = 0;
+    int m_trackHeight=6,m_trackRadius=3;
+    ColorToken m_trackBackground=token(ColorRole::PanelBgAlt);
     Tone m_tone = Tone::Accent;
     bool m_unknown = false;
     QString m_leading;

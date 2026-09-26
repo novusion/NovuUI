@@ -6,6 +6,11 @@
 #include "novu/ui/ThemeScope.h"
 
 #include <QStyle>
+#include <QApplication>
+#include <QAbstractScrollArea>
+#include <QScrollBar>
+#include <QPointer>
+#include <QEvent>
 #include <QWidget>
 
 namespace novu::ui {
@@ -30,6 +35,35 @@ QString css(const QColor& color)
 {
     return color.alpha() == 255 ? color.name() : rgba(color, color.alphaF());
 }
+
+// The owner of a web scrollbar supplies :hover, including its content children.
+// QSS does not reliably invalidate ancestor pseudo-state selectors, so carry
+// the owner state onto the bars and invalidate only those two small controls.
+class ScrollHoverWatcher final:public QObject {
+    QPointer<QAbstractScrollArea> active;
+    static void mark(QAbstractScrollArea* area,bool hovered){
+        if(!area)return;
+        for(auto* bar:{area->verticalScrollBar(),area->horizontalScrollBar()}){
+            if(bar->property("novuScrollHovered").toBool()==hovered)continue;
+            bar->setProperty("novuScrollHovered",hovered);repolish(bar);
+        }
+    }
+public:
+    explicit ScrollHoverWatcher(QObject* parent):QObject(parent){}
+    bool eventFilter(QObject* object,QEvent* event)override{
+        if(event->type()!=QEvent::Enter&&event->type()!=QEvent::Leave)return false;
+        auto* widget=qobject_cast<QWidget*>(object);if(!widget)return false;
+        if(event->type()==QEvent::Leave){
+            if(active&&(widget==active||widget==active->viewport())){mark(active,false);active=nullptr;}
+            return false;
+        }
+        QAbstractScrollArea* area=nullptr;
+        for(auto* parent=widget;parent;parent=parent->parentWidget())if((area=qobject_cast<QAbstractScrollArea*>(parent)))break;
+        if(area&&!themeFor(area).controls.scrollThumbOnAreaHover)area=nullptr;
+        if(area!=active){mark(active,false);active=area;mark(active,true);}
+        return false;
+    }
+};
 
 // Kept in step with Button.cpp, which reserves the same padding in its
 // sizeHint(). The two cannot share a constant without the sheet depending on
@@ -59,6 +93,11 @@ QString styleSheetFor(const ThemeProfile& p)
     const ThemeColors& c = p.colors;
     const int radiusButton = p.radius(SurfaceRole::Button);
     const int radiusInput = p.radius(SurfaceRole::Input);
+    // A sheet states one number and cannot ask the widget how tall it is, so a
+    // pill radius has to be capped here or Qt draws a rounded rectangle whose
+    // corners overlap and flatten. Half the control height is the pill.
+    const int radiusSelect = qMin(p.radius(SurfaceRole::Select),
+                                  p.controls.height / 2);
     const int padding = p.space(SpacingRole::ToolbarGap);
 
     QString qss;
@@ -174,13 +213,20 @@ QString styleSheetFor(const ThemeProfile& p)
     };
     for (const auto& t : tones) {
         qss += QStringLiteral("QLabel[%1=\"%2\"] { color: %3; background: %4;"
-                              " border-radius: %5px; border: none; }")
+                              " border-radius: %5px; border: 1px solid %6;"
+                              " padding: 2px 8px; font-weight: 500; }")
                    .arg(QLatin1String(prop::tone), QLatin1String(t.key),
                         css(t.color.text), css(t.color.fill))
-                   .arg(p.radii.medium);
+                   .arg(p.radii.medium)
+                   .arg(css(t.color.border));
     }
 
     // -- inputs ---------------------------------------------------------------
+    // panelBg, not panelBgAlt: the design's `.input,.select,.search input,
+    // textarea.input` all share one rule, `background:var(--bg)`, which is
+    // this token, not the panel-alt shade a popup or a sub-panel sits on. A
+    // field is a surface a page sits its own content on, not a panel nested
+    // inside one.
     qss += QStringLiteral("QLineEdit { background: %1; color: %2; border: 1px solid %3;"
                           " border-radius: %4px; padding: 0 10px; }"
                           "QLineEdit:focus { border-color: %5; }"
@@ -196,10 +242,14 @@ QString styleSheetFor(const ThemeProfile& p)
                           " padding: 6px 8px; }"
                           "QPlainTextEdit:focus { border-color: %5; }"
                           "QPlainTextEdit:disabled { color: %6; }")
-               .arg(css(c.panelBgAlt), css(c.textPrimary), css(c.border))
+               .arg(css(c.panelBg), css(c.textPrimary), css(c.border))
                .arg(radiusInput)
                .arg(css(c.accent), css(c.textDisabled));
 
+    if(c.inputBorder.isValid()||c.inputInk.isValid())
+        qss+=QStringLiteral("QLineEdit { border-color: %1; color: %2; }").arg(css(c.inputBorder.isValid()?c.inputBorder:c.border),css(c.inputInk.isValid()?c.inputInk:c.textPrimary));
+    if(c.inputHoverBorder.isValid())qss+=QStringLiteral("QLineEdit:hover { border-color: %1; }").arg(css(c.inputHoverBorder));
+    if(c.inputFocusBg.isValid())qss+=QStringLiteral("QLineEdit:focus { background: %1; border-color: %2; }").arg(css(c.inputFocusBg),css(c.accent));
     // A refused value, the approved design's `.field.bad .input`.
     //
     // After the rules above, so it wins on equal specificity, and repeated for
@@ -229,20 +279,38 @@ QString styleSheetFor(const ThemeProfile& p)
                           "QDateEdit::up-button, QDateEdit::down-button,"
                           " QDateTimeEdit::up-button, QDateTimeEdit::down-button {"
                           " width: 0; height: 0; border: none; }")
-               .arg(css(c.panelBgAlt), css(c.textPrimary), css(c.border))
+               .arg(css(c.panelBg), css(c.textPrimary), css(c.border))
                .arg(radiusInput)
                .arg(css(c.accent));
 
-    qss += QStringLiteral("QComboBox { background: %1; color: %2; border: 1px solid %3;"
+    // `.select{color:var(--text3)}` - the closed field's own value is the
+    // muted ink, same step as a placeholder. Only the closed field: once the
+    // list is open the row under the pointer is being read to be chosen, and
+    // stays the primary ink (%2, below) same as every other popup in the
+    // sheet - a select whose open list also muted itself would be the one
+    // control in the product that got harder to read at the moment it asked
+    // to be read.
+    qss += QStringLiteral("QComboBox { background: %1; color: %8; border: 1px solid %3;"
                           " border-radius: %4px; padding: 0 10px; }"
                           "QComboBox::drop-down { border: none; width: 20px; }"
+                          // `.select.open{border-color:var(--acc)}` --
+                          // the list is showing, and the control says so.
+                          "QComboBox[novuOpen=\"true\"] { border-color: %7; }"
                           // The arrow is painted by ComboBox: Qt cannot draw a
                           // CSS border triangle — it comes out as a rectangle
                           // that reads as a dash, and the combo then looks
                           // exactly like a line edit.
                           "QComboBox::down-arrow { image: none; width: 0; height: 0; }"
+                          // Square where it meets the closed field, so the two
+                          // read as one shape continuing downward rather than a
+                          // second, separately-rounded box; rounded to the
+                          // field's own radius everywhere else Qt's own popup
+                          // was drawing hard corners with no radius at all.
                           "QComboBox QAbstractItemView { background: %1; color: %2;"
-                          " border: 1px solid %3; outline: none; padding: 2px; }"
+                          " border: 1px solid %3; outline: none; padding: 2px;"
+                          " border-top-left-radius: 0; border-top-right-radius: 0;"
+                          " border-bottom-left-radius: %4px;"
+                          " border-bottom-right-radius: %4px; }"
                           "QComboBox QAbstractItemView::item { min-height: 24px;"
                           " padding: 2px 8px; border: none; }"
                           // A popup list moves its selection with the pointer,
@@ -257,15 +325,20 @@ QString styleSheetFor(const ThemeProfile& p)
                           // and is not a child of the combo, so the rules above
                           // do not reach it.
                           "QCompleter QAbstractItemView { background: %1; color: %2;"
-                          " border: 1px solid %3; outline: none; }"
+                          " border: 1px solid %3; outline: none;"
+                          " border-top-left-radius: 0; border-top-right-radius: 0;"
+                          " border-bottom-left-radius: %4px;"
+                          " border-bottom-right-radius: %4px; }"
                           "QCompleter QAbstractItemView::item { min-height: 24px;"
                           " padding: 2px 8px; }"
                           "QCompleter QAbstractItemView::item:selected,"
                           " QCompleter QAbstractItemView::item:hover {"
                           " background: %5; color: %6; }")
-               .arg(css(c.panelBgAlt), css(c.textPrimary), css(c.border))
-               .arg(radiusInput)
-               .arg(css(c.surfaceActive.lighter(145)), css(c.textPrimary));
+               .arg(css(c.panelBg), css(c.textPrimary), css(c.border))
+               .arg(radiusSelect)
+               .arg(css(c.surfaceActive.lighter(145)), css(c.textPrimary))
+               .arg(css(c.accent))
+               .arg(css(c.textDisabled));
 
     // The label only. The indicator is deliberately *not* styled here.
     //
@@ -324,6 +397,16 @@ QString styleSheetFor(const ThemeProfile& p)
                           "QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }"
                           "QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }")
                .arg(css(c.border), rgba(c.border, 0.32));
+
+    if(p.controls.scrollThumbOnAreaHover){
+        const int inset=qMax(0,p.controls.scrollThumbInset);
+        qss+=QStringLiteral(
+            "QScrollBar:horizontal { height:10px; }"
+            "QScrollBar::handle:vertical,QScrollBar::handle:horizontal { background:transparent; border:%1px solid transparent; background-clip:content; border-radius:5px; min-height:0; min-width:0; }"
+            "QScrollBar[novuScrollHovered=\"true\"]::handle:vertical,QScrollBar[novuScrollHovered=\"true\"]::handle:horizontal { background:%2; }"
+            "QScrollBar::handle:vertical:hover,QScrollBar::handle:horizontal:hover { background:%3; }")
+            .arg(inset).arg(css(c.borderHover),css(c.textDisabled));
+    }
 
     // Bare QScrollArea, not only the named one.
     //
@@ -384,6 +467,8 @@ void applyStyleSheet(QWidget* root, const QString& profileId)
     // remembering a line. Idempotent, and it wraps whatever style is already
     // there.
     installNovuStyle();
+    static QPointer<ScrollHoverWatcher> scrollHover;
+    if(!scrollHover&&qApp){scrollHover=new ScrollHoverWatcher(qApp);qApp->installEventFilter(scrollHover);}
     root->setStyleSheet(styleSheetFor(ThemeManager::instance().profileRef(profileId)));
 }
 

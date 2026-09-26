@@ -8,6 +8,8 @@
 #include "novu/ui/Card.h"
 #include "novu/ui/StyleSheet.h"
 #include "novu/ui/Text.h"
+#include "novu/ui/ThemeManager.h"
+#include "novu/ui/ThemeScope.h"
 
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -31,6 +33,10 @@ struct VariantRow
 const VariantRow kVariants[] = {
     {"Primary", Button::Variant::Primary},
     {"Secondary", Button::Variant::Secondary},
+    // `.btn` itself: a hairline and a transparent plate until the pointer
+    // arrives. Between Secondary (filled at rest, to read against a card) and
+    // Ghost (no border at rest, for chrome).
+    {"Outlined", Button::Variant::Outlined},
     {"Ghost", Button::Variant::Ghost},
     {"Success", Button::Variant::Success},
     {"Warning", Button::Variant::Warning},
@@ -42,6 +48,23 @@ QWidget* build(const PreviewContext& ctx)
     auto* page = new QWidget(ctx.parent);
     QVBoxLayout* column = previewPage(page);
 
+    // The base profile carries the shared semantic palette every profile
+    // outside novu-light is required to agree on (see
+    // everyProfileSharesTheSemanticPalette); only the accent - what Primary's
+    // fill and its disabled dimming actually read - is taken from the
+    // gallery's active theme, so a disabled Primary here is still *that*
+    // theme's Primary, never a colour borrowed from novusionBaseProfile's own
+    // unrelated palette.
+    auto compactProfile=novusionBaseProfile();compactProfile.id=ctx.profileId+QStringLiteral("-button-opacity-example");
+    const ThemeProfile& active=ThemeManager::instance().profile(ctx.profileId);
+    compactProfile.colors.accent=active.colors.accent;
+    compactProfile.colors.accentLight=active.colors.accentLight;
+    compactProfile.colors.textOnAccent=active.colors.textOnAccent;
+    compactProfile.controls.buttonPaddingSmall=11;compactProfile.controls.buttonPaddingIncludesBorder=false;compactProfile.controls.buttonDisabledOpacity=.42;
+    ThemeManager::instance().registerProfile(compactProfile);
+    auto* opacityExample=exampleCard(page,QStringLiteral("Disabled surface opacity"),QStringLiteral("A disabled primary retains its filled surface at 42 percent opacity."));
+    ThemeScope::apply(opacityExample,compactProfile.id);
+    auto* dimmed=new Button(QStringLiteral("Send"),Button::Variant::Primary,opacityExample);dimmed->setControlSize(ControlSize::Small);dimmed->setEnabled(false);opacityExample->body()->addWidget(dimmed,0,Qt::AlignLeft);column->addWidget(opacityExample);
     const bool disabledScenario = ctx.scenario == Scenario::Disabled;
     const QString overrideText = ctx.scenario == Scenario::LongText
         ? ctx.data->text(QStringLiteral("long_text")).left(70)
@@ -182,6 +205,16 @@ QWidget* build(const PreviewContext& ctx)
         column->addWidget(card);
     }
 
+    auto* compact=new Card(QStringLiteral("Compact pill profile"),page);
+    auto profile=themeFor(page);
+    profile.id=QStringLiteral("gallery-compact-pill");
+    profile.controls.smallButtonRadius=RadiusStep::Pill;
+    ThemeManager::instance().registerProfile(profile);
+    ThemeScope::apply(compact,profile.id);
+    auto* compactAction=new Button(QStringLiteral("Resume work"),Button::Variant::Primary,compact);
+    compactAction->setControlSize(ControlSize::Small);
+    compact->body()->addWidget(compactAction);
+    column->addWidget(compact);
     column->addStretch(1);
     return page;
 }
@@ -207,8 +240,9 @@ ComponentSpec buttonComponent()
                    QStringLiteral("novutrade")};
     spec.usedBy = {QStringLiteral("novuadmin"), QStringLiteral("novuspace")};
     spec.variants = {QStringLiteral("Primary"), QStringLiteral("Secondary"),
-                     QStringLiteral("Ghost"), QStringLiteral("Success"),
-                     QStringLiteral("Warning"), QStringLiteral("Danger")};
+                     QStringLiteral("Outlined"), QStringLiteral("Ghost"),
+                     QStringLiteral("Success"), QStringLiteral("Warning"),
+                     QStringLiteral("Danger")};
     spec.states = {QStringLiteral("Normal"), QStringLiteral("Hover"), QStringLiteral("Pressed"),
                    QStringLiteral("Focused"), QStringLiteral("Disabled")};
     spec.keywords = {QStringLiteral("action"), QStringLiteral("push"), QStringLiteral("cta"),

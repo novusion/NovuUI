@@ -5,7 +5,10 @@
 #include "novu/ui/ThemeManager.h"
 
 #include <QEvent>
+#include <QFocusEvent>
 #include <QFontMetrics>
+#include <QKeyEvent>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPen>
 
@@ -44,8 +47,13 @@ constexpr double kDisabledOpacity = 0.42;
 QFont moduleFont(const QWidget* context, bool current)
 {
     const ThemeProfile& profile = themeFor(context);
-    QFont font = roleFont(context, TypeRole::Body);
-    font.setPixelSize(profile.type.sm);
+    // `.modbtn{font-family:'Instrument Sans';font-size:12.5px}` - the module
+    // switcher is set in the *display* face, like the window title beside it,
+    // not in the body face; and 12.5px is the profile's `md`, the step Body
+    // already stands for. Both were read off the wrong line before: Body's
+    // family and `sm`.
+    QFont font = roleFont(context, TypeRole::WindowTitle);
+    font.setPixelSize(profile.type.md);
     // `.modbtn.on { font-weight:600 }` - the active module is set heavier as
     // well as tinted, so the bar still reads where you are in a light theme
     // where the tint is faint.
@@ -282,6 +290,27 @@ QSize ModuleBar::minimumSizeHint() const
     return sizeHint();
 }
 
+void ModuleBar::focusInEvent(QFocusEvent* event)
+{
+    m_ring.noteFocusIn(event->reason());
+    ItemStrip::focusInEvent(event);
+    update();
+}
+
+void ModuleBar::keyPressEvent(QKeyEvent* event)
+{
+    m_ring.noteKeyPress();
+    ItemStrip::keyPressEvent(event);
+    update();
+}
+
+void ModuleBar::mousePressEvent(QMouseEvent* event)
+{
+    m_ring.noteMousePress();
+    ItemStrip::mousePressEvent(event);
+    update();
+}
+
 bool ModuleBar::event(QEvent* event)
 {
     if (event->type() == ThemeChangeEvent::type() || event->type() == QEvent::ParentChange) {
@@ -409,7 +438,9 @@ void ModuleBar::paintEvent(QPaintEvent*)
                          displayedLabel(i));
     }
 
-    if (hasFocus() && currentIndex() >= 0) {
+    // `.modbtn.on` is a tint and the accent ink and nothing else. The ring is
+    // the keyboard's alone - a clicked module already shows where it is.
+    if (m_ring.visibleOn(this) && currentIndex() >= 0) {
         painter.setPen(QPen(profile.colors.accent, profile.border(BorderRole::Focus)));
         painter.setBrush(Qt::NoBrush);
         painter.drawRoundedRect(QRectF(itemRect(currentIndex())).adjusted(1, 1, -1, -1),

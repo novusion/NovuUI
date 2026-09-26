@@ -4,7 +4,11 @@
 
 #include "novu/ui/Button.h"
 #include "novu/ui/Card.h"
+#include "novu/ui/StatusDot.h"
 #include "novu/ui/CommandPalette.h"
+#include "novu/ui/Popover.h"
+
+#include <QKeySequence>
 #include "novu/ui/Fields.h"
 #include "novu/ui/Form.h"
 #include "novu/ui/GateCard.h"
@@ -107,6 +111,49 @@ QWidget* buildCommandPalette(const PreviewContext& ctx)
         column->addWidget(card);
     }
 
+    // ── the field that opens it ──────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("The field in the titlebar"),
+                                 QStringLiteral("A door, not a field."));
+        QVBoxLayout* body = card->body();
+
+        auto* field = new CommandField(
+            QStringLiteral("Search this workspace, or run a command"), card);
+        field->setShortcut(QKeySequence(QStringLiteral("Ctrl+K")));
+        field->setMaximumWidth(460);
+
+        auto* opened = label(QStringLiteral("not opened"), card, TypeRole::Mono,
+                             Ink::Muted);
+        auto* palette2 = new CommandPalette(card);
+        palette2->setCommands(sampleCommands());
+        QObject::connect(field, &CommandField::clicked, card, [palette2, opened, card] {
+            opened->setText(QStringLiteral("opened"));
+            palette2->present(card);
+        });
+
+        body->addWidget(field);
+        body->addWidget(opened);
+
+        auto* bare = new CommandField(QStringLiteral("Application-owned search shortcut"), card);
+        bare->setShortcutHint(QKeySequence(QStringLiteral("Ctrl+F")));
+        bare->setMaximumWidth(220);
+        body->addWidget(label(QStringLiteral("Without a shortcut"), card,
+                              TypeRole::Label, Ink::Muted));
+        body->addWidget(bare);
+
+        note(body, card,
+             QStringLiteral("Every approved shell draws this same `.omni`, and each was "
+                            "building it from a read-only QLineEdit: a caret, a focus ring "
+                            "and a selection on a control that accepts no text, and nowhere "
+                            "to put the cap, since a line edit's actions are icons only. "
+                            "Nothing is typed here — the palette is where typing happens."));
+        note(body, card,
+             QStringLiteral("The cap and the shortcut are one statement: setShortcut() both "
+                            "draws the keys and binds them, so the key that opens the "
+                            "palette cannot drift from the one the field advertises."));
+        column->addWidget(card);
+    }
+
     {
         Card* card = exampleCard(page, QStringLiteral("The ranking, as data"),
                                  QStringLiteral("Assertable without a pixel."));
@@ -136,6 +183,71 @@ QWidget* buildCommandPalette(const PreviewContext& ctx)
              QStringLiteral("matches() and matchScore() are public because the ranking is the "
                             "interesting part of this component, and a test that had to read "
                             "pixels to check it would be checking the font instead."));
+        column->addWidget(card);
+    }
+
+    // ── the select ───────────────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("SelectButton"),
+                                 QStringLiteral("The control that opens one, "
+                                                "showing the choice in force."));
+        QVBoxLayout* body = card->body();
+
+        QHBoxLayout* row = exampleRow(body, card, QStringLiteral("Engine"));
+        auto* provider = new SelectButton(card);
+        provider->setControlSize(ControlSize::Small);
+        provider->setOptions({QStringLiteral("Anthropic"), QStringLiteral("OpenAI"),
+                              QStringLiteral("Google"), QStringLiteral("Local runtime")});
+        provider->setStatus(StatusDot::Tone::Success, true);
+
+        auto* model = new SelectButton(card);
+        model->setControlSize(ControlSize::Small);
+        model->setOptions({QStringLiteral("Claude Opus 5"), QStringLiteral("Claude Sonnet 5"),
+                           QStringLiteral("GPT-4.1"), QStringLiteral("Gemini 1.5 Pro")});
+
+        auto* agent = new SelectButton(card);
+        agent->setControlSize(ControlSize::Small);
+        agent->setGlyph(Glyph::Agent);
+        agent->setOptions({QStringLiteral("Coding Agent"), QStringLiteral("Analysis Agent"),
+                           QStringLiteral("Review Agent")});
+        for (SelectButton* one : {provider, model, agent}) {
+            row->addWidget(one);
+        }
+        row->addStretch(1);
+
+        QHBoxLayout* big = exampleRow(body, card, QStringLiteral("Regular size"));
+        auto* plain = new SelectButton(card);
+        plain->setOptions({QStringLiteral("Today"), QStringLiteral("This week"),
+                           QStringLiteral("All time")});
+        big->addWidget(plain);
+        auto* mono = new SelectButton(card);
+        mono->setControlSize(ControlSize::Small);
+        mono->setLabelRole(TypeRole::Mono);
+        mono->setStatus(StatusDot::Tone::Neutral, false);
+        mono->setOptions({QStringLiteral("qwen2-1_5b-instruct"),
+                          QStringLiteral("mistral-7b-instruct")});
+        big->addWidget(mono);
+        big->addStretch(1);
+
+        auto* said = label(QStringLiteral("nothing chosen yet"), card, TypeRole::Mono,
+                           Ink::Muted);
+        for (SelectButton* one : {provider, model, agent, plain, mono}) {
+            QObject::connect(one, &SelectButton::currentChanged, said,
+                             [said](const QString& key) { said->setText(key); });
+        }
+        body->addWidget(said);
+
+        note(body, card,
+             QStringLiteral("Every shell draws this and each was reaching for a "
+                            "QComboBox: a system popup list, a focus frame and a "
+                            "line-edit shape no stylesheet makes into a pill, and a "
+                            "list that cannot carry the groups, separators, meta "
+                            "column and checked accent a Popover already draws."));
+        note(body, card,
+             QStringLiteral("Setting the current option is not choosing it: "
+                            "currentChanged fires for the menu, not for "
+                            "setCurrentKey(), so restoring a saved choice at startup "
+                            "does not read as the user making one."));
         column->addWidget(card);
     }
 

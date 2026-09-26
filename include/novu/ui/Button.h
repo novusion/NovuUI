@@ -28,8 +28,22 @@ class Button : public QPushButton
 public:
     enum class Variant {
         Primary,    // the affirmative action of a view or dialog
+        Accent,     // accent-tinted outline (`.btn.accent`), less force than Primary
         Secondary,  // neutral action (Cancel, Refresh)
-        Ghost,      // low-emphasis, typically inside table rows
+        // The design's plain `.btn`: a hairline border and a transparent
+        // plate at rest, filling to the page's own surface only once the
+        // pointer arrives. Neither Secondary (filled at rest, for a control
+        // that has to read against a card) nor Ghost (no border until
+        // hover, for chrome) draws this - it is the button a toolbar, a
+        // table footer or a row reaches for by default, with no emphasis
+        // and no context to lift off of.
+        Outlined,
+        // No border until hover - for chrome (a title bar, a panel header)
+        // where a hairline would draw a box around the window's own
+        // furniture. Not for a row action: `iact()` in the reference is
+        // always `.btn`'s bordered plate, Copy/View/Edit/Detach included, and
+        // reaching for Ghost there is the mistake this comment used to invite.
+        Ghost,
         Danger,     // destructive action
         Success,    // starts or resumes something (Start, Connect)
         // Attention, not failure: an action that proceeds but has a cost the
@@ -58,6 +72,18 @@ public:
     // re-rendered in the variant's own ink on every theme change.
     Glyph glyph() const { return m_glyph; }
     void setGlyph(Glyph glyph);
+
+    // A glyph after the caption, at the trailing edge.
+    //
+    // Almost always the chevron on a button that opens a menu rather than
+    // performing its caption — `svg("plus") + "New item" + svg("chevdown")`
+    // in the approved design. It is a different statement from the leading
+    // glyph: the leading one illustrates the action, the trailing one says
+    // there is a choice behind it. Without this every product drew its own
+    // arrow in the label text, where it is set in the body font rather than
+    // the icon set and does not follow the ink.
+    Glyph trailingGlyph() const { return m_trailingGlyph; }
+    void setTrailingGlyph(Glyph glyph);
 
     // The action is running. The leading glyph becomes a turning spinner, in
     // the design's own `.spin`.
@@ -97,6 +123,7 @@ private:
     Variant m_variant = Variant::Secondary;
     ControlSize m_size = ControlSize::Medium;
     Glyph m_glyph = Glyph::None;
+    Glyph m_trailingGlyph = Glyph::None;
     bool m_busy = false;
     bool m_animating = false;
 };
@@ -104,6 +131,7 @@ private:
 // Convenience constructors so call sites read as the design system names them.
 Button* primaryButton(const QString& text, QWidget* parent = nullptr);
 Button* secondaryButton(const QString& text, QWidget* parent = nullptr);
+Button* outlinedButton(const QString& text, QWidget* parent = nullptr);
 Button* ghostButton(const QString& text, QWidget* parent = nullptr);
 Button* dangerButton(const QString& text, QWidget* parent = nullptr);
 Button* successButton(const QString& text, QWidget* parent = nullptr);

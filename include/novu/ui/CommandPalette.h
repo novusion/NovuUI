@@ -1,8 +1,10 @@
 #pragma once
 
 #include "novu/ui/Icon.h"
+#include "novu/ui/Keys.h"
 #include "novu/ui/StyleSpec.h"
 
+#include <QAbstractButton>
 #include <QPointer>
 #include <QString>
 #include <QVariant>
@@ -51,6 +53,57 @@ struct Command
 // beats a longer one at the same rank. Without an order the first match is
 // whichever command happened to be registered first, which makes the top result
 // — the one Enter runs — effectively random.
+// The way into the palette, in the titlebar.
+//
+// The approved shells all draw the same `.omni`: a search glyph, a prompt, and
+// the shortcut that opens the palette, set on the page ground behind a
+// hairline. NovuAI, NovuExplorer, NovuSpace and NovuHub each have one, and it
+// belongs beside the palette it opens rather than being rebuilt per shell.
+//
+// It is a button, not a field, because nothing is ever typed into it: the
+// palette is where typing happens. Building it from a read-only QLineEdit --
+// which is what the shells were reaching for -- gives a caret, a focus ring
+// and a selection on a control that accepts no text, and leaves nowhere to put
+// the KeyCap, since a line edit's actions are icons only.
+class CommandField : public QAbstractButton
+{
+    Q_OBJECT
+
+public:
+    explicit CommandField(const QString& prompt, QWidget* parent = nullptr);
+
+    QString prompt() const { return m_prompt; }
+    void setPrompt(const QString& prompt);
+
+    // The shortcut drawn on the trailing cap. Also bound as this widget's
+    // QAction shortcut, so the key opens the palette from anywhere in the
+    // window and cannot drift from the one the cap advertises. An empty
+    // sequence removes the cap.
+    QKeySequence shortcut() const;
+    void setShortcut(const QKeySequence& shortcut);
+    // Show an application-owned binding without registering a second shortcut.
+    void setShortcutHint(const QKeySequence& shortcut);
+
+    // Where the cap sits, in local coordinates. Empty when there is none.
+    QRect capRect() const;
+
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
+
+protected:
+    void paintEvent(QPaintEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
+    void enterEvent(QEnterEvent* event) override;
+    void leaveEvent(QEvent* event) override;
+    bool event(QEvent* event) override;
+
+private:
+    void layOutCap();
+
+    QString m_prompt;
+    KeyCap* m_cap = nullptr;
+};
+
 class CommandPalette : public QWidget
 {
     Q_OBJECT

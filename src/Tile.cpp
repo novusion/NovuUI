@@ -223,8 +223,18 @@ QSize Tile::sizeHint() const
 
 QSize Tile::minimumSizeHint() const
 {
-    const int width = 160;
-    return QSize(width, heightForWidth(width));
+    // 160 is the width below which two tiles stop being tellable apart - but
+    // only when the tile actually needs it. `.radiogrid.c3` in a 280px column
+    // gives each tile about 130, and a five-word title fits that: insisting on
+    // 160 there reported every tile in the grid as clipped when none of them
+    // was.
+    const int floor = qMin(160, sizeHint().width());
+    // And the height at the width it *has*, not at the floor. A description
+    // that wraps at 160 and does not at 194 is two different heights, and
+    // measuring the taller one against the shorter box is not a measurement of
+    // anything.
+    const int measured = width() > 0 ? width() : floor;
+    return QSize(floor, heightForWidth(measured));
 }
 
 void Tile::paintEvent(QPaintEvent*)

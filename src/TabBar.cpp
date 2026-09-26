@@ -14,6 +14,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPen>
+#include <QResizeEvent>
 #include <QShowEvent>
 
 #include <utility>
@@ -22,14 +23,26 @@ namespace novu::ui {
 
 namespace {
 
-// `.btab { height:32px; padding:0 10px; gap:8px }`.
-constexpr int kHeight = 32;
-constexpr int kPaddingH = 10;
+// `.btabs-row` is the band and `.btab` is what sits in it:
+// `.btabs{padding:6px 6px 0;gap:3px}` over `.btab{padding:6px 9px 7px}`, which
+// is a 32px tab standing on 6px of the band - and the 6px is why a tab reads
+// as meeting the page below it rather than floating in a strip.
+constexpr int kHeight = 39;  // 38 of band, and the rule under it
+constexpr int kInsetTop = 6;
+constexpr int kInsetLeft = 6;
+// `.tab{padding:10px 12px}`.
+constexpr int kPaddingH = 12;
 constexpr int kGap = 8;
 constexpr int kRadius = 8;
 
 // The mark at the leading edge, and the close box at the trailing one.
 constexpr int kMark = 14;
+// `.btab .fav` - the lettered mark is a tile rather than a bare glyph, so it
+// is a shade larger and carries its own edge.
+constexpr int kMarkTile = 17;
+constexpr int kMarkTileRadius = 5;
+// `.btab .sdot` - the state dot that a lettered tab shows after its label.
+constexpr int kStateDot = 6;
 constexpr int kCloseSide = 16;
 constexpr int kCloseGlyph = 9;
 
@@ -38,7 +51,11 @@ constexpr int kCloseGlyph = 9;
 // is the point at which shrinking stops helping.
 constexpr int kMaxWidth = 220;
 constexpr int kMinWidth = 92;
-constexpr int kTabGap = 2;
+constexpr int kTabGap = 3;
+
+// `.tab.on::after{left:8px;right:8px}` - the rule under an underlined tab is
+// inset from both ends, so it reads as marking the word rather than the box.
+constexpr double kUnderlineInset = 8.0;
 
 // The trailing "+".
 constexpr int kNewTabWidth = 28;
@@ -58,8 +75,12 @@ QFont tabFont(const QWidget* context, bool current)
 {
     const ThemeProfile& profile = themeFor(context);
     QFont font = roleFont(context, TypeRole::Body);
-    font.setPixelSize(profile.type.sm);
-    font.setWeight(current ? QFont::Medium : QFont::Normal);
+    // `.tab{font-size:12.5px;font-weight:500}` - the sheet gives every tab
+    // the same weight and marks the current one with colour and the 2px rule
+    // under it, not with a heavier face. `md` is the step 12.5 rounds to.
+    font.setPixelSize(profile.type.md);
+    font.setWeight(QFont::Medium);
+    Q_UNUSED(current)
     return font;
 }
 
@@ -93,6 +114,8 @@ int TabBar::insertTab(int index, const QString& key, const QString& text, Glyph 
     tab.key = key;
     tab.label = text;
     tab.glyph = glyph;
+    // `.tab` draws no close box, whenever the tab arrives.
+    tab.closable = m_variant != Variant::Underline;
 
     const int at = qBound(0, index, m_tabs.size());
     m_tabs.insert(at, tab);
@@ -230,6 +253,23 @@ void TabBar::setGlyph(const QString& key, Glyph glyph)
     update();
 }
 
+void TabBar::setMarkText(const QString& key, const QString& text)
+{
+    Tab* tab = find(key);
+    if (!tab || tab->mark == text) {
+        return;
+    }
+    tab->mark = text;
+    updateGeometry();
+    update();
+}
+
+QString TabBar::markText(const QString& key) const
+{
+    const Tab* tab = find(key);
+    return tab ? tab->mark : QString();
+}
+
 void TabBar::setState(const QString& key, State state)
 {
     Tab* tab = find(key);
@@ -267,6 +307,26 @@ QColor TabBar::color(const QString& key) const
     return tab ? tab->color : QColor();
 }
 
+void TabBar::setVariant(Variant variant)
+{
+    if (m_variant == variant) {
+        return;
+    }
+    m_variant = variant;
+    // An underlined strip has no close boxes at all - `.tab` draws none - so
+    // asking for the variant is also asking for that. Tabs added *after* the
+    // variant was set are handled in addTab(): asking here only, a caller that
+    // sets the variant on an empty bar and then fills it - which is the
+    // ordinary order - got a close box on every tab.
+    if (variant == Variant::Underline) {
+        for (Tab& tab : m_tabs) {
+            tab.closable = false;
+        }
+    }
+    updateGeometry();
+    update();
+}
+
 void TabBar::setClosable(const QString& key, bool closable)
 {
     Tab* tab = find(key);
@@ -297,39 +357,113 @@ void TabBar::setNewTabButton(bool enabled)
     update();
 }
 
+void TabBar::setTrailingWidget(QWidget* widget)
+{
+    if (m_trailing == widget) {
+        return;
+    }
+    delete m_trailing;
+    m_trailing = widget;
+    if (m_trailing) {
+        m_trailing->setParent(this);
+        m_trailing->show();
+    }
+    updateGeometry();
+    placeTrailing();
+    update();
+}
+
+void TabBar::placeTrailing()
+{
+    if (!m_trailing) {
+        return;
+    }
+    const QSize hint = m_trailing->sizeHint();
+    m_trailing->setGeometry(width() - hint.width(), (height() - hint.height()) / 2,
+                            hint.width(), hint.height());
+}
+
+void TabBar::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    placeTrailing();
+}
+
 // == geometry ===============================================================
 
 int TabBar::tabWidth(const Tab& tab) const
 {
     const QFontMetrics fm(tabFont(this, false));
-    int width = 2 * kPaddingH + fm.horizontalAdvance(tab.label);
-    if (tab.glyph != Glyph::None || tab.state != State::Idle) {
+    // Plus a pixel of slack at each end. The label box comes out as exactly
+    // the advance, and elidedText() gives way at equal widths - so a tab
+    // measured to the pixel painted `NovuAI access` as `NovuAI acce...`.
+    int width = 2 * kPaddingH + fm.horizontalAdvance(tab.label) + 2;
+    if (!tab.mark.isEmpty()) {
+        width += kMarkTile + kGap;
+        if (tab.state == State::Failed || tab.state == State::Asleep) {
+            width += kGap + kStateDot;
+        }
+    } else if (tab.glyph != Glyph::None || tab.state != State::Idle) {
         width += kMark + kGap;
     }
     if (tab.closable) {
         width += kGap + kCloseSide;
     }
+    // The floor and the cap are a *browser's* rules. `.btab{max-width:250px}`
+    // keeps twenty open documents legible, and the floor keeps a close box
+    // reachable on a tab titled "1". Neither applies to `.tab`, the underlined
+    // strip, which is `padding:10px 12px` around its word and nothing else:
+    // forced to 92 apiece, eight of them spread edge to edge across a drawer
+    // and elided `Indicators` to `Indic...` with blank plate on both sides.
+    if (m_variant == Variant::Underline) {
+        return width;
+    }
     return qBound(kMinWidth, width, kMaxWidth);
+}
+
+QVector<int> TabBar::laidOutWidths() const
+{
+    QVector<int> widths;
+    widths.reserve(m_tabs.size());
+    if (m_tabs.isEmpty()) {
+        return widths;
+    }
+
+    int total = 0;
+    for (const Tab& tab : m_tabs) {
+        const int each = tabWidth(tab);
+        widths << each;
+        total += each;
+    }
+
+    const int available = width() - 2 * kInsetLeft
+        - (m_newTab ? kNewTabWidth + 4 + kTabGap : 0)
+        - (m_trailing ? m_trailing->sizeHint().width() : 0)
+        - kTabGap * (m_tabs.size() - 1);
+
+    // Each tab is as wide as its own title needs, up to the cap - which is
+    // what `.btab{max-width:250px}` says and what a browser looks like with
+    // three tabs open. Equal widths are the *crowded* case, not the normal
+    // one: forcing two tabs to the width of the longer title leaves a strip
+    // of blank plate beside the shorter one.
+    if (total <= available) {
+        return widths;
+    }
+
+    // Out of room: they shrink together, down to the floor, because tabs that
+    // gave up their width one at a time would move every close box on every
+    // keystroke of a page title.
+    const int even = qBound(kMinWidth, available / m_tabs.size(), kMaxWidth);
+    for (int& each : widths) {
+        each = even;
+    }
+    return widths;
 }
 
 int TabBar::laidOutWidth() const
 {
-    if (m_tabs.isEmpty()) {
-        return 0;
-    }
-    int widest = 0;
-    for (const Tab& tab : m_tabs) {
-        widest = qMax(widest, tabWidth(tab));
-    }
-
-    const int available = width() - (m_newTab ? kNewTabWidth + kTabGap : 0)
-        - kTabGap * (m_tabs.size() - 1);
-    const int even = available / m_tabs.size();
-
-    // Every tab is the same width, and they shrink together - which is what a
-    // browser does. Tabs that each sized to their own title make the strip a
-    // ragged row whose close boxes are never in the same place twice.
-    return qBound(kMinWidth, qMin(widest, even), kMaxWidth);
+    const QVector<int> widths = laidOutWidths();
+    return widths.isEmpty() ? 0 : widths.first();
 }
 
 QRect TabBar::tabRect(int index) const
@@ -337,8 +471,14 @@ QRect TabBar::tabRect(int index) const
     if (index < 0 || index >= m_tabs.size()) {
         return QRect();
     }
-    const int each = laidOutWidth();
-    return QRect(index * (each + kTabGap), 0, each, height());
+    const QVector<int> widths = laidOutWidths();
+    int left = kInsetLeft;
+    for (int i = 0; i < index; ++i) {
+        left += widths.at(i) + kTabGap;
+    }
+    // The rule at the bottom edge is the page's, not the strip's: a tab ends
+    // on it, as `.btab{border-bottom:none}` says.
+    return QRect(left, kInsetTop, widths.at(index), height() - kInsetTop - 1);
 }
 
 QRect TabBar::closeRect(int index) const
@@ -359,9 +499,13 @@ QRect TabBar::newTabRect() const
     if (!m_newTab) {
         return QRect();
     }
-    const int each = laidOutWidth();
-    const int left = m_tabs.isEmpty() ? 0 : m_tabs.size() * (each + kTabGap);
-    return QRect(left, (height() - kNewTabWidth) / 2 + 2, kNewTabWidth, kNewTabWidth - 4);
+    int left = kInsetLeft;
+    for (int each : laidOutWidths()) {
+        left += each + kTabGap;
+    }
+    // `.btab-new{margin:0 0 4px 4px}` - it sits on the page's edge with the
+    // tabs, not centred in the band above them.
+    return QRect(left + 4, height() - kNewTabWidth - 5, kNewTabWidth, kNewTabWidth);
 }
 
 int TabBar::indexAt(const QPoint& position) const
@@ -438,8 +582,19 @@ bool TabBar::event(QEvent* event)
 
 // == interaction ============================================================
 
+void TabBar::focusInEvent(QFocusEvent* event)
+{
+    m_ring.noteFocusIn(event->reason());
+    QWidget::focusInEvent(event);
+    update();
+}
+
 void TabBar::mousePressEvent(QMouseEvent* event)
 {
+    // Clicking a tab is not asking for the keyboard's outline: `.btab.on` is
+    // a plate, a hairline and the 2px accent rule across its top, and a ring
+    // drawn over that is the same statement a third time.
+    m_ring.noteMousePress();
     const QPoint position = event->position().toPoint();
 
     // Middle-click closes, everywhere it exists. It is the one gesture users
@@ -587,6 +742,7 @@ void TabBar::leaveEvent(QEvent* event)
 
 void TabBar::keyPressEvent(QKeyEvent* event)
 {
+    m_ring.noteKeyPress();
     switch (event->key()) {
     case Qt::Key_Right:
         if (m_current + 1 < m_tabs.size()) {
@@ -666,9 +822,15 @@ void TabBar::paintEvent(QPaintEvent*)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
-    painter.fillRect(rect(), profile.window.titleBarBg);
-    painter.setPen(QPen(profile.colors.border, qMax(1, profile.border(BorderRole::Divider))));
-    painter.drawLine(0, height() - 1, width(), height() - 1);
+    // Browser tabs stand on their own panel band (`.btabs-row`). Underline
+    // tabs map to `.tabs`, whose background is transparent so the strip stays
+    // part of the surrounding card instead of reading as another frame.
+    if (m_variant == Variant::Browser)
+        painter.fillRect(rect(), profile.colors.panelBgAlt);
+    // Filled, not stroked: an antialiased 1px line lands on a half pixel and
+    // comes out as two grey rows where the design draws one hairline.
+    const int rule = qMax(1, profile.border(BorderRole::Divider));
+    painter.fillRect(QRect(0, height() - rule, width(), rule), profile.colors.border);
 
     for (int index = 0; index < m_tabs.size(); ++index) {
         const Tab& tab = m_tabs.at(index);
@@ -683,7 +845,7 @@ void TabBar::paintEvent(QPaintEvent*)
         // The plate. Only the top corners are round: the tab meets the page
         // below it, and a fully rounded tab reads as a chip that happens to be
         // near the edge.
-        if (current || hot) {
+        if ((current || hot) && m_variant == Variant::Browser) {
             QPainterPath plate;
             plate.moveTo(box.left(), box.bottom() + 1);
             plate.lineTo(box.left(), box.top() + kRadius);
@@ -700,12 +862,20 @@ void TabBar::paintEvent(QPaintEvent*)
         if (current) {
             // The underline: the tab's own colour when it has one, the accent
             // otherwise. NovuExplorer's contribution, and the reason the colour
-            // lives on the tab.
+            // lives on the tab. `.tab.on::after{left:8px;right:8px;height:2px;
+            // border-radius:2px}` - inset from both ends in the underlined
+            // strip, full width under a browser tab's plate.
             const QColor line = tab.color.isValid() ? tab.color : profile.colors.accent;
             painter.setPen(Qt::NoPen);
             painter.setBrush(line);
-            painter.drawRect(QRectF(box.left(), box.bottom() - kUnderlineHeight + 1,
-                                    box.width(), kUnderlineHeight));
+            const double inset = m_variant == Variant::Underline ? kUnderlineInset : 0.0;
+            const QRectF rule(box.left() + inset, box.bottom() - kUnderlineHeight + 1,
+                              box.width() - 2 * inset, kUnderlineHeight);
+            if (m_variant == Variant::Underline) {
+                painter.drawRoundedRect(rule, kUnderlineHeight, kUnderlineHeight);
+            } else {
+                painter.drawRect(rule);
+            }
         } else if (tab.color.isValid()) {
             // Inactive tabs keep a faint trace of their colour, or a coloured
             // set is only ever one tab's worth of information.
@@ -716,14 +886,48 @@ void TabBar::paintEvent(QPaintEvent*)
 
         QColor ink = current ? style.checkedForeground
                              : (hot ? style.hoverForeground : style.foreground);
+        if (tab.state == State::Asleep && !current) {
+            // `.btab.sleeping{opacity:.62}` - and `.on` cancels it, because a
+            // suspended tab you are looking at is not a tab in the background.
+            ink = withAlpha(ink, kAsleepOpacity);
+        }
 
         int left = box.left() + kPaddingH;
         const QRect close = closeRect(index);
         int rightEdge = close.isNull() ? box.right() - kPaddingH : close.left() - kGap;
 
         // ── the mark ─────────────────────────────────────────────────────
+        //
+        // A lettered mark is the document's own, and only a page still
+        // arriving takes its place. Everything else states itself after the
+        // label instead of overwriting what identifies the tab.
+        const bool lettered = !tab.mark.isEmpty() && tab.state != State::Loading;
+        if (lettered) {
+            const QRectF tile(left, box.center().y() - kMarkTile / 2.0, kMarkTile,
+                              kMarkTile);
+            QLinearGradient plate(tile.topLeft(), tile.bottomRight());
+            plate.setColorAt(0.0, current ? profile.colors.surfaceHover
+                                          : profile.colors.panelBgAlt);
+            plate.setColorAt(1.0, current ? profile.colors.surfaceActive
+                                          : profile.colors.surfaceHover);
+            painter.setPen(QPen(profile.colors.borderHover, 1));
+            painter.setBrush(plate);
+            painter.drawRoundedRect(tile.adjusted(0.5, 0.5, -0.5, -0.5), kMarkTileRadius,
+                                    kMarkTileRadius);
+
+            QFont letter = roleFont(this, TypeRole::Body);
+            letter.setPixelSize(profile.type.xxs);
+            letter.setWeight(QFont::DemiBold);
+            painter.setFont(letter);
+            painter.setPen(tab.state == State::Asleep
+                               ? withAlpha(profile.colors.textSecondary, kAsleepOpacity)
+                               : profile.colors.textSecondary);
+            painter.drawText(tile, Qt::AlignCenter, tab.mark);
+            left += kMarkTile + kGap;
+        }
+
         const QRectF markBox(left, box.center().y() - kMark / 2.0, kMark, kMark);
-        switch (tab.state) {
+        switch (lettered ? State::Idle : tab.state) {
         case State::Loading:
             motion::paintSpinner(&painter, markBox.adjusted(1, 1, -1, -1),
                                  profile.colors.border, profile.colors.accentLight, 1.6,
@@ -750,6 +954,17 @@ void TabBar::paintEvent(QPaintEvent*)
                 left += kMark + kGap;
             }
             break;
+        }
+
+        // ── the state dot ──────────────────────────────────────
+        if (lettered && (tab.state == State::Failed || tab.state == State::Asleep)) {
+            const QRectF dot(rightEdge - kStateDot, box.center().y() - kStateDot / 2.0,
+                             kStateDot, kStateDot);
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(tab.state == State::Failed ? profile.semantic.danger.text
+                                                        : profile.colors.borderHover);
+            painter.drawEllipse(dot);
+            rightEdge -= kStateDot + kGap;
         }
 
         // ── the label ────────────────────────────────────────────────────
@@ -797,7 +1012,7 @@ void TabBar::paintEvent(QPaintEvent*)
                    m_hoveredNew ? profile.colors.textPrimary : profile.colors.textDisabled);
     }
 
-    if (hasFocus() && m_current >= 0) {
+    if (m_ring.visibleOn(this) && m_current >= 0) {
         painter.setPen(QPen(profile.colors.accent, profile.border(BorderRole::Focus)));
         painter.setBrush(Qt::NoBrush);
         painter.drawRoundedRect(QRectF(tabRect(m_current)).adjusted(1, 1, -1, -2),

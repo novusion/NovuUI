@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QColor>
 #include <QWidget>
 
 namespace novu::ui {
@@ -33,11 +34,12 @@ public:
         Accent,
     };
 
-    // The design draws badges at two sizes and no others: the one that sits in
-    // a table row, and the one that sits in a header beside a title.
+    // Compact is the dense-table treatment (`.drow .tag`); Regular is the
+    // standard row/status badge and Large sits beside a header title.
     enum class Size {
         Regular,
         Large,
+        Compact,
     };
 
     explicit Badge(QWidget* parent = nullptr);
@@ -67,6 +69,14 @@ public:
     bool isUppercase() const { return m_uppercase; }
     void setUppercase(bool uppercase);
 
+    // A non-semantic family hue for classifications such as model kinds.
+    // This is deliberately separate from Tone: "image" is not Warning and
+    // "audio" is not Success merely because their approved hues happen to be
+    // purple and green. Pass a colour from familyHues(); an invalid QColor
+    // restores the semantic tone.
+    QColor classificationHue() const { return m_classificationHue; }
+    void setClassificationHue(const QColor& hue);
+
     // Both hints are the same: a badge has exactly one correct size.
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override { return sizeHint(); }
@@ -83,6 +93,7 @@ private:
     Size m_size = Size::Regular;
     bool m_dot = false;
     bool m_uppercase = false;
+    QColor m_classificationHue;
 };
 
 // The design's `.pill`: an uppercase neutral classification, never a status.

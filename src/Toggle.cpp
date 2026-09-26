@@ -62,9 +62,9 @@ StyleSpec Toggle::styleSpec() const
     // turned on", which is the product doing what it was told, and the design
     // is explicit that a status never wears the accent and the accent never
     // states a status.
-    spec.checkedBackground = token(ColorRole::Accent, 0.28);
-    spec.checkedBorder = token(ColorRole::Accent, 0.65);
-    spec.checkedForeground = token(ColorRole::AccentLight);
+    spec.checkedBackground = token(ColorRole::Accent, 0.25);
+    spec.checkedBorder = token(ColorRole::Accent);
+    spec.checkedForeground = token(ColorRole::Accent);
 
     spec.hoverBorder = token(ColorRole::TextDisabled);
     spec.disabledForeground = token(ColorRole::TextDisabled);
@@ -143,7 +143,6 @@ bool Toggle::event(QEvent* event)
 void Toggle::paintEvent(QPaintEvent*)
 {
     const ResolvedStyle style = resolvedStyle();
-    const ThemeProfile& profile = themeFor(this);
 
     // Interpolated rather than switched, so the track changes colour with the
     // knob instead of snapping under it halfway through the slide.
@@ -180,15 +179,9 @@ void Toggle::paintEvent(QPaintEvent*)
     painter.setBrush(track);
     painter.drawRoundedRect(rect, radius, radius);
 
-    if (hasFocus()) {
-        QColor ring = profile.colors.accent;
-        ring.setAlphaF(0.75);
-        painter.setPen(QPen(ring, profile.border(BorderRole::Focus)));
-        painter.setBrush(Qt::NoBrush);
-        const QRectF focus = QRectF(0, 0, kTrackWidth, kTrackHeight).adjusted(1, 1, -1, -1);
-        painter.drawRoundedRect(focus, focus.height() / 2.0, focus.height() / 2.0);
-    }
-
+    // No accent ring on focus: on/off is already the track's own colour and
+    // the knob's own position, and a second outline around the whole switch
+    // was reading as a stray colour rather than as a focus cue.
     const double travel = kTrackWidth - kKnobSize - 2 * kKnobInset;
     const QRectF knobRect(kKnobInset + travel * m_position,
                           (kTrackHeight - kKnobSize) / 2.0,

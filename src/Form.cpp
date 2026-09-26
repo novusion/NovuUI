@@ -1,9 +1,11 @@
 #include "novu/ui/Form.h"
 
 #include "novu/ui/Fields.h"
+#include "novu/ui/Icon.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
 
+#include <QAction>
 #include <QBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -85,6 +87,12 @@ QLineEdit* searchBar(QWidget* parent, const QString& placeholder, int width)
     // a user cannot clear in one gesture is one they clear by selecting the
     // text, and half of them do not.
     field->setClearButtonEnabled(true);
+    // `.search{position:relative}` + `svg("search")` - every search field in
+    // the design carries its own glyph, not just the clear affordance.
+    // QLineEdit's own leading action reserves the room for it; nothing about
+    // the field's own padding has to know it is there.
+    const QIcon glyph = glyphIcon(Glyph::Search, 14, themeFor(field).colors.textDisabled,field);
+    field->addAction(glyph, QLineEdit::LeadingPosition);
     return field;
 }
 

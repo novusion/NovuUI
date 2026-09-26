@@ -7,10 +7,17 @@
 #include "novu/ui/ThemeManager.h"
 
 #include <QHBoxLayout>
+#include <QTimer>
 #include <QLabel>
 #include <QFontMetrics>
 #include <QLayout>
 #include <QMargins>
+#include <QAbstractTextDocumentLayout>
+#include <QRegularExpression>
+#include <QTextBlock>
+#include <QTextDocument>
+#include <QTextLayout>
+#include <QtMath>
 #include <QPainter>
 #include <QPainterPath>
 #include <QShowEvent>
@@ -54,28 +61,157 @@ QColor toneColor(const QWidget* context, Badge::Tone tone)
 
 } // namespace
 
+namespace {
+
+// `.empty svg{opacity:.5}` - the mark is the quietest thing in the column.
+constexpr double kEmptyMarkOpacity = 0.5;
+
+// `.note{padding:11px 14px}`.
+// A single sentence is an inline notice, not a card. Seven pixels keeps the
+// common one-line banner compact while heightForWidth() still adds as much
+// room as wrapped prose or a trailing action actually needs.
+constexpr int kBannerPaddingV = 7;
+constexpr int kBannerPaddingH = 14;
+// `.note{gap:10px;border-radius:11px}` and `.note svg{width:15px}`.
+constexpr int kBannerGap = 10;
+constexpr int kBannerRadius = 11;
+constexpr int kBannerGlyph = 15;
+
+// `.empty .s{max-width:48ch}` and `.bpage .inner{max-width:430px}` - the
+// column is capped whatever the page is wide. A sentence that runs the width
+// of a 1300px view is a sentence nobody finishes.
+constexpr int kTextWidth = 430;
+
+// The two rhythms the design draws, and the mark is what says which one this
+// is: a bare glyph is an empty state inside a card, a plaque is a page-sized
+// one. `.empty`: 12 / 5 / 16. `.bpage`: 16 / 6 / 14 / 18.
+struct Rhythm
+{
+    int markGap;
+    int detailGap;
+    int textGap;
+    int actionGap;
+    double lineHeight;
+};
+
+constexpr Rhythm kBare{12, 5, 5, 16, 1.55};
+constexpr Rhythm kPlaque{16, 6, 14, 18, 1.6};
+
+} // namespace
+
 EmptyState::EmptyState(const QString& glyph, const QString& title,
                        const QString& subtitle, QWidget* parent)
     : QWidget(parent)
 {
     const ThemeProfile& profile = themeFor(this);
 
-    auto* column = new QVBoxLayout(this);
-    column->setSpacing(profile.space(SpacingRole::FormRowGap) / 2);
-    column->setAlignment(Qt::AlignCenter);
+    // `.bpage .inner{max-width:430px}` - the column is a block of a fixed
+    // measure standing in the middle of whatever it is given, not a paragraph
+    // stretched across the page. The stretches either side are what centre it;
+    // the weight on the middle is what lets it reach its cap on a wide page
+    // and give way gracefully on a narrow one.
+    auto* centred = new QHBoxLayout(this);
+    centred->setContentsMargins(0, 0, 0, 0);
+    centred->setSpacing(0);
+    m_inner = new QWidget(this);
+    m_inner->setMaximumWidth(kTextWidth);
+    centred->addStretch(1);
+    centred->addWidget(m_inner, 8);
+    centred->addStretch(1);
 
-    auto* icon = label(glyph, this, TypeRole::PageTitle, Ink::Muted);
+    m_column = new QVBoxLayout(m_inner);
+    // Every gap in this column is a margin the design states between two
+    // named things, so the layout contributes none of its own.
+    m_column->setContentsMargins(0, 0, 0, 0);
+    m_column->setSpacing(0);
+    m_column->setAlignment(Qt::AlignVCenter);
+
+    auto* icon = label(glyph, m_inner, TypeRole::PageTitle, Ink::Muted);
     icon->setFont(iconFont(profile.icons.large + 6));
     icon->setAlignment(Qt::AlignCenter);
-    column->addWidget(icon);
+    m_glyphMark = icon;
+    m_column->addWidget(icon);
 
-    m_title = label(title, this, TypeRole::CardTitle, Ink::Secondary, true);
+    m_title = label(title, m_inner, TypeRole::CardTitle, Ink::Secondary, true);
     m_title->setAlignment(Qt::AlignCenter);
-    column->addWidget(m_title);
+    m_column->addWidget(m_title);
 
-    m_subtitle = label(subtitle, this, TypeRole::Caption, Ink::Muted);
+    // `.bpage .u` - built here rather than on demand so the column never has
+    // to be torn down around a line that appears later.
+    m_detailLabel = label(QString(), m_inner, TypeRole::Mono, Ink::Muted);
+    m_detailLabel->setAlignment(Qt::AlignCenter);
+    m_detailLabel->setWordWrap(true);
+    m_detailLabel->hide();
+    m_column->addWidget(m_detailLabel);
+
+    m_subtitle = label(subtitle, m_inner, TypeRole::Caption, Ink::Muted);
     m_subtitle->setAlignment(Qt::AlignCenter);
-    column->addWidget(m_subtitle);
+    m_subtitle->setWordWrap(true);
+    m_column->addWidget(m_subtitle);
+
+    m_actions = new QWidget(m_inner);
+    auto* acts = new QHBoxLayout(m_actions);
+    acts->setContentsMargins(0, 0, 0, 0);
+    acts->setSpacing(profile.space(SpacingRole::ToolbarGap));
+    acts->setAlignment(Qt::AlignCenter);
+    // An empty actions row is not a row. It reappears the moment a caller puts
+    // a button in it.
+    m_actions->hide();
+    m_actions->installEventFilter(this);
+    m_column->addWidget(m_actions);
+
+    applyRhythm();
+}
+
+EmptyState::EmptyState(Glyph glyph, const QString& title, const QString& subtitle,
+                       QWidget* parent)
+    : EmptyState(QString(), title, subtitle, parent)
+{
+    const ThemeProfile& profile = themeFor(this);
+    auto* icon = new QLabel(this);
+    const int side = profile.icons.large + 6;
+    icon->setPixmap(glyphPixmap(glyph, side,
+                                withAlpha(profile.colors.textDisabled, kEmptyMarkOpacity),
+                                devicePixelRatioF()));
+    icon->setAlignment(Qt::AlignCenter);
+    icon->setFixedSize(side, side);
+    setMark(icon);
+    // A glyph is still the bare mark, whatever widget carries it.
+    m_plaque = false;
+    applyRhythm();
+}
+
+void EmptyState::applyRhythm()
+{
+    const Rhythm& r = m_plaque ? kPlaque : kBare;
+
+    m_title->setContentsMargins(0, r.markGap, 0, 0);
+    if (m_plaque) {
+        // `.bpage h3{font-size:15.5px}` against `.empty .t{14px}` - a page's
+        // own empty state is a heading, one inside a card is a line of text.
+        applyText(m_title, TypeRole::PageTitle, Ink::Default, true);
+        m_title->setAlignment(Qt::AlignCenter);
+    }
+    m_detailLabel->setContentsMargins(0, r.detailGap, 0, 0);
+    m_subtitle->setContentsMargins(0, m_detail.isEmpty() ? r.detailGap : r.textGap, 0, 0);
+    setLineHeight(m_subtitle, r.lineHeight);
+    // Rich text takes the ink from the document, not from the palette the
+    // plain path set, so the sentence is re-inked after it is re-rendered.
+    applyText(m_subtitle, TypeRole::Caption, Ink::Muted);
+    m_subtitle->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
+    m_subtitle->setMaximumWidth(kTextWidth);
+    if (auto* acts = actions()) {
+        acts->setContentsMargins(0, r.actionGap, 0, 0);
+    }
+    if (m_footerRow) {
+        m_footerRow->setContentsMargins(0, r.actionGap, 0, 0);
+    }
+
+    if (m_mark) {
+        // A plaque is a square: the column must not be allowed to talk it out
+        // of its own height when it has room to spare.
+        m_mark->setFixedSize(m_mark->sizeHint());
+    }
 }
 
 void EmptyState::setTitle(const QString& title)
@@ -83,9 +219,99 @@ void EmptyState::setTitle(const QString& title)
     m_title->setText(title);
 }
 
+void EmptyState::setTextMaximumWidth(int width)
+{
+    m_textWidth = qMax(1, width);
+    m_inner->setMaximumWidth(m_textWidth);
+    m_subtitle->setMaximumWidth(m_textWidth);
+    m_subtitle->updateGeometry();
+    updateGeometry();
+}
+
 void EmptyState::setSubtitle(const QString& subtitle)
 {
-    m_subtitle->setText(subtitle);
+    // Through the helper: the sentence is carrying a line height, and a plain
+    // setText() would replace the styled block with a bare string.
+    setLabelText(m_subtitle, subtitle);
+}
+
+void EmptyState::setMark(QWidget* mark)
+{
+    if (m_mark == mark) {
+        return;
+    }
+    delete m_mark;
+    m_mark = mark;
+    m_plaque = m_mark != nullptr;
+    rebuildMarkRow();
+    applyRhythm();
+}
+
+void EmptyState::rebuildMarkRow()
+{
+    // Exactly one mark is shown. Two would be a glyph and a plaque saying the
+    // same thing one above the other.
+    if (m_glyphMark) {
+        m_glyphMark->setVisible(m_mark == nullptr);
+    }
+    if (!m_mark) {
+        return;
+    }
+    m_mark->setParent(m_inner);
+    auto* row = new QHBoxLayout;
+    row->setContentsMargins(0, 0, 0, 0);
+    row->addStretch(1);
+    row->addWidget(m_mark);
+    row->addStretch(1);
+    m_column->insertLayout(0, row);
+    m_mark->show();
+}
+
+void EmptyState::setDetail(const QString& detail)
+{
+    m_detail = detail;
+    m_detailLabel->setText(detail);
+    m_detailLabel->setVisible(!detail.isEmpty());
+    applyRhythm();
+}
+
+QHBoxLayout* EmptyState::actions() const
+{
+    return qobject_cast<QHBoxLayout*>(m_actions->layout());
+}
+
+void EmptyState::setFooter(QWidget* footer)
+{
+    if (m_footer == footer) {
+        return;
+    }
+    delete m_footer;
+    m_footer = footer;
+    if (!m_footer) {
+        return;
+    }
+    m_footer->setParent(m_inner);
+    m_footerRow = new QHBoxLayout;
+    m_footerRow->setContentsMargins(0, 0, 0, 0);
+    m_footerRow->addStretch(1);
+    m_footerRow->addWidget(m_footer);
+    m_footerRow->addStretch(1);
+    m_column->addLayout(m_footerRow);
+    m_footer->show();
+    applyRhythm();
+}
+
+bool EmptyState::eventFilter(QObject* watched, QEvent* event)
+{
+    // A caller that put a button in actions() gets the row back without having
+    // to say so a second time - and a caller that only asked for the layout
+    // and added nothing is not charged its margin.
+    if (watched == m_actions
+        && (event->type() == QEvent::ChildAdded || event->type() == QEvent::ChildRemoved)) {
+        // Reparenting emits ChildAdded before QLayout inserts its item.
+        QTimer::singleShot(0,this,[this]{m_actions->setVisible(actions() && actions()->count() > 0);});
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 InfoBanner::InfoBanner(const QString& text, Badge::Tone tone, QWidget* parent,
@@ -93,53 +319,187 @@ InfoBanner::InfoBanner(const QString& text, Badge::Tone tone, QWidget* parent,
     : QFrame(parent)
     , m_tone(tone)
 {
-    const ThemeProfile& profile = themeFor(this);
-
     // Painted, not styled - see the header for why.
     setAttribute(Qt::WA_StyledBackground, false);
-    setFixedHeight(profile.controlHeight(ControlSize::Medium) + 6);
 
     // A banner is exactly as wide as it is given. Its sentence must never be
-    // what decides that - a long one elides, it does not push.
+    // what decides that - a long one wraps, it does not push.
     //
     // This is not a detail. The gallery hands this component a linker error,
     // which is one unbroken four-hundred-character line, and a banner whose
     // width followed its text dragged the whole window off the screen. Any
     // component that reports a failure will one day be handed a message
     // nobody budgeted for, so not growing is part of what a banner *is*.
-    setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+    //
+    // Vertically it is the opposite: `.note` is a block with
+    // `line-height:1.55` and no height of its own, so the sentence decides.
+    // The strip used to be one control-height line with the rest elided,
+    // which threw away the half of the message that said what to do.
+    QSizePolicy policy(QSizePolicy::Ignored, QSizePolicy::Minimum);
+    policy.setHeightForWidth(true);
+    setSizePolicy(policy);
 
     // Through the setter, not the member: the tooltip that carries the full
-    // message when the strip elides is set there, and assigning m_text directly
-    // meant a banner given its text at construction - which is all of them -
-    // silently had none.
+    // message is set there, and assigning m_text directly meant a banner given
+    // its text at construction - which is all of them - silently had none.
     setText(text);
 
     auto* row = new QHBoxLayout(this);
-    // The medium step, not the form-row gap: a banner is a strip of prose and
-    // the tighter gap left its sentence sitting on the tinted edge.
-    row->setContentsMargins(profile.spacing.md, 0, profile.spacing.md, 0);
-    // The sentence is painted, not laid out: it is one line of non-interactive
-    // prose, and a QLabel for it would be a second widget whose own sizeHint is
+    row->setContentsMargins(kBannerPaddingH, kBannerPaddingV, kBannerPaddingH,
+                            kBannerPaddingV);
+    row->setSpacing(kBannerGap);
+    // The sentence is painted, not laid out: it is prose nobody interacts
+    // with, and a QLabel for it would be a second widget whose own sizeHint is
     // the thing that has to be fought. The stretch reserves its lane.
     row->addStretch(1);
 
     if (trailing) {
         trailing->setParent(this);
-        row->addWidget(trailing);
+        // `.note .btn{align-self:center}`.
+        row->addWidget(trailing, 0, Qt::AlignVCenter);
+    }
+}
+
+// `.note svg` - the glyph says which kind of note this is, and it is the only
+// part of one that carries the tone. Derived from the tone unless a caller
+// states one, because the two always agree in the design.
+Glyph InfoBanner::glyphForTone(Badge::Tone tone)
+{
+    switch (tone) {
+    case Badge::Tone::Warning:
+    case Badge::Tone::Danger:  return Glyph::Warning;
+    case Badge::Tone::Success: return Glyph::Check;
+    case Badge::Tone::Info:
+    case Badge::Tone::Neutral:
+    case Badge::Tone::Accent:  break;
+    }
+    return Glyph::Info;
+}
+
+void InfoBanner::setGlyph(Glyph glyph)
+{
+    m_glyphFromTone = false;
+    if (m_glyph == glyph) {
+        return;
+    }
+    m_glyph = glyph;
+    syncHeight();
+    updateGeometry();
+    update();
+}
+
+int InfoBanner::textLaneWidth(int width) const
+{
+    int lane = width - 2 * kBannerPaddingH;
+    const Glyph shown = m_glyphFromTone ? glyphForTone(m_tone) : m_glyph;
+    if (shown != Glyph::None) {
+        lane -= kBannerGlyph + kBannerGap;
+    }
+    // Whatever a caller put at the trailing edge takes its own lane, so the
+    // prose wraps against the button rather than under it.
+    for (QObject* child : children()) {
+        // Geometry is commonly requested before the banner's parent is shown.
+        // isVisible() is false in that state even for a trailing action that
+        // will participate in the layout, so it made the initial text lane
+        // too wide and the banner two pixels too short. Only an explicitly
+        // hidden child is absent from the composition.
+        if (auto* widget = qobject_cast<QWidget*>(child); widget && !widget->isHidden()) {
+            lane -= widget->sizeHint().width() + kBannerGap;
+        }
+    }
+    return qMax(kMinimumWidth / 2, lane);
+}
+
+void InfoBanner::rebuildDocument()
+{
+    if (!m_document) {
+        m_document = std::make_unique<QTextDocument>();
+        m_document->setDocumentMargin(0);
+    }
+    const ThemeProfile& profile = themeFor(this);
+    QFont font = roleFont(this, TypeRole::Caption);
+    m_document->setDefaultFont(font);
+    // `.note{color:var(--text2);line-height:1.55}` with `.note b{color:
+    // var(--text);font-weight:600}`. The prose is *not* the tone colour: a
+    // whole sentence in amber reads as a warning about itself, and the design
+    // tints only the plate, the outline and the glyph.
+    m_document->setDefaultStyleSheet(
+        QStringLiteral("body{color:%1;} b{color:%2;font-weight:600;}")
+            .arg(profile.colors.textSecondary.name(), profile.colors.textPrimary.name()));
+
+    // line-height:1.55 is room a *wrapped* sentence needs between its own
+    // lines - it is not room one line needs above or below it. Applied
+    // unconditionally, a one-line banner (the common case) measured taller
+    // than its sentence, and because a text layout hangs that extra leading
+    // mostly under the baseline rather than splitting it evenly, the strip
+    // read as more padding below the words than above them even though
+    // kBannerPaddingV is the same number on both edges. So: lay the sentence
+    // out at its own natural height first, and only reach for the taller
+    // line-height once there is more than one line for it to space out.
+    m_document->setHtml(QStringLiteral("<body>%1</body>").arg(m_text));
+    m_document->setTextWidth(textLaneWidth(width()));
+    m_document->documentLayout()->documentSize();   // forces the wrap
+    if (m_document->firstBlock().layout()->lineCount() > 1) {
+        m_document->setHtml(QStringLiteral("<body style=\"line-height:155%\">%1</body>")
+                                .arg(m_text));
+        m_document->setTextWidth(textLaneWidth(width()));
     }
 }
 
 QSize InfoBanner::sizeHint() const
 {
-    // A preferred width, not a measured one. Height is the whole of what this
-    // component insists on.
-    return QSize(kPreferredWidth, height());
+    // A preferred width, not a measured one.
+    return QSize(kPreferredWidth, heightForWidth(kPreferredWidth));
 }
 
 QSize InfoBanner::minimumSizeHint() const
 {
-    return QSize(kMinimumWidth, height());
+    // The height it *has*, not the height it would need at 120px. syncHeight()
+    // has already fixed the height to the width the banner was given, and a
+    // minimum computed from the narrowest allowed width reported a strip four
+    // hundred pixels tall that every clipping check then flagged as cut off.
+    return QSize(kMinimumWidth, height() > 0 ? height() : heightForWidth(kPreferredWidth));
+}
+
+int InfoBanner::heightForWidth(int width) const
+{
+    const_cast<InfoBanner*>(this)->rebuildDocument();
+    m_document->setTextWidth(textLaneWidth(width));
+    int inner = qCeil(m_document->size().height());
+    for (QObject* child : children()) {
+        if (auto* widget = qobject_cast<QWidget*>(child); widget && !widget->isHidden()) {
+            inner = qMax(inner, widget->sizeHint().height());
+        }
+    }
+    const Glyph shown = m_glyphFromTone ? glyphForTone(m_tone) : m_glyph;
+    if (shown != Glyph::None) {
+        inner = qMax(inner, kBannerGlyph);
+    }
+    return inner + 2 * kBannerPaddingV;
+}
+
+void InfoBanner::resizeEvent(QResizeEvent* event)
+{
+    QFrame::resizeEvent(event);
+    syncHeight();
+}
+
+// The height, set rather than merely offered.
+//
+// heightForWidth() alone is not enough here: the banner's horizontal policy is
+// Ignored - it must never let its sentence decide its width - and a layout
+// that is told to ignore an item's width hint does not reliably ask that item
+// how tall it would be at the width it ended up with. The banner came out
+// 1256x0: the right width, and no height at all. So the height is computed
+// from the width it actually has and fixed, which is what the strip version of
+// this component did before it learned to wrap.
+void InfoBanner::syncHeight()
+{
+    rebuildDocument();
+    const int wanted = heightForWidth(width());
+    if (minimumHeight() != wanted || maximumHeight() != wanted) {
+        setFixedHeight(wanted);
+    }
 }
 
 void InfoBanner::setText(const QString& text)
@@ -148,9 +508,13 @@ void InfoBanner::setText(const QString& text)
         return;
     }
     m_text = text;
-    // The full sentence stays reachable even when the strip is too narrow for
-    // it. Eliding without this loses the half of the message that mattered.
-    setToolTip(text);
+    // The full sentence stays reachable from the tooltip, with the markup
+    // taken back out of it.
+    QString plain = text;
+    plain.remove(QRegularExpression(QStringLiteral("<[^>]*>")));
+    setToolTip(plain);
+    syncHeight();
+    updateGeometry();
     update();
 }
 
@@ -160,23 +524,18 @@ void InfoBanner::setTone(Badge::Tone tone)
         return;
     }
     m_tone = tone;
+    rebuildDocument();
     update();
 }
 
 void InfoBanner::paintEvent(QPaintEvent*)
 {
+    const ThemeProfile& profile = themeFor(this);
     const QColor tone = toneColor(this, m_tone);
-    // Button, not Badge.
-    //
-    // A badge is a pill because it is a word-sized token. A banner is a
-    // control-height strip of prose, and asking for the badge radius turned
-    // it into a lozenge — most visibly when it carries a trailing action,
-    // where a fully rounded strip wrapped a button with 6px corners and the
-    // two shapes contradicted each other.
-    //
-    // Button is the role a banner shares its rhythm with: it stands at
-    // control height, next to controls, and often contains one.
-    const int radius = resolveRadius(themeFor(this).radius(SurfaceRole::Button), height());
+    // `.note{border-radius:11px}` - stated, not borrowed from a control role.
+    // A note is a block of prose the width of the page, and the button radius
+    // it used to take made a short one read as a lozenge.
+    const int radius = kBannerRadius;
 
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
@@ -184,34 +543,44 @@ void InfoBanner::paintEvent(QPaintEvent*)
     QPainterPath path;
     path.addRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), radius, radius);
 
+    // The design's own two numbers per tone: an info note is the faintest
+    // (.07/.25) and a bad one the strongest (.10/.35), because a failure has
+    // to be seen from across the page and a hint must not be.
+    const double fillAlpha = m_tone == Badge::Tone::Danger ? 0.10
+                           : m_tone == Badge::Tone::Info   ? 0.07
+                                                           : 0.08;
+    const double edgeAlpha = m_tone == Badge::Tone::Danger ? 0.35
+                           : m_tone == Badge::Tone::Info   ? 0.25
+                                                           : 0.30;
     QColor fill = tone;
-    fill.setAlphaF(0.10f);
+    fill.setAlphaF(static_cast<float>(fillAlpha));
     p.fillPath(path, fill);
 
     QColor outline = tone;
-    outline.setAlphaF(0.35f);
+    outline.setAlphaF(static_cast<float>(edgeAlpha));
     p.setPen(QPen(outline, 1));
     p.drawPath(path);
+
+    int left = kBannerPaddingH;
+    const Glyph shown = m_glyphFromTone ? glyphForTone(m_tone) : m_glyph;
+    if (shown != Glyph::None) {
+        // `margin-top:2px` - the glyph sits on the first line's cap height
+        // rather than on the middle of a paragraph it may be three lines of.
+        paintGlyph(&p, shown,
+                   QRectF(left, kBannerPaddingV + 2, kBannerGlyph, kBannerGlyph), tone);
+        left += kBannerGlyph + kBannerGap;
+    }
 
     if (m_text.isEmpty()) {
         return;
     }
-
-    // The text lane stops where the trailing widget begins, so a banner with a
-    // button in it elides against the button rather than under it.
-    const QMargins margins = layout() ? layout()->contentsMargins() : QMargins();
-    QRect lane = rect().adjusted(margins.left(), 0, -margins.right(), 0);
-    for (QObject* child : children()) {
-        if (auto* widget = qobject_cast<QWidget*>(child); widget && widget->isVisible()) {
-            lane.setRight(qMin(lane.right(), widget->geometry().left() - margins.left()));
-        }
-    }
-
-    const QFont font = roleFont(this, TypeRole::Caption);
-    p.setFont(font);
-    p.setPen(tone);
-    p.drawText(lane, Qt::AlignVCenter | Qt::AlignLeft,
-               QFontMetrics(font).elidedText(m_text, Qt::ElideRight, lane.width()));
+    const_cast<InfoBanner*>(this)->rebuildDocument();
+    p.save();
+    p.translate(left, kBannerPaddingV);
+    QAbstractTextDocumentLayout::PaintContext context;
+    context.palette.setColor(QPalette::Text, profile.colors.textSecondary);
+    m_document->documentLayout()->draw(&p, context);
+    p.restore();
 }
 
 namespace {
@@ -314,7 +683,7 @@ SemanticRole ProgressBar::effectiveRole() const
 StyleSpec ProgressBar::styleSpec() const
 {
     StyleSpec spec;
-    spec.background = token(ColorRole::PanelBgAlt);
+    spec.background = m_trackBackground;
     spec.border = token(ColorRole::Transparent);
     spec.radius = SurfaceRole::Badge;
     spec.borderWidth = BorderRole::Divider;
@@ -327,12 +696,12 @@ StyleSpec ProgressBar::styleSpec() const
 
 ResolvedStyle ProgressBar::resolvedStyle() const
 {
-    return resolve(styleSpec(), this, kTrackHeight);
+    return resolve(styleSpec(), this, m_trackHeight);
 }
 
 QSize ProgressBar::sizeHint() const
 {
-    int height = kTrackHeight;
+    int height = m_trackHeight;
     if (!m_leading.isEmpty() || !m_trailing.isEmpty()) {
         const ThemeProfile& profile = themeFor(this);
         QFont font = roleFont(this, TypeRole::Caption);
@@ -364,9 +733,9 @@ void ProgressBar::paintEvent(QPaintEvent*)
     painter.setRenderHint(QPainter::Antialiasing, true);
     painter.setPen(Qt::NoPen);
 
-    const QRectF track(0, 0, width(), kTrackHeight);
-    painter.setBrush(profile.colors.panelBgAlt);
-    painter.drawRoundedRect(track, kTrackRadius, kTrackRadius);
+    const QRectF track(0, 0, width(), m_trackHeight);
+    painter.setBrush(m_trackBackground.resolve(profile));
+    painter.drawRoundedRect(track, m_trackRadius, m_trackRadius);
 
     // Unknown draws the track and stops. "Not measured" and "idle" must not
     // look the same, and a zero-length fill is what makes them.
@@ -375,8 +744,8 @@ void ProgressBar::paintEvent(QPaintEvent*)
             ? profile.colors.accent
             : profile.semantic.role(effectiveRole()).text;
         painter.setBrush(fill);
-        painter.drawRoundedRect(QRectF(0, 0, track.width() * m_value / 100.0, kTrackHeight),
-                                kTrackRadius, kTrackRadius);
+        painter.drawRoundedRect(QRectF(0, 0, track.width() * m_value / 100.0, m_trackHeight),
+                                m_trackRadius, m_trackRadius);
     }
 
     if (m_leading.isEmpty() && m_trailing.isEmpty()) {
@@ -388,7 +757,7 @@ void ProgressBar::paintEvent(QPaintEvent*)
     const QFontMetrics fm(font);
     painter.setFont(font);
 
-    const QRect legend(0, kTrackHeight + kLegendGap, width(), fm.height());
+    const QRect legend(0, m_trackHeight + kLegendGap, width(), fm.height());
     if (!m_leading.isEmpty()) {
         // The reading itself takes the bar's colour, so the number and the fill
         // agree without a caller tinting the label.

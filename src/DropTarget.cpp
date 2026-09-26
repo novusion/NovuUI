@@ -64,10 +64,14 @@ StyleSpec dropRegionSpec()
     StyleSpec spec;
     spec.background = token(ColorRole::Accent, 0.07);
     spec.border = token(ColorRole::Accent, 0.55);
-    // 1.5px in the design. Borders are whole pixels here, and the heavier of
-    // the two reads as intended: the region outline is the thing a person is
-    // looking for when no row is lit.
-    spec.borderWidth = BorderRole::Focus;
+    // 1.5px in the design; borders are whole pixels here, so this is 1px like
+    // every other outline in the system rather than a fractional line. What
+    // still tells the region from the row is alpha, which the design already
+    // states as two different numbers: the row's border is the accent at
+    // full strength, this one at .55 - a hairline that reads as present
+    // rather than as the loudest thing on screen, which is right for a
+    // target that means "anywhere in here" rather than one exact row.
+    spec.borderWidth = BorderRole::Input;
     // `border-radius: var(--r-md)`, which is the scale's medium step.
     spec.radius = SurfaceRole::Input;
     spec.radiusStepOverride = static_cast<int>(RadiusStep::Medium);

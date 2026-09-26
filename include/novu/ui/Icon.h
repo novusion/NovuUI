@@ -95,22 +95,37 @@ enum class Glyph {
 
     // direction
     ChevronDown, Back, Forward, More,
+
+    // A floating window's own controls. The design draws these as paths in
+    // the same viewBox as every other icon - `M5 12h14` and a rounded square -
+    // rather than leaving them to a platform title bar, because a `.floatwin`
+    // is drawn by the application. Declared last so the existing enumerators
+    // keep their values.
+    //
+    // Minus already draws the dash; these two exist so a bar can name what it
+    // means rather than what it looks like, and so Restore has somewhere to
+    // be.
+    WindowMinimise, WindowMaximise, WindowRestore,
 };
 
 // The name the design uses for a glyph ("chevron-down"), and the reverse.
 // Present so a spec, a JSON theme overlay or a gallery listing can name an
 // icon without the caller reaching for the enumerator.
+struct GlyphSource { Glyph glyph; QString name; QString svg; };
+// Product-approved outlines share the same renderer. None assigns a named
+// extension glyph; existing semantic glyphs can carry profile-specific art.
+void registerGlyphSet(const QString& id,const QVector<GlyphSource>& sources,qreal viewBox=24.0,qreal strokeWidth=1.7);
 QString glyphName(Glyph glyph);
-Glyph glyphFromName(const QString& name);
+Glyph glyphFromName(const QString& name,const QWidget* context=nullptr);
 
 // Every glyph, in declaration order. The gallery draws this; a test walks it
 // to prove no outline fails to parse.
-QVector<Glyph> allGlyphs();
+QVector<Glyph> allGlyphs(const QWidget* context=nullptr);
 
 // The outline in its own 24x24 coordinate space, parsed once and cached.
 // Exposed for a component that wants to fold a glyph into a larger drawing
 // rather than blit a pixmap into it.
-const QPainterPath& glyphPath(Glyph glyph);
+const QPainterPath& glyphPath(Glyph glyph,const QWidget* context=nullptr);
 
 // Strokes `glyph` to fit `box`, in `color`.
 //
@@ -121,8 +136,14 @@ const QPainterPath& glyphPath(Glyph glyph);
 // here rather than left to the caller's painter transform because a spinner is
 // the same outline at an angle, and a second drawing path for it would be a
 // second thing to keep in step.
+// `strokeWidth` is in the glyph's own 24x24 viewBox units, as the design
+// writes it. 0 takes the set's own 1.7, which is what `svg[viewBox]` states
+// for every icon; the disclosure chevrons are the exception the sheet makes
+// explicitly - `.navbtn .tw svg{stroke-width:2}` and
+// `.sb-bhead .cv svg{stroke-width:2.2}` - because a chevron at 11px in the
+// body weight reads as a hairline rather than as a control.
 void paintGlyph(QPainter* painter, Glyph glyph, const QRectF& box, const QColor& color,
-                double rotationDeg = 0.0);
+                double rotationDeg = 0.0, double strokeWidth = 0.0,const QWidget* context=nullptr);
 
 // A square pixmap, cached per (glyph, size, colour, device ratio). Components
 // that draw a glyph every paint event should call paintGlyph() instead; this is
@@ -131,11 +152,11 @@ void paintGlyph(QPainter* painter, Glyph glyph, const QRectF& box, const QColor&
 // cache key. A spinner asking for a continuously varying angle would otherwise
 // add an entry per frame and never hit.
 QPixmap glyphPixmap(Glyph glyph, int size, const QColor& color, qreal devicePixelRatio = 0.0,
-                    double rotationDeg = 0.0);
+                    double rotationDeg = 0.0,const QWidget* context=nullptr);
 
 // A QIcon carrying the normal and disabled renderings, for QAbstractButton and
 // anything else that takes one.
-QIcon glyphIcon(Glyph glyph, int size, const QColor& color);
+QIcon glyphIcon(Glyph glyph, int size, const QColor& color,const QWidget* context=nullptr);
 
 // The profile's icon size for a control size, so no component invents a pixel
 // size for a glyph. Small is a row action, Medium a toolbar, Large a header.

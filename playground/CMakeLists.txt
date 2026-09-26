@@ -37,6 +37,7 @@ add_library(NovuUIPlaygroundLib STATIC
     src/ShadowRun.cpp
     src/ThemeCatalog.cpp
     src/pages/AdminPage.cpp
+    src/pages/ApplicationRulesPage.cpp
     src/pages/BadgePage.cpp
     src/pages/ChromePage.cpp
     src/pages/DiffViewPage.cpp
@@ -53,6 +54,8 @@ add_library(NovuUIPlaygroundLib STATIC
     src/pages/SidebarPage.cpp
     src/pages/TooltipPage.cpp
     src/pages/TreeViewPage.cpp
+    src/pages/FilePickerPage.cpp
+    src/pages/SplashScreenPage.cpp
     src/pages/WorkspacePage.cpp
     src/pages/BottomPanelPage.cpp
     src/pages/ButtonPage.cpp
@@ -76,6 +79,7 @@ add_library(NovuUIPlaygroundLib STATIC
     src/pages/StatusDotPage.cpp
     src/pages/TabStripPage.cpp
     src/pages/TogglePage.cpp
+    src/pages/ItemListPage.cpp
     src/pages/TableViewPage.cpp
     src/pages/ThemeRolesPage.cpp
     src/pages/ThemeStylingPage.cpp

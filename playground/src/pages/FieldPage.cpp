@@ -8,6 +8,7 @@
 #include "novu/ui/Fields.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
+#include "novu/ui/StyleSheet.h"
 
 #include <QLabel>
 #include <QHBoxLayout>
@@ -25,6 +26,8 @@ QWidget* build(const PreviewContext& ctx)
 {
     auto* page = new QWidget(ctx.parent);
     QVBoxLayout* column = previewPage(page);
+    auto inputProfile=novusionBaseProfile();inputProfile.id="input-tokens-gallery";inputProfile.colors.inputBorder=inputProfile.colors.borderHover;inputProfile.colors.inputHoverBorder=inputProfile.colors.textDisabled;inputProfile.colors.inputFocusBg=inputProfile.colors.panelBgAlt;inputProfile.colors.inputInk=inputProfile.colors.textSecondary;ThemeManager::instance().registerProfile(inputProfile);
+    auto* inputCard=exampleCard(page,QStringLiteral("Input-specific tokens"),QStringLiteral("The input owns its outline and focused surface without changing adjacent cards."));applyStyleSheet(inputCard,inputProfile.id);inputCard->body()->addWidget(lineEdit(QStringLiteral("Focus to inspect the surface"),inputCard));column->addWidget(inputCard);
     const bool disabledScenario = ctx.scenario == Scenario::Disabled;
 
     // ── the three states ─────────────────────────────────────────────────

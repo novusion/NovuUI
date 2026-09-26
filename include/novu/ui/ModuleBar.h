@@ -89,6 +89,10 @@ signals:
 protected:
     void paintEvent(QPaintEvent* event) override;
     bool event(QEvent* event) override;
+    // The ring is the keyboard's, not the mouse's - see FocusRing in Theme.h.
+    void focusInEvent(QFocusEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
 
     int stripCount() const override { return m_modules.size(); }
     int stripItemWidth(int index) const override;
@@ -104,6 +108,8 @@ private:
     // result into - one computation, asked twice, rather than two
     // computations that are supposed to agree.
     QRect labelTextBox(int index) const;
+
+    FocusRing m_ring;
 
     struct Module
     {

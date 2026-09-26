@@ -8,6 +8,7 @@
 #include <QConicalGradient>
 #include <QEvent>
 #include <QFontMetrics>
+#include <QGraphicsOpacityEffect>
 #include <QPainter>
 #include <QPaintEvent>
 
@@ -15,11 +16,7 @@ namespace novu::ui {
 
 namespace {
 
-// Horizontal padding is owned by the component; the vertical size comes from
-// the profile's control height, so a button never staggers against the combo
-// box next to it.
-constexpr int kPaddingH = 14;
-constexpr int kPaddingHSmall = 9;
+// Horizontal padding comes from the product profile, alongside height.
 // Between a leading glyph and the caption. The design's `gap`.
 constexpr int kIconGap = 7;
 
@@ -38,9 +35,10 @@ constexpr double kRingFaintEnd = 258.0 / 360.0;
 constexpr double kRingBrightStart = 322.0 / 360.0;
 constexpr double kRingPeak = 344.0 / 360.0;
 
-int paddingFor(ControlSize size)
+int paddingFor(const QWidget* widget,ControlSize size)
 {
-    return size == ControlSize::Small ? kPaddingHSmall : kPaddingH;
+    const auto& c=themeFor(widget).controls;
+    return size==ControlSize::Small?c.buttonPaddingSmall:size==ControlSize::Large?c.buttonPaddingLarge:c.buttonPadding;
 }
 
 } // namespace
@@ -92,6 +90,16 @@ void Button::setGlyph(Glyph glyph)
     applyVariant();
 }
 
+void Button::setTrailingGlyph(Glyph glyph)
+{
+    if (m_trailingGlyph == glyph) {
+        return;
+    }
+    m_trailingGlyph = glyph;
+    updateGeometry();
+    update();
+}
+
 void Button::setBusy(bool busy)
 {
     if (m_busy == busy) {
@@ -141,7 +149,7 @@ QSize Button::sizeHint() const
     // that timing means a caption can be painted clipped.
     const ThemeProfile& profile = themeFor(this);
     const QFontMetrics fm(font());
-    const int padding = paddingFor(m_size);
+    const int padding = paddingFor(this,m_size);
     // The glyph and the gap after it are part of the button, so they are part
     // of the measurement. Left to Qt's own icon handling the caption would be
     // measured and the icon would not, and a captioned icon button would come
@@ -149,7 +157,13 @@ QSize Button::sizeHint() const
     const int lead = m_glyph == Glyph::None
         ? 0
         : glyphSizeFor(this, m_size) + kIconGap;
-    return QSize(fm.horizontalAdvance(text()) + lead + 2 * padding,
+    // The trailing glyph is measured the same way. QPushButton knows about
+    // one icon and it is the leading one, so without this the chevron would
+    // be painted over the last letter of the caption.
+    const int trail = m_trailingGlyph == Glyph::None
+        ? 0
+        : glyphSizeFor(this, m_size) + kIconGap;
+    return QSize(fm.horizontalAdvance(text()) + lead + trail + 2 * padding + (profile.controls.buttonPaddingIncludesBorder?0:2*profile.border(BorderRole::Input)),
                  qMax(profile.controlHeight(m_size), fm.height() + 8));
 }
 
@@ -185,8 +199,12 @@ StyleSpec Button::styleSpec() const
     // steps, never as pixels.
     const bool small = m_size == ControlSize::Small;
     spec.type = small ? TypeRole::Caption : TypeRole::Body;
+    // `.btn{font-weight:500}` - a button's caption is set one step above body
+    // text in every approved design. Primary states 600 below; the status
+    // variants keep this one.
+    spec.weight = QFont::Medium;
     if (small) {
-        spec.radiusStepOverride = static_cast<int>(RadiusStep::Small);
+        spec.radiusStepOverride = static_cast<int>(themeFor(this).controls.smallButtonRadius);
     }
 
     switch (m_variant) {
@@ -198,7 +216,19 @@ StyleSpec Button::styleSpec() const
         spec.border = token(ColorRole::Accent);
         spec.hoverBackground = token(ColorRole::AccentLight);
         spec.hoverBorder = token(ColorRole::AccentLight);
-        spec.weight = QFont::Bold;
+        // `.btn.primary{font-weight:600}` - demibold, which is where this
+        // design system's type scale ends; 700 is a weight none of the
+        // mockups draw.
+        spec.weight = QFont::DemiBold;
+        break;
+
+    case Variant::Accent:
+        spec.background = token(ColorRole::Accent, 0.08);
+        spec.foreground = token(ColorRole::Accent);
+        spec.border = token(ColorRole::Accent, 0.5);
+        spec.hoverBackground = token(ColorRole::Accent, 0.14);
+        spec.hoverForeground = token(ColorRole::AccentLight);
+        spec.hoverBorder = token(ColorRole::Accent);
         break;
 
     // Through the shared palette rather than re-deriving the tint. The 0.14
@@ -221,6 +251,20 @@ StyleSpec Button::styleSpec() const
         spec.hoverBorder = statusToken(status, ColorRole::StatusText);
         break;
     }
+
+    case Variant::Outlined:
+        // `.btn` at rest: a hairline border, a transparent plate. Only on
+        // hover does it lift onto the page's own surface
+        // (`:hover{border-color:var(--text3);background:var(--bg);
+        // color:var(--text)}`) - the one difference from Secondary, which is
+        // already filled before the pointer ever arrives.
+        spec.background = token(ColorRole::Transparent);
+        spec.foreground = token(ColorRole::TextSecondary);
+        spec.border = token(ColorRole::BorderHover);
+        spec.hoverBackground = token(ColorRole::PanelBg);
+        spec.hoverBorder = token(ColorRole::TextDisabled);
+        spec.hoverForeground = token(ColorRole::TextPrimary);
+        break;
 
     case Variant::Ghost:
         // No outline at rest: the design gives a ghost button a transparent
@@ -261,6 +305,12 @@ void Button::applyVariant()
     // Resolved here and used here. The values are handed to the style sheet and
     // to the icon and then dropped - the button keeps the spec, never this.
     const ResolvedStyle style = resolvedStyle();
+    const qreal disabledOpacity=themeFor(this).controls.buttonDisabledOpacity;
+    auto* opacity=qobject_cast<QGraphicsOpacityEffect*>(graphicsEffect());
+    if(disabledOpacity>=0&&!isEnabled()&&!graphicsEffect()){
+        opacity=new QGraphicsOpacityEffect(this);opacity->setProperty("novuButtonOpacity",true);setGraphicsEffect(opacity);
+    }
+    if(opacity&&opacity->property("novuButtonOpacity").toBool())opacity->setOpacity(isEnabled()||disabledOpacity<0?1.0:qBound(0.0,disabledOpacity,1.0));
 
     setFont(style.font);
     applyGlyph();
@@ -284,13 +334,15 @@ void Button::applyVariant()
         "QPushButton { background: %1; color: %2; border: %3px solid %4;"
         " border-radius: %5px; padding: 0px; text-align: center; }"
         "QPushButton:hover { background: %6; border-color: %7; }"
-        "QPushButton:disabled { color: %8; border-color: %9; background: transparent; }")
+        "QPushButton:disabled { color: %8; border-color: %9; background: %10; }")
         .arg(css(style.background), style.foreground.name())
         .arg(style.borderWidth)
         .arg(css(style.border))
         .arg(style.radius)
         .arg(css(style.hoverBackground), css(style.hoverBorder),
-             style.disabledForeground.name(), css(style.disabledBorder)));
+             disabledOpacity>=0?style.foreground.name():style.disabledForeground.name(),
+             css(disabledOpacity>=0?style.border:style.disabledBorder),
+             disabledOpacity>=0?css(style.background):QStringLiteral("transparent")));
 
     updateGeometry();
 }
@@ -312,7 +364,7 @@ void Button::applyGlyph()
             : 0.0;
         setIcon(QIcon(glyphPixmap(shown, size, ink, 0.0, angle)));
     } else {
-        setIcon(glyphIcon(shown, size, ink));
+        setIcon(glyphIcon(shown, size, ink,this));
     }
     setIconSize(QSize(size, size));
 }
@@ -324,6 +376,16 @@ void Button::paintEvent(QPaintEvent* event)
     // calling setIcon() from inside a paint event, and the two would chase each
     // other for as long as the button stayed busy.
     QPushButton::paintEvent(event);
+
+    if (m_trailingGlyph != Glyph::None) {
+        QPainter trailing(this);
+        trailing.setRenderHint(QPainter::Antialiasing, true);
+        const int size = glyphSizeFor(this, m_size);
+        const QColor ink = styleSpec().foreground.resolve(themeFor(this));
+        const QRectF box(width() - paddingFor(this,m_size) - size,
+                         (height() - size) / 2.0, size, size);
+        paintGlyph(&trailing, m_trailingGlyph, box, ink);
+    }
 
     if (m_variant != Variant::Primary || !isEnabled()) {
         return;
@@ -341,7 +403,7 @@ void Button::paintRing(QPainter* painter)
     const QRectF ring = QRectF(rect()).adjusted(kRingWidth / 2.0, kRingWidth / 2.0,
                                                 -kRingWidth / 2.0, -kRingWidth / 2.0);
     const double radius = resolveRadius(m_size == ControlSize::Small
-                                            ? profile.radii.small
+                                            ? profile.radii.value(profile.controls.smallButtonRadius)
                                             : profile.radius(SurfaceRole::Button),
                                         height());
 
@@ -361,6 +423,11 @@ Button* primaryButton(const QString& text, QWidget* parent)
 Button* secondaryButton(const QString& text, QWidget* parent)
 {
     return new Button(text, Button::Variant::Secondary, parent);
+}
+
+Button* outlinedButton(const QString& text, QWidget* parent)
+{
+    return new Button(text, Button::Variant::Outlined, parent);
 }
 
 Button* ghostButton(const QString& text, QWidget* parent)
@@ -385,10 +452,20 @@ Button* warningButton(const QString& text, QWidget* parent)
 
 Button* detachButton(QWidget* parent)
 {
-    // U+29C9 "two joined squares" reads as a window pulled out of another,
-    // and the word stays so the gesture is not left to a glyph alone.
-    auto* button = new Button(QStringLiteral("⧉  Detach"),
-                              Button::Variant::Ghost, parent);
+    // The icon set's own mark, not a Unicode character.
+    //
+    // It was U+29C9 "two joined squares" inside the caption, which is a glyph
+    // from whatever text font happened to resolve it - a different weight, a
+    // different size and a different vertical position from every other icon
+    // in the same header, and missing outright on a machine without it. The
+    // design says `iact("external", ...)`, and External is that mark.
+    //
+    // `iact()` is `class="btn sm ico"` - `.btn`'s hairline border at rest,
+    // like every other button. Ghost draws no border until hover, which is
+    // right for chrome (a title bar) and wrong here: a card header's detach
+    // control is a row action, not furniture.
+    auto* button = new Button(QObject::tr("Detach"), Button::Variant::Outlined, parent);
+    button->setGlyph(Glyph::External);
     button->setToolTip(QObject::tr("Detach this panel into its own window"));
     return button;
 }

@@ -9,7 +9,9 @@
 #include <QLabel>
 #include <QMouseEvent>
 #include <QLinearGradient>
+#include <QAbstractButton>
 #include <QPainter>
+#include <QPainterPath>
 #include <QResizeEvent>
 
 namespace novu::ui {
@@ -138,10 +140,14 @@ void WindowControlButton::paintEvent(QPaintEvent*)
         background = danger ? w.closeHoverBg : w.controlHoverBg;
     }
     if (background.alpha() > 0) {
-        // Square, edge to edge. A rounded control would leave a wedge of
-        // window background in the corner of a maximised window, exactly
-        // where the pointer is thrown to hit Close.
-        painter.fillRect(rect(), background);
+        // `.winbtn{border-radius:6px}` - a rounded box around the glyph. The
+        // control does not reach the window's corner in any case: the bar
+        // pads it, so the maximised-corner argument for a square plate does
+        // not apply to this design.
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(background);
+        painter.drawRoundedRect(QRectF(rect()), w.controlRadius, w.controlRadius);
     }
 
     QColor ink = m_windowActive ? w.controlGlyph : w.controlGlyphInactive;
@@ -211,7 +217,7 @@ TitleBar::TitleBar(QWidget* parent)
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 
     m_row = new QHBoxLayout(this);
-    m_row->setSpacing(0);
+    // Real value set in applyTheme(), called at the end of this constructor.
 
     m_iconLabel = new QLabel(this);
     m_iconLabel->setAlignment(Qt::AlignCenter);
@@ -228,6 +234,8 @@ TitleBar::TitleBar(QWidget* parent)
     // would make exactly the readable part of the bar dead.
     m_titleLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     m_row->addWidget(m_titleLabel, 1);
+    // Keep trailing controls anchored when the centred widget caps the caption.
+    m_row->addStretch(0);
 
     m_minimize = new WindowControlButton(WindowControlButton::Control::Minimize, this);
     m_maximize = new WindowControlButton(WindowControlButton::Control::Maximize, this);
@@ -302,6 +310,16 @@ void TitleBar::setMaximized(bool maximized)
     m_maximized = maximized;
     m_maximize->setControl(maximized ? WindowControlButton::Control::Restore
                                      : WindowControlButton::Control::Maximize);
+}
+
+void TitleBar::setCornerRadius(int radius)
+{
+    radius = qMax(0, radius);
+    if (m_cornerRadius == radius) {
+        return;
+    }
+    m_cornerRadius = radius;
+    update();
 }
 
 void TitleBar::setWindowActive(bool active)
@@ -389,6 +407,7 @@ QSize TitleBar::minimumSizeHint() const
     if (m_closable) {
         width += w.controlWidth;
     }
+    width += w.titleBarTrailingInset;
     return QSize(width, w.titleBarHeight);
 }
 
@@ -398,23 +417,35 @@ void TitleBar::applyTheme()
     const WindowTokens& w = profile.window;
 
     setFixedHeight(w.titleBarHeight);
-    // Leading padding only. The controls sit flush against the trailing edge:
-    // a gap there leaves a dead strip on a maximised window exactly where the
-    // pointer is thrown to hit Close.
-    m_row->setContentsMargins(w.titleBarPadding, 0, 0, 0);
+    // Same token on both edges of the row - the one place that decides how
+    // far Close sits off the window's own edge, for every WindowShell kind
+    // and every state alike. See titleBarTrailingInset.
+    m_row->setContentsMargins(w.titleBarPadding, 0, w.titleBarTrailingInset, 0);
+    // `.titlebar{gap:8px}` - one uniform gap between every direct child, icon
+    // through Close, rather than a margin hand-placed on each neighbour. A
+    // hidden icon label costs nothing here: Qt drops both the space and the
+    // gap around a hidden QWidgetItem, which is why the icon-only left inset
+    // this used to carry on the title label is gone rather than doubled.
+    m_row->setSpacing(w.titleBarGap);
 
     m_iconLabel->setFixedSize(w.iconSize, w.titleBarHeight);
 
     m_titleLabel->setFont(roleFont(this, TypeRole::WindowTitle));
-    m_titleLabel->setContentsMargins(m_iconSource.isNull() ? 0 : w.titleBarGap, 0,
-                                     w.titleBarGap, 0);
     setInk(m_titleLabel, m_windowActive ? w.titleText : w.titleTextInactive);
 
     if (m_leading) {
         m_leading->setMaximumHeight(w.titleBarHeight);
     }
     for (QWidget* widget : m_trailing) {
-        if (widget) {
+        if (!widget) {
+            continue;
+        }
+        // A button in the bar is a control, not a row: `.winbtn` is 30x24
+        // and centred, and letting it take the bar's own height gives it a
+        // hover plate the full height of the chrome.
+        if (qobject_cast<QAbstractButton*>(widget)) {
+            widget->setFixedSize(w.controlWidth, w.controlHeight);
+        } else {
             widget->setMaximumHeight(w.titleBarHeight);
         }
     }
@@ -464,6 +495,8 @@ void TitleBar::setCentre(QWidget* widget)
         m_centre->setParent(nullptr);
     }
     m_centre = widget;
+    m_row->setStretch(m_row->indexOf(m_titleLabel)+1,m_centre?1:0);
+    if(!m_centre)m_titleLabel->setMaximumWidth(QWIDGETSIZE_MAX);
     if (m_centre) {
         m_centre->setParent(this);
         m_centre->show();
@@ -476,6 +509,12 @@ void TitleBar::setCentre(QWidget* widget)
 // widget between its neighbours and the design centres this one on the
 // window. It is clamped to the space actually available, so a narrow window
 // slides it rather than overlapping the caption or the window controls.
+void TitleBar::setCentrePosition(qreal proportion)
+{
+    m_centrePosition=proportion<0?-1:qBound(qreal(0),proportion,qreal(1));
+    layoutCentre();
+}
+
 void TitleBar::layoutCentre()
 {
     if (!m_centre) {
@@ -509,7 +548,7 @@ void TitleBar::layoutCentre()
     const int available = qMax(0, rightLimit - leftLimit);
     const int centreWidth = qMin(hint.width(), available);
     const int centreHeight = qMin(hint.height(), height());
-    int x = (width() - centreWidth) / 2;
+    int x = m_centrePosition<0?(width()-centreWidth)/2:leftLimit+qRound((available-centreWidth)*m_centrePosition);
     x = qBound(leftLimit, x, qMax(leftLimit, rightLimit - centreWidth));
 
     m_centre->setGeometry(x, (height() - centreHeight) / 2,
@@ -570,6 +609,21 @@ void TitleBar::paintEvent(QPaintEvent*)
     const WindowTokens& w = profile.window;
 
     QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    // The bar is the top slice of WindowFrame's own rounded shape, not a
+    // surface of its own - a plain fillRect() here squared off whatever
+    // corner it touched, painted right over the curve WindowFrame had
+    // already drawn underneath it. Only the top two corners are ever the
+    // window's own: the bottom of the bar always meets flat content.
+    if (m_cornerRadius > 0) {
+        QPainterPath shape;
+        shape.addRoundedRect(QRectF(rect()), m_cornerRadius, m_cornerRadius);
+        QPainterPath square;
+        square.addRect(QRectF(0, height() / 2.0, width(), height() / 2.0));
+        painter.setClipPath(shape.united(square));
+    }
+
     if (m_windowActive && w.titleBarBg != w.titleBarBgBottom) {
         // The design's `linear-gradient(180deg, --titlebar-top, --titlebar-bot)`.
         // An inactive bar goes flat: a window that is not in front should not be
@@ -587,7 +641,10 @@ void TitleBar::paintEvent(QPaintEvent*)
     // it is the same line the rest of the system draws between two surfaces.
     const int line = profile.border(BorderRole::Divider);
     if (line > 0) {
-        painter.fillRect(QRect(0, height() - line, width(), line), w.border);
+        // The rule between the bar and what is under it, not the window's
+        // own outer edge: `.titlebar{border-bottom:1px solid var(--hair2)}`.
+        painter.fillRect(QRect(0, height() - line, width(), line),
+                         w.titleBarBorder.isValid() ? w.titleBarBorder : w.border);
     }
 }
 

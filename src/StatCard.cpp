@@ -3,12 +3,17 @@
 #include "novu/ui/ThemeManager.h"
 
 #include <QGridLayout>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QVBoxLayout>
 
 namespace novu::ui {
 
 namespace {
+
+// `.stat .lab{gap:8px}` and `.stat .lab svg{14px}`.
+constexpr int kCaptionGap = 8;
+constexpr int kCaptionGlyph = 14;
 
 // A signed metric is tinted by its own sign.
 //
@@ -55,13 +60,66 @@ StatCard::StatCard(const QString& captionText, const QString& value,
     setHeaderVisible(false);
     // Tighter vertically than a content card: a metric is two lines, and the
     // standard card padding would leave it floating in its own surface.
-    body()->setContentsMargins(padding, padding * 3 / 4, padding, padding * 3 / 4);
-    body()->setSpacing(2);
+    //
+    // Through setBodyMetrics(), not straight onto body(): applyTheme() runs
+    // again on the first polish and re-applies the profile's own card padding
+    // and section gap over anything set on the layout directly, which left
+    // every metric a section gap apart from its own caption.
+    setBodyMetrics(QMargins(padding, padding * 3 / 4, padding, padding * 3 / 4), 2);
 
-    m_caption = label(captionText, this, TypeRole::Caption, Ink::Muted);
+    // `.stat .lab{display:flex;align-items:center;gap:8px}` - the glyph and
+    // the caption are one row, so a card with no glyph is the same row with
+    // nothing in front of the words.
+    auto* captionRow = new QHBoxLayout();
+    captionRow->setContentsMargins(0, 0, 0, 0);
+    captionRow->setSpacing(kCaptionGap);
+    m_icon = new QLabel(this);
+    m_icon->hide();
+    captionRow->addWidget(m_icon);
+    m_caption = label(captionText, this, m_captionRole, Ink::Muted);
+    captionRow->addWidget(m_caption);
+    captionRow->addStretch(1);
+
     m_value = label(value, this, TypeRole::Metric, signedInk(value, tone), true);
-    body()->addWidget(m_caption);
+    body()->addLayout(captionRow);
     body()->addWidget(m_value);
+}
+
+void StatCard::setGlyph(Glyph glyph)
+{
+    if (m_glyph == glyph) {
+        return;
+    }
+    m_glyph = glyph;
+    applyCaption();
+}
+
+void StatCard::setCaptionRole(TypeRole role)
+{
+    if (m_captionRole == role) {
+        return;
+    }
+    m_captionRole = role;
+    applyCaption();
+}
+
+void StatCard::applyCaption()
+{
+    const ThemeProfile& profile = themeFor(this);
+    const bool mono = profile.text(m_captionRole).monospace;
+    m_caption->setFont(mono ? roleMonoFont(this, m_captionRole)
+                            : roleFont(this, m_captionRole));
+    setInk(m_caption, Ink::Muted);
+
+    if (m_glyph == Glyph::None) {
+        m_icon->hide();
+        return;
+    }
+    // `.stat .lab svg{width:14px;height:14px}`, in the caption's own ink.
+    m_icon->setPixmap(glyphPixmap(m_glyph, kCaptionGlyph, profile.colors.textDisabled,
+                                  devicePixelRatioF()));
+    m_icon->setFixedSize(kCaptionGlyph, kCaptionGlyph);
+    m_icon->show();
 }
 
 void StatCard::setValue(const QString& value, Ink tone)

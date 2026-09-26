@@ -125,6 +125,18 @@
      "<path d=\"M5.5 4.5h10L19.5 8.5v11h-14z\"/><path d=\"M8.5 4.5v5h7v-5\"/><rect x=\"8.5\" y=\"13\" width=\"7\" height=\"6.5\"/>"},
     {Glyph::Minus, "minus",
      "<path d=\"M5 12h14\"/>"},
+    // `<button data-fw-min><svg><path d="M5 12h14"/></svg></button>` and
+    // `<button data-fw-max><svg><rect x="5.5" y="5.5" width="13" height="13"
+    // rx="2"/></svg></button>` - the floating window's own controls, verbatim.
+    {Glyph::WindowMinimise, "window-minimise",
+     "<path d=\"M5 12h14\"/>"},
+    {Glyph::WindowMaximise, "window-maximise",
+     "<rect x=\"5.5\" y=\"5.5\" width=\"13\" height=\"13\" rx=\"2\"/>"},
+    // Two sheets, the front one down-left: what Maximise becomes once the
+    // window is filling its layer.
+    {Glyph::WindowRestore, "window-restore",
+     "<rect x=\"4.5\" y=\"8.5\" width=\"11\" height=\"11\" rx=\"2\"/>"
+     "<path d=\"M8.5 5.5h9a2 2 0 0 1 2 2v9\"/>"},
     {Glyph::Sidebar, "sidebar",
      "<rect x=\"3.5\" y=\"4.5\" width=\"17\" height=\"15\" rx=\"2.4\"/><path d=\"M9.5 4.5v15\"/>"},
     {Glyph::HelpTip, "help-tip",

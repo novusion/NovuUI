@@ -117,20 +117,18 @@ profile.space(SpacingRole::CardGap);   // 14 here, 16 there
 profile.text(TypeRole::CardTitle);     // {14, 600} here, {13, 700} there
 ```
 
-### Status is two colours per role, derived from both
+### Status keeps separate ink and plate channels
 
 A profile states four **pairs** — `success`/`successPlate`,
-`warning`/`warningPlate`, and so on. The approved design states them as two
-different values because that is what it draws:
+`warning`/`warningPlate`, and so on. On the shared dark palette NovuAI uses
+the saturated family hue for both channels:
 
 ```css
-.badge.ok { color:#6ADB9E; background:rgba(60,203,127,.10); border-color:rgba(60,203,127,.40); }
+.tag.ok { color:#3CCB7F; background:rgba(60,203,127,.10); border-color:rgba(60,203,127,.40); }
 ```
 
-The word is written in a light ink; the plate behind it is mixed from a
-deeper hue, and neither is derivable from the other — a badge plated by
-lightening its own ink comes out one step too pale, which is what this
-library did before the ink/plate split. `semanticColorFrom()` turns the pair
+The channels stay separate because a light profile needs a darker accessible
+ink without changing the semantic tint. `semanticColorFrom()` turns the pair
 into the five values a component actually needs, at the role's own alphas:
 
 ```cpp
@@ -190,9 +188,9 @@ Full sourcing for each: [DESIGN_CONTRACT §2](DESIGN_CONTRACT.md#2-product-theme
 | `novuadmin` | `#3CCB7F` | `NovuAdmin-brand-mockup.html` — `--acc` |
 | `novuhub` | `#3CCB7F` | `NovuHub-brand-mockup.html` — `--acc` |
 | `novutrade` | `#10B981` | mirrors the trading web app; a deliberate whole-palette exception |
-| `novuvoice` | family (stand-in) | **UNRESOLVED** — the only product with no approved mockup |
+| `novuvoice` | `#C47B85` | `NovuVoice-brand-mockup.html` — `--acc` |
 
-These five were recorded UNRESOLVED for one bad reason: the search was for a
+The previously unresolved accents were missed for one bad reason: the search was for a
 hex value in the approved PNG *screens*, and every one of them was a stated
 token in the mockup's own CSS the whole time. Two near-misses had been
 rejected on the way there, correctly:
@@ -203,13 +201,12 @@ rejected on the way there, correctly:
   the shared reference sheet and everything on it wears one accent — evidence
   the value is plausible, not a statement that it is NovuAI's.
 
-Settling NovuVoice's, when it has an approved mockup, is the same one-line
-change these five already went through:
+NovuVoice follows the same one-line profile rule as the other products:
 
 ```cpp
 // src/AppProfiles.cpp
 return applicationProfile(QStringLiteral("novuvoice"), QStringLiteral("NovuVoice"),
-                          hex("#..."), hex("#..."), hex("#..."));
+                          hex("#C47B85"), hex("#DA98A1"), hex("#1B1014"));
 ```
 
 `applyDerivedTokens()` then re-derives the chart series and the window chrome,

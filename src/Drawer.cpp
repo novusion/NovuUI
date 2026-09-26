@@ -1,16 +1,22 @@
 #include "novu/ui/Drawer.h"
 
+#include "novu/ui/IconButton.h"
+#include "novu/ui/TabBar.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/Theme.h"
 #include "novu/ui/ThemeManager.h"
 
+#include <QEasingCurve>
 #include <QEvent>
 #include <QFontMetrics>
+#include <QGraphicsOpacityEffect>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QParallelAnimationGroup>
 #include <QPen>
+#include <QPropertyAnimation>
 #include <QResizeEvent>
 #include <QScrollArea>
 #include <QVBoxLayout>
@@ -40,6 +46,16 @@ constexpr int kBodyPaddingBottom = 22;
 
 // `.scrim { background:rgba(8,11,14,.58) }`.
 constexpr double kScrimAlpha = 0.58;
+
+// `.drawer{animation:slidein .28s cubic-bezier(.2,.8,.2,1) both}` and
+// `.scrim{animation:fadein .2s ease both}`. Qt's QEasingCurve has no
+// arbitrary cubic-bezier-by-number-pair entry point short of building a
+// spline by hand; OutCubic is the closest built-in shape to
+// `cubic-bezier(.2,.8,.2,1)` - a fast start that settles rather than
+// overshooting.
+constexpr int kDrawerDurationMs = 280;
+constexpr int kScrimDurationMs = 200;
+constexpr int kSlideOffsetPx = 24;
 
 QFont titleFont(const QWidget* context)
 {
@@ -107,6 +123,12 @@ Drawer::Drawer(QWidget* host)
     m_mark = new AppMark(Glyph::None, this, AppMark::Size::Medium);
     m_mark->setSideOverride(kMarkSide);
 
+    // `<button class="winbtn" data-drawer-close>` - the way out, drawn where
+    // the reader looks for it.
+    m_close = new IconButton(Glyph::Close, IconButton::Variant::Chrome, this);
+    m_close->setToolTip(tr("Close"));
+    connect(m_close, &QAbstractButton::clicked, this, &Drawer::close);
+
     // The body scrolls; the head and the actions are pinned. A drawer whose
     // head scrolled away would lose the name of the thing it is about halfway
     // down a long detail.
@@ -124,6 +146,16 @@ Drawer::Drawer(QWidget* host)
                                kBodyPaddingBottom);
     layout->setSpacing(themeFor(this).space(SpacingRole::SectionGap));
     scroll->setWidget(m_body);
+
+    // Persistent, not built per-run: a QGraphicsOpacityEffect installed and
+    // torn down on every open() is a flash of the widget's un-effected paint
+    // in between, and setGraphicsEffect() takes ownership either way.
+    m_opacityEffect = new QGraphicsOpacityEffect(this);
+    m_opacityEffect->setOpacity(1.0);
+    setGraphicsEffect(m_opacityEffect);
+    m_scrimOpacityEffect = new QGraphicsOpacityEffect(m_scrim);
+    m_scrimOpacityEffect->setOpacity(1.0);
+    m_scrim->setGraphicsEffect(m_scrimOpacityEffect);
 
     if (host) {
         host->installEventFilter(this);
@@ -179,6 +211,34 @@ QHBoxLayout* Drawer::actions()
     return qobject_cast<QHBoxLayout*>(actionsWidget()->layout());
 }
 
+QHBoxLayout* Drawer::titleBadges()
+{
+    if (!m_badges) {
+        m_badges = new QWidget(this);
+        m_badges->setAutoFillBackground(false);
+        auto* row = new QHBoxLayout(m_badges);
+        row->setContentsMargins(0, 0, 0, 0);
+        // `h2{gap:10px}`.
+        row->setSpacing(10);
+        m_badges->show();
+        relayout();
+    }
+    return qobject_cast<QHBoxLayout*>(m_badges->layout());
+}
+
+TabBar* Drawer::tabs()
+{
+    if (!m_tabs) {
+        m_tabs = new TabBar(this);
+        // Faces of one thing, not separate documents - so the underlined
+        // strip, never the browser plates.
+        m_tabs->setVariant(TabBar::Variant::Underline);
+        m_tabs->show();
+        relayout();
+    }
+    return m_tabs;
+}
+
 void Drawer::setEdge(Edge edge)
 {
     if (m_edge == edge) {
@@ -220,14 +280,52 @@ void Drawer::open()
         return;
     }
     m_open = true;
+    if (m_anim) {
+        m_anim->stop();
+        delete m_anim;
+        m_anim = nullptr;
+    }
     placeOnHost();
+    const QRect finalGeometry = geometry();
+    const int fromX = m_edge == Edge::Trailing ? finalGeometry.x() + kSlideOffsetPx
+                                               : finalGeometry.x() - kSlideOffsetPx;
 
     m_scrim->setGeometry(m_host ? m_host->rect() : QRect());
+    m_scrimOpacityEffect->setOpacity(0.0);
     m_scrim->show();
     m_scrim->raise();
+
+    m_opacityEffect->setOpacity(0.0);
+    setGeometry(fromX, finalGeometry.y(), finalGeometry.width(), finalGeometry.height());
     show();
     raise();
     setFocus(Qt::OtherFocusReason);
+
+    m_anim = new QParallelAnimationGroup(this);
+    auto* slide = new QPropertyAnimation(this, "geometry", m_anim);
+    slide->setDuration(kDrawerDurationMs);
+    slide->setStartValue(QRect(fromX, finalGeometry.y(), finalGeometry.width(),
+                               finalGeometry.height()));
+    slide->setEndValue(finalGeometry);
+    slide->setEasingCurve(QEasingCurve::OutCubic);
+    m_anim->addAnimation(slide);
+    auto* fade = new QPropertyAnimation(m_opacityEffect, "opacity", m_anim);
+    fade->setDuration(kDrawerDurationMs);
+    fade->setStartValue(0.0);
+    fade->setEndValue(1.0);
+    fade->setEasingCurve(QEasingCurve::OutCubic);
+    m_anim->addAnimation(fade);
+    auto* scrimFade = new QPropertyAnimation(m_scrimOpacityEffect, "opacity", m_anim);
+    scrimFade->setDuration(kScrimDurationMs);
+    scrimFade->setStartValue(0.0);
+    scrimFade->setEndValue(1.0);
+    scrimFade->setEasingCurve(QEasingCurve::InOutQuad);
+    m_anim->addAnimation(scrimFade);
+    connect(m_anim, &QParallelAnimationGroup::finished, this, [this] {
+        m_anim = nullptr;
+    });
+    m_anim->start(QAbstractAnimation::DeleteWhenStopped);
+
     emit opened();
 }
 
@@ -237,9 +335,41 @@ void Drawer::close()
         return;
     }
     m_open = false;
-    m_scrim->hide();
-    hide();
-    emit closed();
+    if (m_anim) {
+        m_anim->stop();
+        delete m_anim;
+        m_anim = nullptr;
+    }
+    const QRect start = geometry();
+    const int toX = m_edge == Edge::Trailing ? start.x() + kSlideOffsetPx
+                                             : start.x() - kSlideOffsetPx;
+
+    m_anim = new QParallelAnimationGroup(this);
+    auto* slide = new QPropertyAnimation(this, "geometry", m_anim);
+    slide->setDuration(kDrawerDurationMs);
+    slide->setStartValue(start);
+    slide->setEndValue(QRect(toX, start.y(), start.width(), start.height()));
+    slide->setEasingCurve(QEasingCurve::InCubic);
+    m_anim->addAnimation(slide);
+    auto* fade = new QPropertyAnimation(m_opacityEffect, "opacity", m_anim);
+    fade->setDuration(kDrawerDurationMs);
+    fade->setStartValue(1.0);
+    fade->setEndValue(0.0);
+    fade->setEasingCurve(QEasingCurve::InCubic);
+    m_anim->addAnimation(fade);
+    auto* scrimFade = new QPropertyAnimation(m_scrimOpacityEffect, "opacity", m_anim);
+    scrimFade->setDuration(kScrimDurationMs);
+    scrimFade->setStartValue(1.0);
+    scrimFade->setEndValue(0.0);
+    scrimFade->setEasingCurve(QEasingCurve::InOutQuad);
+    m_anim->addAnimation(scrimFade);
+    connect(m_anim, &QParallelAnimationGroup::finished, this, [this] {
+        m_anim = nullptr;
+        m_scrim->hide();
+        hide();
+        emit closed();
+    });
+    m_anim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
 int Drawer::headHeight() const
@@ -267,6 +397,36 @@ void Drawer::placeOnHost()
 
 void Drawer::relayout()
 {
+    // The badges sit after the title, on its line. The title is painted rather
+    // than laid out, so this measures the same text the painter draws instead
+    // of guessing at a column: the two have to agree or the badges overlap the
+    // name.
+    if (m_badges) {
+        const QFontMetrics titleMetrics(titleFont(this));
+        const int left = kHeadPaddingH + kMarkSide + kHeadGap;
+        int text = titleMetrics.height();
+        if (!m_subtitle.isEmpty()) {
+            text += kHeadLineGap + QFontMetrics(subtitleFont(this)).height();
+        }
+        const int y = (headHeight() - text) / 2;
+        const QSize wanted = m_badges->sizeHint();
+        const int x = left + titleMetrics.horizontalAdvance(m_title) + 10;
+        const int room = m_close ? m_close->width() + kHeadGap : 0;
+        m_badges->setGeometry(x, y + (titleMetrics.height() - wanted.height()) / 2,
+                              qMax(0, qMin(wanted.width(),
+                                           width() - x - kHeadPaddingH - room)),
+                              wanted.height());
+        m_badges->setVisible(titleBadges()->count() > 0);
+    }
+
+    // The close box, at the head's trailing edge.
+    if (m_close) {
+        const QSize wanted = m_close->sizeHint();
+        m_close->setGeometry(width() - kHeadPaddingH - wanted.width(), kHeadPaddingV,
+                             wanted.width(), wanted.height());
+        m_close->raise();
+    }
+
     int top = headHeight();
     if (m_actions) {
         const int actionsHeight = m_actions->sizeHint().height();
@@ -275,6 +435,13 @@ void Drawer::relayout()
         if (actions()->count() > 0) {
             top += actionsHeight;
         }
+    }
+    // The tabs are chrome, so they sit above the body and stay put while it
+    // scrolls - the whole reason they are the drawer's and not the body's.
+    if (m_tabs) {
+        const int tabsHeight = m_tabs->sizeHint().height();
+        m_tabs->setGeometry(0, top, width(), tabsHeight);
+        top += tabsHeight;
     }
     m_bodyHost->setGeometry(0, top, width(), qMax(0, height() - top));
 }
@@ -363,7 +530,8 @@ void Drawer::paintEvent(QPaintEvent*)
     m_mark->move(kHeadPaddingH, (head - kMarkSide) / 2);
 
     const int left = kHeadPaddingH + kMarkSide + kHeadGap;
-    const int available = qMax(0, width() - left - kHeadPaddingH);
+    const int closeRoom = m_close ? m_close->width() + kHeadGap : 0;
+    const int available = qMax(0, width() - left - kHeadPaddingH - closeRoom);
 
     const QFont titles = titleFont(this);
     const QFontMetrics titleMetrics(titles);
@@ -378,9 +546,15 @@ void Drawer::paintEvent(QPaintEvent*)
 
     painter.setFont(titles);
     painter.setPen(profile.colors.textPrimary);
-    painter.drawText(QRect(left, y, available, titleMetrics.height()),
+    // Never under the badges: the name gives way before they do, because a
+    // badge cut in half says nothing at all while a shortened name still
+    // names the thing.
+    const int titleRoom = m_badges && !m_badges->isHidden()
+        ? qMax(0, available - m_badges->width() - 10)
+        : available;
+    painter.drawText(QRect(left, y, titleRoom, titleMetrics.height()),
                      Qt::AlignLeft | Qt::AlignVCenter,
-                     titleMetrics.elidedText(m_title, Qt::ElideRight, available));
+                     titleMetrics.elidedText(m_title, Qt::ElideRight, titleRoom));
 
     if (m_subtitle.isEmpty()) {
         return;

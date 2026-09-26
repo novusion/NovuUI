@@ -49,6 +49,19 @@ FloatingPanel* makePanel(FloatingLayer* layer, Glyph glyph, const QString& title
 
     panel->setTaskText(QObject::tr("Summarising 4 documents"), QObject::tr("38%"));
 
+    // `.fw-foot` - the row the window's own buttons stand in, a sibling of
+    // the body rather than the last thing inside it. The body scrolls; this
+    // does not, so a form longer than the window cannot scroll its own
+    // confirm button out of reach.
+    auto* cancel = new Button(QObject::tr("Cancel"), Button::Variant::Secondary, panel);
+    cancel->setControlSize(ControlSize::Small);
+    QObject::connect(cancel, &QAbstractButton::clicked, panel, &QObject::deleteLater);
+    auto* confirm = new Button(QObject::tr("Save"), Button::Variant::Primary, panel);
+    confirm->setControlSize(ControlSize::Small);
+    panel->footer()->addStretch(1);
+    panel->footer()->addWidget(cancel);
+    panel->footer()->addWidget(confirm);
+
     QObject::connect(panel, &FloatingPanel::closeRequested, panel, [panel] {
         panel->deleteLater();
     });

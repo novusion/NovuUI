@@ -46,6 +46,18 @@ public:
 
     void append(Level level, const QString& message,
                 const QDateTime& when = QDateTime::currentDateTime());
+    // Who said it. A log with more than one writer in it -- a runtime, an
+    // agent, a CLI -- is unreadable without the column, and every approved
+    // log has one. Left empty the column is not drawn, so a single-writer log
+    // is unchanged.
+    void append(Level level, const QString& source, const QString& message,
+                const QDateTime& when = QDateTime::currentDateTime());
+
+    // The width the source column takes, in characters of the row font. The
+    // design fixes it (`.lg-row{grid-template-columns:66px 104px ...}`) so the
+    // messages line up regardless of who wrote them.
+    int sourceColumn() const { return m_sourceColumn; }
+    void setSourceColumn(int characters);
     // Bulk, for a log read back from a file or a first page from an endpoint.
     // One repaint rather than one per line.
     void appendAll(const QVector<QPair<Level, QString>>& lines);
@@ -93,6 +105,7 @@ private:
     struct Line
     {
         Level level = Level::Info;
+        QString source;
         QString message;
         QDateTime when;
     };
@@ -108,6 +121,7 @@ private:
     QVector<int> m_visible;
 
     int m_maximum = 5000;
+    int m_sourceColumn = 0;
     Level m_minimum = Level::Debug;
     QString m_filter;
     bool m_following = true;

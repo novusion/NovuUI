@@ -9,6 +9,7 @@
 #include "novu/ui/Separator.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
+#include "novu/ui/StyleSheet.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
@@ -25,6 +26,15 @@ QWidget* build(const PreviewContext& ctx)
 {
     auto* page = new QWidget(ctx.parent);
     QVBoxLayout* column = previewPage(page);
+    auto familyProfile=novusionBaseProfile();familyProfile.id="gallery-control-families";familyProfile.controls.selectHeight=26;familyProfile.controls.selectSmallHeight=23;familyProfile.controls.iconHeight=26;familyProfile.controls.iconSmallHeight=22;ThemeManager::instance().registerProfile(familyProfile);
+    auto* familyHost=new QWidget(page);applyStyleSheet(familyHost,familyProfile.id);auto* familyRow=new QHBoxLayout(familyHost);familyRow->addWidget(rowAction(Glyph::Plus,familyHost));auto* familyIcon=new IconButton(Glyph::Star,IconButton::Variant::Ghost,familyHost);familyIcon->setControlSize(ControlSize::Small);familyRow->addWidget(familyIcon);column->addWidget(familyHost);
+    auto* keyed = new SelectButton(familyHost);familyRow->addWidget(keyed);
+    keyed->setMetaText("9");
+    keyed->addOption("all", "All articles");keyed->addOption("guides", "Guides");
+    familyRow->addStretch();
+    auto* prose=paragraph("",page);
+    setLabelRichText(prose,"<b>Documentation</b><ul><li>Open a guide</li><li>Read the example</li></ul>");
+    setLineHeight(prose,1.65);column->addWidget(prose);
 
     // ── a window menu ────────────────────────────────────────────────────
     {
@@ -36,6 +46,9 @@ QWidget* build(const PreviewContext& ctx)
         auto* chosen = label(QStringLiteral("—"), card, TypeRole::Mono, Ink::Secondary);
 
         auto* menu = new Popover(card);
+        auto* advanced=menu->addSubmenu(QStringLiteral("advanced"),QStringLiteral("Advanced"),Glyph::Sliders);
+        advanced->addItem(QStringLiteral("advanced.logs"),QStringLiteral("Open logs"),Glyph::File);
+        advanced->addItem(QStringLiteral("advanced.reset"),QStringLiteral("Reset connection"),Glyph::Refresh);
         menu->addGroup(QStringLiteral("Connection"));
         menu->addItem(QStringLiteral("reconnect"), QStringLiteral("Reconnect"), Glyph::Plug);
         menu->setMeta(QStringLiteral("reconnect"), QStringLiteral("Ctrl+R"));
@@ -74,6 +87,12 @@ QWidget* build(const PreviewContext& ctx)
         row->addWidget(anchor);
 
         auto* kebab = new IconButton(Glyph::More, card);
+        // Both read the same profile.controlHeight(size) - the token Button's
+        // own sizeHint() floors against - so matching the size here is what
+        // matching the height means. IconButton defaults to Medium on its
+        // own, same as a plain new Button() would; a caller standing one
+        // next to a Small button has to say so on both.
+        kebab->setControlSize(ControlSize::Small);
         QObject::connect(kebab, &IconButton::clicked, menu,
                          [menu, kebab] { menu->popupUnder(kebab); });
         row->addWidget(kebab);

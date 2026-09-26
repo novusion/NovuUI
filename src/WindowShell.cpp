@@ -11,8 +11,11 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPainter>
+#include <QPainterPath>
 #include <QMouseEvent>
+#include <QRegion>
 #include <QTextOption>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWindow>
 
@@ -41,22 +44,6 @@
 namespace novu::ui {
 
 namespace {
-
-// A translucent token colour resolved against what is behind it.
-//
-// The window border is a palette colour, and NovuTrade's is 46/255 alpha over
-// the window background. DWM takes an opaque COLORREF, so the blend has to
-// happen here rather than being lost.
-QColor flatten(const QColor& colour, const QColor& behind)
-{
-    if (colour.alpha() == 255) {
-        return colour;
-    }
-    const qreal a = colour.alphaF();
-    return QColor(qRound(colour.red() * a + behind.red() * (1.0 - a)),
-                  qRound(colour.green() * a + behind.green() * (1.0 - a)),
-                  qRound(colour.blue() * a + behind.blue() * (1.0 - a)));
-}
 
 // The surface the whole window is drawn on.
 //
@@ -87,27 +74,47 @@ protected:
         const ThemeProfile& profile = themeFor(this);
 
         QPainter painter(this);
-        painter.fillRect(rect(), profile.colors.windowBg);
-
-        // A maximised window has no border: the frame is against the screen
-        // edge, and a hairline there reads as a rendering fault rather than as
-        // a frame.
         QWidget* top = window();
-        if (top && top->isMaximized()) {
+        const bool maximised = top && top->isMaximized();
+
+        // A maximised window has no border and no curve: the frame is against
+        // the screen edge, and a rounded corner or a hairline there reads as a
+        // rendering fault rather than as a frame.
+        if (maximised) {
+            painter.fillRect(rect(), profile.colors.windowBg);
             return;
         }
+
+        // The background is clipped to the same rounded path the border draws
+        // - not a plain fillRect() - because DWM (Windows) clips the real
+        // window to its own curve at a radius it picks from three fixed
+        // presets, never the exact token this profile states. A flat
+        // rectangle filled to the corner painted content DWM was about to cut
+        // away, and a *square-cornered* 1px border on top of that curve is
+        // what a "missing" or "wrong" corner actually was: not the wrong
+        // radius, content that never agreed with any radius at all.
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        const qreal radius = qMax(0, m_shell->cornerRadius());
+        QPainterPath shape;
+        shape.addRoundedRect(QRectF(rect()), radius, radius);
+        painter.fillPath(shape, profile.colors.windowBg);
 
         const int width = profile.window.borderWidth;
         if (width <= 0) {
             return;
         }
-        // Four filled bars rather than drawRect() with a pen: a one-pixel pen
-        // straddles the path and antialiases into two rows of grey.
+        // A stroke on the same path, not four filled bars: those were exactly
+        // right for a square frame and exactly wrong for this one, since a
+        // flat bar has no notion of the curve its own corner sits on.
         const QColor colour = profile.window.border;
-        painter.fillRect(QRect(0, 0, this->width(), width), colour);
-        painter.fillRect(QRect(0, height() - width, this->width(), width), colour);
-        painter.fillRect(QRect(0, 0, width, height()), colour);
-        painter.fillRect(QRect(this->width() - width, 0, width, height()), colour);
+        QPainterPath strokePath;
+        strokePath.addRoundedRect(QRectF(rect()).adjusted(width / 2.0, width / 2.0,
+                                                          -width / 2.0, -width / 2.0),
+                                  qMax(0.0, radius - width / 2.0),
+                                  qMax(0.0, radius - width / 2.0));
+        painter.setPen(QPen(colour, width));
+        painter.setBrush(Qt::NoBrush);
+        painter.drawPath(strokePath);
     }
 
     bool event(QEvent* event) override
@@ -590,9 +597,44 @@ void WindowShell::applyTheme()
 
     m_titleBar->setMinimizable(m_minimizable);
     m_titleBar->setMaximizable(m_maximizable);
+    m_titleBar->setCornerRadius(cornerRadius());
 
     m_frame->update();
     applyNativeFrame();
+    applyWindowMask();
+}
+
+void WindowShell::applyWindowMask()
+{
+#ifdef Q_OS_WIN
+    if (!m_window || m_window->isMaximized()) {
+        if (m_window)
+            m_window->clearMask();
+        return;
+    }
+
+    const int radius = cornerRadius();
+    const QRect bounds = m_window->rect();
+    if (radius <= 0 || bounds.isEmpty()) {
+        m_window->clearMask();
+        return;
+    }
+
+    const int r = qMin(radius, qMin(bounds.width(), bounds.height()) / 2);
+    const int diameter = r * 2;
+    QRegion rounded(bounds.adjusted(r, 0, -r, 0));
+    rounded += QRegion(bounds.adjusted(0, r, 0, -r));
+    rounded += QRegion(QRect(bounds.left(), bounds.top(), diameter, diameter),
+                       QRegion::Ellipse);
+    rounded += QRegion(QRect(bounds.right() - diameter + 1, bounds.top(),
+                             diameter, diameter), QRegion::Ellipse);
+    rounded += QRegion(QRect(bounds.left(), bounds.bottom() - diameter + 1,
+                             diameter, diameter), QRegion::Ellipse);
+    rounded += QRegion(QRect(bounds.right() - diameter + 1,
+                             bounds.bottom() - diameter + 1,
+                             diameter, diameter), QRegion::Ellipse);
+    m_window->setMask(rounded);
+#endif
 }
 
 void WindowShell::applyNativeFrame()
@@ -654,8 +696,11 @@ void WindowShell::applyNativeFrame()
                               : 2;   // DWMWCP_ROUND, ~8px
     DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
 
-    const QColor border = flatten(profile.window.border, colors.windowBg);
-    COLORREF borderColor = RGB(border.red(), border.green(), border.blue());
+    // NovuUI paints the one visible antialiased border itself. Asking DWM for
+    // another border produces a square hairline behind the transparent corner
+    // and the diagonal notch seen where the two outlines meet.
+    constexpr COLORREF kNoDwmBorder = 0xFFFFFFFE;
+    COLORREF borderColor = kNoDwmBorder;
     DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &borderColor, sizeof(borderColor));
 #endif
 }
@@ -679,13 +724,24 @@ bool WindowShell::eventFilter(QObject* watched, QEvent* event)
         // is maximised, so the frame is re-applied rather than only repainted.
         applyTheme();
         break;
+    case QEvent::Resize:
+        applyWindowMask();
+        break;
     case QEvent::WindowActivate:
     case QEvent::WindowDeactivate:
         syncStateFromWindow();
         break;
     case QEvent::Show:
-        // First point at which the platform window exists.
+        // First point at which the platform window exists. Windows may still
+        // recreate its non-client frame while completing Show, so apply the
+        // DWM border and corner preference once now and once again on the next
+        // event-loop turn after the final HWND style has settled.
         applyNativeFrame();
+        QTimer::singleShot(0, m_window, [this] {
+            applyNativeFrame();
+            applyWindowMask();
+            m_frame->update();
+        });
         syncStateFromWindow();
         break;
     case QEvent::WindowTitleChange:
@@ -751,6 +807,25 @@ void AppWindow::setIcon(const QIcon& icon)
 ToolWindow::ToolWindow(QWidget* parent)
     : AppWindow(WindowKind::Tool, parent)
 {
+}
+
+void ToolWindow::setRolled(bool rolled)
+{
+    if(m_rolled==rolled)return;
+    m_rolled=rolled;
+    if(rolled){
+        m_unrolledSize=size();m_unrolledMinimum=minimumSize();m_unrolledMaximum=maximumSize();
+        content()->hide();setMinimumSize(0,0);if(layout())layout()->activate();
+        setFixedHeight(titleBar()->height()+shell()->frameOverhead().height()-themeFor(this).window.titleBarHeight);
+    }else{
+        setMaximumSize(m_unrolledMaximum);setMinimumSize(m_unrolledMinimum);content()->show();
+        if(layout())layout()->activate();resize(m_unrolledSize);
+    }
+}
+void ToolWindow::keyPressEvent(QKeyEvent* event)
+{
+    if(event->key()==Qt::Key_Escape){event->accept();close();return;}
+    AppWindow::keyPressEvent(event);
 }
 
 // -- Dialog ------------------------------------------------------------------
@@ -1121,9 +1196,14 @@ Dialog* buildMessageDialog(QWidget* parent, const QString& title, const QString&
 {
     auto* dialog = new Dialog(title, parent);
     const ThemeProfile& profile = themeFor(dialog);
-    const int padding = profile.space(SpacingRole::CardPadding);
-    dialog->contentLayout()->setContentsMargins(padding, padding, padding, padding);
-    dialog->contentLayout()->setSpacing(profile.space(SpacingRole::SectionGap));
+    // `.modal-body{padding:16px 18px;gap:14px}` - the modal's own metrics.
+    // The gap was SectionGap, which NovuSpace states as the *rail's* 18.
+    constexpr int kModalPaddingH = 18;
+    constexpr int kModalPaddingV = 16;
+    constexpr int kModalGap = 14;
+    dialog->contentLayout()->setContentsMargins(kModalPaddingH, kModalPaddingV,
+                                                kModalPaddingH, kModalPaddingV);
+    dialog->contentLayout()->setSpacing(kModalGap);
 
     QLabel* body = label(message, dialog->content(), TypeRole::Body, tone);
     body->setWordWrap(true);

@@ -19,6 +19,13 @@ namespace {
 constexpr int kPaddingH = 16;
 constexpr int kPaddingV = 13;
 constexpr int kGap = 16;
+constexpr int kSettingsPaddingH = 6;
+constexpr int kSettingsPaddingV = 5;
+constexpr int kSettingsLabelWidth = 242;
+
+bool settingsRow(const QWidget* row) { return row->property("novuSettingsRow").toBool(); }
+int paddingH(const QWidget* row) { return settingsRow(row) ? kSettingsPaddingH : kPaddingH; }
+int paddingV(const QWidget* row) { return settingsRow(row) ? kSettingsPaddingV : kPaddingV; }
 
 // `.kv .k .hint { margin-top:3px; line-height:1.45 }`.
 constexpr int kHintGap = 3;
@@ -40,10 +47,12 @@ constexpr int kMaskLength = 12;
 
 QFont nameFont(const QWidget* context)
 {
-    const ThemeProfile& profile = themeFor(context);
-    QFont font = roleFont(context, TypeRole::CardTitle, true);
-    font.setPixelSize(profile.type.sm);
-    return font;
+    // `.kv .k .lab` is a *field's* name, which is what TypeRole::Label is.
+    // This used to be CardTitle with the size overwritten from the scale,
+    // which is two decisions the profile had already made being taken back:
+    // a profile that states `.kv .k .lab` at 12.5 got 12 anyway, and every
+    // row in the product came out two pixels short of the design.
+    return roleFont(context, TypeRole::Label, true);
 }
 
 QFont hintFont(const QWidget* context)
@@ -207,6 +216,7 @@ QString SettingRow::displayValue() const
 
 int SettingRow::textWidth(int width) const
 {
+    if (settingsRow(this)) return qMin(kSettingsLabelWidth, qMax(0, width));
     int right = 0;
     if (m_controlColumn > 0) {
         right = m_controlColumn;
@@ -217,7 +227,7 @@ int SettingRow::textWidth(int width) const
                     .horizontalAdvance(displayValue());
     }
 
-    int available = width - 2 * kPaddingH - (right > 0 ? right + kGap : 0);
+    int available = width - 2 * paddingH(this) - (right > 0 ? right + kGap : 0);
 
     // The design's 58ch cap on the hint. Applied to the text column as a whole
     // so the name and its sentence share one measure.
@@ -247,13 +257,13 @@ int SettingRow::textHeight(int width) const
 int SettingRow::heightForWidth(int width) const
 {
     const int right = m_control ? m_control->sizeHint().height() : 0;
-    return qMax(textHeight(width), right) + 2 * kPaddingV;
+    return qMax(textHeight(width), right) + 2 * paddingV(this);
 }
 
 QSize SettingRow::sizeHint() const
 {
     const QFontMetrics names(nameFont(this));
-    int width = 2 * kPaddingH + names.horizontalAdvance(m_name);
+    int width = 2 * paddingH(this) + names.horizontalAdvance(m_name);
     if (m_control) {
         width += kGap + m_control->sizeHint().width();
     } else if (!m_value.isEmpty()) {
@@ -266,7 +276,22 @@ QSize SettingRow::sizeHint() const
 
 QSize SettingRow::minimumSizeHint() const
 {
-    return QSize(240, heightForWidth(240));
+    // The floor is the row with nothing wrapped: one line of name, one line
+    // of hint, and whatever control it carries.
+    //
+    // Not heightForWidth(240): a row's minimum is asked for *while* the layout
+    // is deciding its width, so a minimum that depends on the width it has not
+    // been given yet is either self-referential or - worse - the height it
+    // would need at its narrowest, which every parent then reserves forever.
+    const QFontMetrics names(nameFont(this));
+    int floor = names.height();
+    if (!m_hint.isEmpty()) {
+        floor += kHintGap + qRound(QFontMetrics(hintFont(this)).height() * kHintLeading);
+    }
+    if (m_control) {
+        floor = qMax(floor, m_control->sizeHint().height());
+    }
+    return QSize(240, floor + 2 * paddingV(this));
 }
 
 void SettingRow::relayout()
@@ -279,10 +304,12 @@ void SettingRow::relayout()
     // Aligned to the name's line rather than to the middle of the row: with a
     // three-line hint a centred control floats beside the sentence instead of
     // beside the thing it changes.
-    const int top = kPaddingV
+    const int vpad = paddingV(this);
+    const int top = vpad
         + (QFontMetrics(nameFont(this)).height() - hint.height()) / 2;
-    m_control->setGeometry(width() - kPaddingH - columnWidth, qMax(kPaddingV, top),
-                           columnWidth, hint.height());
+    const int x = settingsRow(this) ? paddingH(this) + kSettingsLabelWidth + kGap
+                                    : width() - paddingH(this) - columnWidth;
+    m_control->setGeometry(x, qMax(vpad, top), columnWidth, hint.height());
 }
 
 void SettingRow::resizeEvent(QResizeEvent* event)
@@ -335,18 +362,24 @@ void SettingRow::paintEvent(QPaintEvent*)
     painter.setRenderHint(QPainter::Antialiasing, true);
 
     if (m_divider) {
+        // `.kv{border-bottom:1px solid var(--hair)}` - the rule between two
+        // settings is the same hairline every other list in the design draws,
+        // not a fainter one. Filled rather than stroked: an antialiased 1px
+        // line lands on a half pixel and comes out as two grey rows instead
+        // of the design's one.
         const int borderWidth = qMax(1, profile.border(BorderRole::Divider));
-        painter.setPen(QPen(profile.colors.borderSubtle, borderWidth));
-        painter.drawLine(0, height() - borderWidth, width(), height() - borderWidth);
+        painter.fillRect(QRect(0, height() - borderWidth, width(), borderWidth),
+                         profile.colors.border);
     }
 
-    int y = kPaddingV;
+    const int hpad = paddingH(this);
+    int y = paddingV(this);
 
     const QFont names = nameFont(this);
     const QFontMetrics nameMetrics(names);
     painter.setFont(names);
     painter.setPen(profile.colors.textPrimary);
-    painter.drawText(QRect(kPaddingH, y, available, nameMetrics.height()),
+    painter.drawText(QRect(hpad, y, available, nameMetrics.height()),
                      Qt::AlignLeft | Qt::AlignVCenter,
                      nameMetrics.elidedText(m_name, Qt::ElideRight, available));
 
@@ -358,8 +391,9 @@ void SettingRow::paintEvent(QPaintEvent*)
         const int valueWidth = fm.horizontalAdvance(text);
         painter.setFont(font);
         painter.setPen(profile.colors.textSecondary);
-        painter.drawText(QRect(width() - kPaddingH - valueWidth, y, valueWidth,
-                               nameMetrics.height()),
+        const int valueX = settingsRow(this) ? hpad + kSettingsLabelWidth + kGap
+                                             : width() - hpad - valueWidth;
+        painter.drawText(QRect(valueX, y, valueWidth, nameMetrics.height()),
                          Qt::AlignRight | Qt::AlignVCenter, text);
     }
     y += nameMetrics.height();
@@ -373,7 +407,7 @@ void SettingRow::paintEvent(QPaintEvent*)
         painter.setFont(font);
         painter.setPen(profile.colors.textDisabled);
         const int hintHeight = wrappedHeight(fm, m_hint, available, kHintLeading);
-        painter.drawText(QRectF(kPaddingH, y, available, hintHeight), m_hint, wrap);
+        painter.drawText(QRectF(hpad, y, available, hintHeight), m_hint, wrap);
         y += hintHeight;
     }
 
@@ -391,12 +425,12 @@ void SettingRow::paintEvent(QPaintEvent*)
     const QColor ink = profile.semantic.danger.text;
 
     paintGlyph(&painter, Glyph::Warning,
-               QRectF(kPaddingH, y + (lineHeight - kErrorMark) / 2.0, kErrorMark, kErrorMark),
+               QRectF(hpad, y + (lineHeight - kErrorMark) / 2.0, kErrorMark, kErrorMark),
                ink);
     painter.setFont(font);
     painter.setPen(ink);
-    const QRect box(kPaddingH + kErrorMark + kErrorGap, y,
-                    qMax(0, width() - 2 * kPaddingH - kErrorMark - kErrorGap), lineHeight);
+    const QRect box(hpad + kErrorMark + kErrorGap, y,
+                    qMax(0, width() - 2 * hpad - kErrorMark - kErrorGap), lineHeight);
     painter.drawText(box, Qt::AlignLeft | Qt::AlignVCenter,
                      fm.elidedText(m_error, Qt::ElideRight, box.width()));
 }

@@ -7,6 +7,8 @@
 #include "novu/ui/Fields.h"
 #include "novu/ui/IconButton.h"
 #include "novu/ui/Segmented.h"
+#include "novu/ui/ThemeScope.h"
+#include "novu/ui/ThemeManager.h"
 #include "novu/ui/Separator.h"
 #include "novu/ui/SettingRow.h"
 #include "novu/ui/Text.h"
@@ -29,6 +31,19 @@ QWidget* build(const PreviewContext& ctx)
 {
     auto* page = new QWidget(ctx.parent);
     QVBoxLayout* column = previewPage(page);
+    // The base profile carries the shared semantic palette every profile
+    // outside novu-light is required to agree on; only the accent - what a
+    // focused Segmented's ring actually reads (Segmented::paintEvent()) - is
+    // taken from the gallery's active theme, so this compact control's focus
+    // ring is that theme's own accent rather than novusionBaseProfile's
+    // unrelated one.
+    auto* compact=new Segmented({"Properties","Screen"},page);auto profile=novusionBaseProfile();profile.id=ctx.profileId+QStringLiteral("-compact-segments-gallery");
+    const ThemeProfile& activeSegProfile=ThemeManager::instance().profile(ctx.profileId);
+    profile.colors.accent=activeSegProfile.colors.accent;
+    profile.colors.accentLight=activeSegProfile.colors.accentLight;
+    profile.colors.textOnAccent=activeSegProfile.colors.textOnAccent;
+    profile.controls.segmentedHeight=26;profile.controls.segmentedPadding=2;ThemeManager::instance().registerProfile(profile);ThemeScope::apply(compact,profile.id);compact->setFill(true);compact->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);column->addWidget(compact);
+
 
     const bool longText = ctx.scenario == Scenario::LongText;
 

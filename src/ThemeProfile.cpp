@@ -42,7 +42,14 @@ void applyCommonRoles(ThemeProfile& p)
     p.setRoleBorder(BorderRole::Input,   p.borders.hairline);
     p.setRoleBorder(BorderRole::Table,   p.borders.hairline);
     p.setRoleBorder(BorderRole::Divider, p.borders.hairline);
-    p.setRoleBorder(BorderRole::Focus,   p.borders.strong);
+    // A ring is not a bevel: nine painted components share this one token for
+    // their focus/selection outline (Disclosure, DropTarget, IconButton,
+    // ModuleBar, NavList, Segmented, Slider, TabBar, Toggle, TreeView), and
+    // at `borders.strong` (2px) every one of them drew a heavier ring than
+    // any other border in the system - the only 2px line anywhere outside a
+    // divider that means "strong" on purpose. One row here is what fixed all
+    // nine at once.
+    p.setRoleBorder(BorderRole::Focus,   p.borders.hairline);
 }
 
 // Window chrome derived from the profile's own palette.
@@ -61,6 +68,9 @@ void applyWindowTokens(ThemeProfile& p)
 {
     const ThemeColors& c = p.colors;
     p.window.titleBarBg = c.headerBg;
+    // `--rail-top` is the header surface, as the bar's own top is; `--rail-bot`
+    // is a step above the window's, so it is stated rather than derived.
+    p.window.railBg = c.headerBg;
     // The design runs the bar from the header surface down to the window's own,
     // which is what separates the chrome from the content without a second
     // hairline.
@@ -68,11 +78,17 @@ void applyWindowTokens(ThemeProfile& p)
     p.window.titleBarBgInactive = c.windowBg;
     p.window.titleText = c.textPrimary;
     p.window.titleTextInactive = c.textDisabled;
-    p.window.border = c.border;
+    // Top-level windows use the stronger hairline, matching the native frame
+    // contrast used by Explorer and the other desktop applications. The
+    // regular border remains correct for cards and internal separators.
+    p.window.border = c.borderHover;
+    p.window.titleBarBorder = c.borderHover;
 
-    p.window.controlHoverBg = c.surfaceHover;
-    p.window.controlPressedBg = c.surfaceActive;
-    p.window.controlGlyph = c.textSecondary;
+    // `.winbtn:hover{background:var(--panel);color:var(--text)}` - the panel
+    // surface, one step under the card; and the glyph rests at `--text3`.
+    p.window.controlHoverBg = c.panelBgAlt;
+    p.window.controlPressedBg = c.surfaceHover;
+    p.window.controlGlyph = c.textDisabled;
     p.window.controlGlyphInactive = c.textDisabled;
 
     p.window.closeHoverBg = c.danger;
@@ -229,6 +245,7 @@ ThemeProfile novuSpaceProfile()
     p.colors.textPrimary   = QColor(QStringLiteral("#E7EDF5"));
     p.colors.textSecondary = QColor(QStringLiteral("#B7C1CE"));
     p.colors.textDisabled  = QColor(QStringLiteral("#8793A3"));
+    p.colors.textTertiary  = QColor(QStringLiteral("#68737F"));
 
     // ── the product accent ────────────────────────────────────────────────
     // --accent / --acc-l / --ink-on-accent. Amber, chosen in the preset
@@ -254,7 +271,16 @@ ThemeProfile novuSpaceProfile()
     // Height 30 is the design's `.btn` measured out: 12.5px text at line-height
     // 1.3 inside .52em of vertical padding and a hairline. 26 is `.btn.sm`, 34
     // is a table row.
-    p.controls = ControlMetrics{30, 26, 34};
+    // `.input,.select{padding:.56em .85em;font-size:12.5px;line-height:1.3}`
+    // computes to 32, and `.btn{padding:.52em 1em}` to 31: one token for
+    // both, because the design's own rule is that a control never
+    // staggers against the one beside it in a toolbar.
+    // Named assignments preserve each metric as the profile grows.
+    p.controls = ControlMetrics{};
+    p.controls.height = 32;
+    p.controls.heightSmall = 26;
+    p.controls.rowHeight = 34;
+    p.controls.smallButtonRadius = RadiusStep::Small;
     // `.btn svg` is 15px, `.btn.sm svg` 13px, and a header or empty-state mark
     // is 20px.
     p.icons = IconMetrics{13, 15, 20};
@@ -271,38 +297,58 @@ ThemeProfile novuSpaceProfile()
     p.type.monoFamily = QStringLiteral("JetBrains Mono");
 
     p.setRoleRadius(SurfaceRole::Card, RadiusStep::Large);       // .card 14
-    p.setRoleRadius(SurfaceRole::Dialog, RadiusStep::XL);        // .modal 15
     p.setRoleRadius(SurfaceRole::Button, RadiusStep::Medium);    // .btn 10
     p.setRoleRadius(SurfaceRole::Input, RadiusStep::Medium);     // .input 10
     p.setRoleRadius(SurfaceRole::Badge, RadiusStep::Pill);
     p.setRoleRadius(SurfaceRole::Toolbar, RadiusStep::None);
     p.setRoleRadius(SurfaceRole::Table, RadiusStep::Large);      // inside a card
-    p.setRoleRadius(SurfaceRole::Overlay, RadiusStep::Large);    // .popover 12
     p.setRoleRadius(SurfaceRole::Window, RadiusStep::XL);        // .win 16
+    // The four the five-step scale cannot reach, stated exactly. They sit
+    // inside one another - a popover over a modal over a window - and the
+    // differences between them are what keep the stack readable.
+    p.setRoleRadiusPx(SurfaceRole::Dialog, 15);          // .modal
+    p.setRoleRadiusPx(SurfaceRole::FloatingWindow, 13);  // .floatwin
+    p.setRoleRadiusPx(SurfaceRole::Overlay, 12);         // .popover
+    p.setRoleRadiusPx(SurfaceRole::IconButton, 7);       // .nb
+    p.setRoleRadiusPx(SurfaceRole::ActionIcon, 8);       // .btn.ico
+    p.setRoleRadiusPx(SurfaceRole::Segment, 7);          // .chip
 
     applyCommonRoles(p);
 
     // Spacing the design states directly, rather than the nearest scale step.
-    p.setRoleSpacing(SpacingRole::CardPadding, 16);      // .card-body 15px 16px
+    p.setRoleSpacing(SpacingRole::CardPadding, 16);      // .card-body, horizontal
+    p.setRoleSpacing(SpacingRole::CardPaddingV, 15);     // .card-body, vertical
+    p.setRoleSpacing(SpacingRole::CardBodyGap, 12);      // .grid gap, inside a card
     p.setRoleSpacing(SpacingRole::CardGap, 14);          // .card + .card
     p.setRoleSpacing(SpacingRole::ToolbarGap, 9);        // .toolbar gap
     p.setRoleSpacing(SpacingRole::FormRowGap, 6);        // .field gap
-    p.setRoleSpacing(SpacingRole::TableCellPadding, 9);  // td padding
-    p.setRoleSpacing(SpacingRole::PagePadding, 20);      // .page-body
+    p.setRoleSpacing(SpacingRole::TableCellPadding, 9);   // td padding, vertical
+    p.setRoleSpacing(SpacingRole::TableCellPaddingH, 13); // td padding, horizontal
+    p.setRoleSpacing(SpacingRole::PagePadding, 20);       // .page-body, sides
+    p.setRoleSpacing(SpacingRole::PagePaddingTop, 16);    // .page-body, top
+    p.setRoleSpacing(SpacingRole::PagePaddingBottom, 22); // .page-body, bottom
     p.setRoleSpacing(SpacingRole::SectionGap, 18);       // .rail-sec margin-top
 
     // Type, role by role, as the design sets each one. Weight 600 throughout
     // the titles: the display face is drawn at demibold, not bold.
-    p.setRoleType(TypeRole::PageTitle,    TypeStyle{16, 600, false});  // .page-head h1
+    // `.page-head h1{letter-spacing:-.015em}`.
+    p.setRoleType(TypeRole::PageTitle,    TypeStyle{16, 600, false, 0.0, -0.015, false});
     p.setRoleType(TypeRole::SectionTitle, TypeStyle{15, 600, false});  // .modal-head h2
     p.setRoleType(TypeRole::CardTitle,    TypeStyle{14, 600, false});  // .card-head h2
     p.setRoleType(TypeRole::Body,         TypeStyle{13, 400, false});  // 12.5px
     p.setRoleType(TypeRole::Caption,      TypeStyle{12, 400, false});  // .sub / .hint
     p.setRoleType(TypeRole::Label,        TypeStyle{13, 600, false});  // .kv .k .lab
-    p.setRoleType(TypeRole::Metric,       TypeStyle{25, 600, false});  // .stat .val
+    // `.stat .val{line-height:1.05;letter-spacing:-.02em}` - a display face
+    // laid out to the design's own line box rather than to its own metrics.
+    p.setRoleType(TypeRole::Metric,       TypeStyle{25, 600, false, 1.05, -0.02, false});
     p.setRoleType(TypeRole::Mono,         TypeStyle{11, 400, true});   // .idcell
+    // `.statusbar{font-size:11.5px}` - the bar is set a step under body text,
+    // not at it. Unstated, it fell back to Body (13) and the line read a size
+    // and a half too large across every window.
+    p.setRoleType(TypeRole::StatusBar,    TypeStyle{12, 400, false});
     p.setRoleType(TypeRole::WindowTitle,  TypeStyle{13, 600, false});  // .app-name
-    p.setRoleType(TypeRole::Eyebrow,      TypeStyle{10, 500, true});   // .flabel / th
+    // `.stat .lab{font-size:11px;letter-spacing:.06em;text-transform:uppercase}`
+    p.setRoleType(TypeRole::Eyebrow,      TypeStyle{11, 500, true, 0.0, 0.06, true});
 
     applyDerivedTokens(p);
 
@@ -315,7 +361,28 @@ ThemeProfile novuSpaceProfile()
     // A table header sits *on* a card and the design gives it the card's own
     // surface, not the title bar's. Restated after the derivation, which has no
     // way to tell the two headers apart.
+    // `.titlebar{height:42px}`. The shared default is 44; this design states
+    // its own, and the whole page below it moves by the difference.
+    p.window.titleBarHeight = 42;
+
     p.table.headerBg = p.colors.panelBg;
+    // `th{padding:10px 13px}` around a 10px mono caption: 10 + 10 of padding
+    // and a ~13px line box for the caption itself. 36 was measured against a
+    // header that was still being drawn in the body face at 13px; with the
+    // caption set as the sheet states it, the row is 33.
+    p.table.headerHeight = 33;
+
+    // Neutral, restated: the shared derivation tints a Neutral badge from
+    // this profile's own secondary ink, but `.badge.mut{color:var(--text3);
+    // border-color:var(--hair2);background:var(--card)}` is three flat
+    // surface-tier tokens with no alpha in it at all. Restated here rather
+    // than in the shared derivation because another profile's own contrast
+    // budget already depends on that one.
+    p.semantic.neutral.text = p.colors.textDisabled;
+    p.semantic.neutral.fill = p.colors.surfaceHover;
+    p.semantic.neutral.border = p.colors.borderHover;
+    p.semantic.neutral.hover = p.colors.surfaceActive;
+    p.semantic.neutral.pressed = p.colors.surfaceActive;
 
     // Candles are domain colours, not status: the design draws a profit in
     // --profit and a loss in --loss, which are a shade deeper than the ink a
@@ -368,7 +435,12 @@ ThemeProfile novuTradeProfile()
     // gap-2 = 8, p-6 = 24.
     p.spacing = SpacingScale{4, 8, 12, 16, 24};
     p.type = TypeScale{11, 12, 13, 16, 20};
-    p.controls = ControlMetrics{32, 26, 34};
+    // Named assignments preserve each metric as the profile grows.
+    p.controls = ControlMetrics{};
+    p.controls.height = 32;
+    p.controls.heightSmall = 26;
+    p.controls.rowHeight = 34;
+    p.controls.smallButtonRadius = RadiusStep::Small;
     // rounded-lg = 8, rounded-xl = 12, rounded-2xl = 16.
     p.radii = RadiusScale{0, 4, 6, 8, 12, 16, 9999};
 

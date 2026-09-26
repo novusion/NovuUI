@@ -28,18 +28,29 @@ constexpr int kMinHeightLarge = 27;
 constexpr int kDotDiameter = 5;
 constexpr int kDotGap = 6;
 
-int paddingH(Badge::Size size)
+bool compactTag(Badge::Size size)
 {
+    return size == Badge::Size::Compact;
+}
+
+int paddingH(const QWidget* widget, Badge::Size size)
+{
+    if (compactTag(size)) return 7;
+    if (size == Badge::Size::Regular) return 7;
     return size == Badge::Size::Large ? kPaddingHLarge : kPaddingH;
 }
 
-int paddingV(Badge::Size size)
+int paddingV(const QWidget* widget, Badge::Size size)
 {
+    if (compactTag(size)) return 0;
+    if (size == Badge::Size::Regular) return 2;
     return size == Badge::Size::Large ? kPaddingVLarge : kPaddingV;
 }
 
-int minHeight(Badge::Size size)
+int minHeight(const QWidget* widget, Badge::Size size)
 {
+    if (compactTag(size)) return 16;
+    if (size == Badge::Size::Regular) return 19;
     return size == Badge::Size::Large ? kMinHeightLarge : kMinHeight;
 }
 
@@ -83,7 +94,12 @@ QFont badgeFont(const QWidget* widget, Badge::Size size)
 {
     const ThemeProfile& profile = themeFor(widget);
     QFont font = roleMonoFont(widget, TypeRole::Mono);
-    font.setPixelSize(size == Badge::Size::Large ? profile.type.xs : profile.type.xxs);
+    font.setPixelSize(size == Badge::Size::Large ? profile.type.xs
+                      : compactTag(size) ? profile.type.xxs
+                                         : profile.type.xs);
+    // Native rasterisation makes 11px regular mono noticeably fainter than
+    // the browser reference. Medium preserves the compact geometry while
+    // giving the coloured ink the same visual authority as the HTML tag.
     font.setWeight(QFont::Medium);
     // The design's .04em tracking. A pill is a handful of characters inside a
     // tinted plate; without it they read as one blob at 10px.
@@ -158,6 +174,15 @@ void Badge::setUppercase(bool uppercase)
     update();
 }
 
+void Badge::setClassificationHue(const QColor& hue)
+{
+    if (m_classificationHue == hue) {
+        return;
+    }
+    m_classificationHue = hue;
+    update();
+}
+
 QString Badge::displayText() const
 {
     return m_uppercase ? m_text.toUpper() : m_text;
@@ -167,8 +192,8 @@ QSize Badge::sizeHint() const
 {
     const QFontMetrics fm(badgeFont(this, m_size));
     const int lead = m_dot ? kDotDiameter + kDotGap : 0;
-    return QSize(fm.horizontalAdvance(displayText()) + lead + 2 * paddingH(m_size),
-                 qMax(minHeight(m_size), fm.height() + 2 * paddingV(m_size)));
+    return QSize(fm.horizontalAdvance(displayText()) + lead + 2 * paddingH(this, m_size),
+                 qMax(minHeight(this, m_size), fm.height() + 2 * paddingV(this, m_size)));
 }
 
 bool Badge::event(QEvent* event)
@@ -188,7 +213,14 @@ void Badge::paintEvent(QPaintEvent*)
     const ThemeProfile& profile = themeFor(this);
 
     SemanticColor colors = profile.semantic.role(roleFor(m_tone));
-    if (m_tone == Tone::Accent) {
+    if (m_classificationHue.isValid()) {
+        // NovuAI's LAN / IMA / VID / AUD tags use the family hue as opaque
+        // ink and only tint the plate. Keeping this branch outside Tone stops
+        // a data type from pretending to be a semantic status.
+        colors.text = m_classificationHue;
+        colors.fill = withAlpha(m_classificationHue, 0.10);
+        colors.border = withAlpha(m_classificationHue, 0.42);
+    } else if (m_tone == Tone::Accent) {
         colors.text = profile.colors.accentLight;
         colors.fill = withAlpha(profile.colors.accent, 0.12);
         colors.border = withAlpha(profile.colors.accent, 0.42);
@@ -214,7 +246,7 @@ void Badge::paintEvent(QPaintEvent*)
     painter.setFont(font);
     painter.setPen(colors.text);
 
-    QRect textBox = rect().adjusted(paddingH(m_size), 0, -paddingH(m_size), 0);
+    QRect textBox = rect().adjusted(paddingH(this, m_size), 0, -paddingH(this, m_size), 0);
     if (m_dot) {
         const QRectF dot(textBox.left(),
                          (height() - kDotDiameter) / 2.0,

@@ -88,13 +88,18 @@ void BuildBridge::rebuild()
 
     m_process = new QProcess(this);
     m_process->setProcessChannelMode(QProcess::MergedChannels);
+    // The visible gallery normally runs from its private copy under %TEMP% so
+    // the linker can replace the build-tree executable. Do not let that
+    // implementation detail become the build's working directory: generators
+    // and custom commands are allowed to resolve relative paths from the
+    // checkout just like run.bat does.
+    m_process->setWorkingDirectory(paths::repoRoot());
     connect(m_process, &QProcess::readyReadStandardOutput, this, [this]() {
         const QString chunk = QString::fromLocal8Bit(m_process->readAllStandardOutput());
         m_log += chunk;
         emit logAppended(chunk);
     });
-    connect(m_process, &QProcess::finished, this,
-            [this](int exitCode, QProcess::ExitStatus) { onFinished(exitCode); });
+    connect(m_process, &QProcess::finished, this, &BuildBridge::onFinished);
     connect(m_process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) {
         // errorOccurred can fire without finished() — a missing cmake, a
         // denied execution. Without this the gallery would sit on "Building"
@@ -112,12 +117,13 @@ void BuildBridge::rebuild()
                       QStringLiteral("--target"), QStringLiteral("NovuUIPlayground")});
 }
 
-void BuildBridge::onFinished(int exitCode)
+void BuildBridge::onFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
+    const QString processError = m_process->errorString();
     m_process->deleteLater();
     m_process = nullptr;
 
-    if (exitCode != 0) {
+    if (exitCode != 0 || exitStatus == QProcess::CrashExit) {
         // The preview on screen is untouched. A failed build must not replace
         // a working reference with a blank surface — the last known good
         // render is the thing the developer is comparing against.
@@ -129,9 +135,13 @@ void BuildBridge::onFinished(int exitCode)
                 interesting.append(line.trimmed());
             }
         }
-        m_lastError = interesting.isEmpty()
-            ? QStringLiteral("Build failed with exit code %1.").arg(exitCode)
-            : interesting.mid(0, 6).join(QLatin1Char('\n'));
+        if (!interesting.isEmpty()) {
+            m_lastError = interesting.mid(0, 6).join(QLatin1Char('\n'));
+        } else if (exitStatus == QProcess::CrashExit && !processError.isEmpty()) {
+            m_lastError = QStringLiteral("Build process stopped: %1").arg(processError);
+        } else {
+            m_lastError = QStringLiteral("Build failed with exit code %1.").arg(exitCode);
+        }
         setState(BuildState::Failed, m_lastError);
         return;
     }

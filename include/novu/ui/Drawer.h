@@ -8,10 +8,15 @@
 #include <QString>
 #include <QWidget>
 
+class QGraphicsOpacityEffect;
 class QHBoxLayout;
+class QParallelAnimationGroup;
 class QVBoxLayout;
 
 namespace novu::ui {
+
+class IconButton;
+class TabBar;
 
 // The detail view that opens over a list instead of navigating away from it.
 //
@@ -75,6 +80,23 @@ public:
     QHBoxLayout* actions();
     QWidget* actionsWidget();
 
+    // `.drawer-head h2{display:flex;gap:10px;flex-wrap:wrap}` — the badges
+    // that qualify the name, on the title's own line. A status and an
+    // execution mode belong *beside* the thing they describe: moved down into
+    // the body they read as two more facts among thirty rather than as what
+    // the reader needs before any of them. Created on first call.
+    QHBoxLayout* titleBadges();
+
+    // `.tabs` — the strip between the actions and the body, for a drawer whose
+    // detail has several faces. The reference's bot drawer has eight of them
+    // (Overview, Risk, Indicators, Filters, Trend, Orders, Close, Logs), and
+    // they belong to the drawer's own chrome rather than to its contents: they
+    // must stay put while the body under them scrolls. Created on first call,
+    // in the underlined variant, because these are faces of one thing and not
+    // separate documents.
+    TabBar* tabs();
+    bool hasTabs() const { return m_tabs != nullptr; }
+
     Edge edge() const { return m_edge; }
     void setEdge(Edge edge);
 
@@ -96,6 +118,11 @@ public:
     void setClosesOnScrimClick(bool closes);
 
     QWidget* scrim() const { return m_scrim; }
+
+    // The head's own close box — `<button class="winbtn" data-drawer-close>`.
+    // Escape and a click on the scrim already leave, but neither is visible:
+    // a panel with no way out drawn on it is one a reader has to guess at.
+    IconButton* closeButton() const { return m_close; }
 
     StyleSpec styleSpec() const;
     ResolvedStyle resolvedStyle() const;
@@ -126,9 +153,21 @@ private:
 
     QPointer<QWidget> m_host;
     QWidget* m_scrim = nullptr;
+    // `.drawer{animation:slidein .28s cubic-bezier(.2,.8,.2,1) both}` and
+    // `.scrim{animation:fadein .2s ease both}` - an instant show()/hide() said
+    // a detail was simply swapped in, where the design says it arrives. Kept
+    // as members, not locals, so a close() that lands mid-open (or the
+    // reverse) stops the run in progress instead of fighting it for the same
+    // geometry.
+    QGraphicsOpacityEffect* m_opacityEffect = nullptr;
+    QGraphicsOpacityEffect* m_scrimOpacityEffect = nullptr;
+    QParallelAnimationGroup* m_anim = nullptr;
     AppMark* m_mark = nullptr;
     QWidget* m_body = nullptr;
     QWidget* m_actions = nullptr;
+    IconButton* m_close = nullptr;
+    TabBar* m_tabs = nullptr;
+    QWidget* m_badges = nullptr;
     QWidget* m_bodyHost = nullptr;
 };
 

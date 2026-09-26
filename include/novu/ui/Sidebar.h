@@ -13,6 +13,8 @@ class QVBoxLayout;
 
 namespace novu::ui {
 
+class Splitter;
+
 // The design's `.rail-conn`: where you are connected, and how well.
 //
 // *The runtime line, never an identity* — the design says so, and the
@@ -151,6 +153,33 @@ public:
     NavList* nav();
     NavList* existingNav() const { return m_nav; }
 
+    // A second, independent scrolling region, below the first by default -
+    // the design's own Workspaces tree sharing a rail with a Hub block and a
+    // Quick access list. One shared scroll area meant a long tree crowded
+    // out Quick access's own "+" rather than the other way of it, with no
+    // way for anyone to say which mattered more on their own rail. Splitting
+    // the two into a Splitter the user can drag settles it per rail rather
+    // than by whichever grew first.
+    //
+    // Created on first call - a rail that never asks for one pays nothing
+    // for it, and the single-region behaviour above is exactly what it was
+    // before this existed.
+    QVBoxLayout* secondaryNavigation();
+    QWidget* secondaryNavigationWidget() const { return m_navContent2; }
+    bool hasSecondaryNavigation() const { return m_navContent2 != nullptr; }
+
+    // Which region is on top. Swapping changes only the stacking order -
+    // each region keeps its own content, its own scroll position and its
+    // own share of the height.
+    bool isNavigationOrderSwapped() const { return m_navSwapped; }
+    void setNavigationOrderSwapped(bool swapped);
+
+    // The handle between the two regions, once secondaryNavigation() has
+    // made one - for a caller that wants to read or restore the user's own
+    // split (QSplitter::saveState()/restoreState()) the way it would any
+    // other splitter's position.
+    Splitter* navigationSplitter() const { return m_navSplitter; }
+
     // The pinned column at the bottom — `.rail-acts`. Empty by default and it
     // takes no height until something is put in it.
     QVBoxLayout* actions() const;
@@ -190,9 +219,14 @@ private:
 
     AppMark* m_mark = nullptr;
     ConnectionStrip* m_connection = nullptr;
+    QWidget* m_edge = nullptr;
     QScrollArea* m_scroll = nullptr;
     QWidget* m_navContent = nullptr;
     NavList* m_nav = nullptr;
+    QScrollArea* m_scroll2 = nullptr;
+    QWidget* m_navContent2 = nullptr;
+    Splitter* m_navSplitter = nullptr;
+    bool m_navSwapped = false;
     QWidget* m_actions = nullptr;
 };
 

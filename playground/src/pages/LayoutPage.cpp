@@ -9,6 +9,7 @@
 #include "novu/ui/Layout.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
+#include "novu/ui/StyleSheet.h"
 
 #include <QComboBox>
 #include <QHBoxLayout>
@@ -28,6 +29,9 @@ QWidget* build(const PreviewContext& ctx)
 {
     auto* page = new QWidget(ctx.parent);
     QVBoxLayout* column = previewPage(page);
+    auto hoverProfile=novusionBaseProfile();hoverProfile.id="gallery-hover-scroll";hoverProfile.controls.scrollThumbOnAreaHover=true;hoverProfile.controls.scrollThumbInset=3;ThemeManager::instance().registerProfile(hoverProfile);
+    auto* hoverArea=new QScrollArea(page);hoverArea->setFixedHeight(100);hoverArea->setWidgetResizable(true);applyStyleSheet(hoverArea,hoverProfile.id);
+    auto* sample=paragraph("Move over this area to reveal its scroll thumb.",hoverArea);sample->setMinimumHeight(400);hoverArea->setWidget(sample);column->addWidget(hoverArea);
     const ThemeProfile& profile = themeFor(ctx.parent);
 
     // ── splitHeader ──────────────────────────────────────────────────────
@@ -116,6 +120,24 @@ QWidget* build(const PreviewContext& ctx)
              QStringLiteral("A QScrollArea cannot scroll without a viewport widget, so that "
                             "container is mechanism rather than decoration — and it is kept "
                             "transparent and frameless so it adds no surface of its own."));
+        column->addWidget(card);
+    }
+
+    // ── a scroll area's own surface ──────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("fillScrollViewport()"),
+                                 QStringLiteral("Why a scrolling page states the surface "
+                                                "it stands on."));
+        QVBoxLayout* body = card->body();
+        note(body, card,
+             QStringLiteral("A viewport that paints nothing is not the same as one you can "
+                            "see through. Qt treats a styled background as opaque and stops "
+                            "repainting the parent under it, so on a window whose frame is "
+                            "translucent - every Novu shell - the area comes out as a hole: "
+                            "the desktop, not the page. scrollPage() fills its own viewport "
+                            "with the page ground; an application that builds its own scroll "
+                            "area calls fillScrollViewport(area) - or "
+                            "fillScrollViewport(area, ColorRole::PanelBg) inside a card."));
         column->addWidget(card);
     }
 
