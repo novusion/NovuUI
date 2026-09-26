@@ -24,6 +24,13 @@ target_link_libraries(tst_popover_dismissal PRIVATE Novu::UI Qt6::Test Qt6::Widg
 add_test(NAME popover_dismissal COMMAND tst_popover_dismissal)
 set_tests_properties(popover_dismissal PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
 
+# Feedback presentation, against fixtures: the states the UI must be able to
+# draw, including the ones where being wrong misleads the reporter.
+add_executable(tst_feedback_center tst_feedback_center.cpp)
+target_link_libraries(tst_feedback_center PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME feedback_center COMMAND tst_feedback_center)
+set_tests_properties(feedback_center PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+
 add_executable(tst_card_interaction tst_card_interaction.cpp)
 target_link_libraries(tst_card_interaction PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
 add_test(NAME card_interaction COMMAND tst_card_interaction)

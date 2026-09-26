@@ -55,6 +55,7 @@ add_library(NovuUI STATIC
     include/novu/ui/Form.h
     include/novu/ui/StatCard.h
     include/novu/ui/Feedback.h
+    include/novu/ui/FeedbackCenter.h
     include/novu/ui/FeedbackForm.h
     include/novu/ui/GateCard.h
     include/novu/ui/HelpOverlay.h
@@ -126,6 +127,7 @@ add_library(NovuUI STATIC
     src/Form.cpp
     src/StatCard.cpp
     src/Feedback.cpp
+    src/FeedbackCenter.cpp
     src/FeedbackForm.cpp
     src/GateCard.cpp
     src/HelpOverlay.cpp

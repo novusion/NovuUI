@@ -76,6 +76,22 @@ FeedbackForm::FeedbackForm(QWidget* parent)
     // reasons, both visible the moment it is drawn the other way: these fields
     // want the full width, and a label vertically centred against a five-line
     // description box floats in the middle of nothing.
+    // Where the report is about. Hidden until a host supplies options.
+    m_moduleRow = new QWidget(this);
+    auto* moduleLayout = new QVBoxLayout(m_moduleRow);
+    moduleLayout->setContentsMargins(0, 0, 0, 0);
+    moduleLayout->setSpacing(4);
+    moduleLayout->addWidget(caption(tr("Area"), m_moduleRow));
+    m_module = new ComboBox(m_moduleRow);
+    moduleLayout->addWidget(m_module);
+    m_moduleRow->setVisible(false);
+    column->addWidget(m_moduleRow);
+
+    // What the host says the user was looking at. Read-only.
+    m_contextLine = label(QString(), this, TypeRole::Caption, Ink::Muted);
+    m_contextLine->setVisible(false);
+    column->addWidget(m_contextLine);
+
     column->addWidget(caption(tr("Title"), this));
     m_title = lineEdit(tr("A short summary"), this);
     column->addWidget(m_title);
@@ -103,6 +119,11 @@ FeedbackForm::FeedbackForm(QWidget* parent)
 
     m_includeLogs = checkBox(tr("Include recent application logs"), this, false);
     column->addWidget(m_includeLogs);
+
+    m_includeScreenshot = checkBox(tr("Include a screenshot"), this, false);
+    m_includeScreenshot->setEnabled(false);
+    m_includeScreenshot->setVisible(false);
+    column->addWidget(m_includeScreenshot);
 
     m_logsHint = label(QString(), this, TypeRole::Caption, Ink::Muted);
     m_logsHint->setWordWrap(true);
@@ -155,6 +176,11 @@ FeedbackForm::FeedbackForm(QWidget* parent)
 
 void FeedbackForm::setContext(const FeedbackContext& context)
 {
+    // The context line is the host's words; an empty one takes no room.
+    if (m_contextLine) {
+        m_contextLine->setText(context.contextLabel);
+        m_contextLine->setVisible(!context.contextLabel.isEmpty());
+    }
     m_context = context;
     if (m_context.platform.isEmpty()) {
         // Filled in rather than demanded: every consumer would otherwise write
@@ -233,6 +259,10 @@ FeedbackRequest FeedbackForm::request() const
     request.title = m_title->text().trimmed();
     request.description = m_description->toPlainText().trimmed();
 
+    request.moduleId = selectedModuleId();
+    request.contextLabel = m_context.contextLabel;
+    request.includeScreenshot = m_includeScreenshot->isChecked()
+        && m_includeScreenshot->isEnabled();
     request.includeApplicationInfo = m_includeInfo->isChecked();
     if (request.includeApplicationInfo) {
         request.application = m_context.application;
@@ -350,6 +380,47 @@ void FeedbackForm::applyState()
 }
 
 // -- FeedbackDialog ----------------------------------------------------------
+
+void FeedbackForm::setModules(const QVector<FeedbackModuleOption>& modules,
+                              const QString& preselectedId)
+{
+    m_modules = modules;
+    m_module->clear();
+    for (const FeedbackModuleOption& option : m_modules) {
+        m_module->addItem(option.label);
+    }
+
+    // One option is not a choice, and none is not a module model.
+    m_moduleRow->setVisible(m_modules.size() > 1);
+
+    if (!preselectedId.isEmpty()) {
+        for (int i = 0; i < m_modules.size(); ++i) {
+            if (m_modules.at(i).id == preselectedId) {
+                m_module->setCurrentIndex(i);
+                break;
+            }
+        }
+    }
+}
+
+QString FeedbackForm::selectedModuleId() const
+{
+    const int index = m_module->currentIndex();
+    if (index < 0 || index >= m_modules.size()) {
+        return {};
+    }
+    return m_modules.at(index).id;
+}
+
+void FeedbackForm::setScreenshotAvailable(bool available)
+{
+    m_screenshotAvailable = available;
+    m_includeScreenshot->setVisible(available);
+    m_includeScreenshot->setEnabled(available);
+    if (!available) {
+        m_includeScreenshot->setChecked(false);
+    }
+}
 
 FeedbackDialog::FeedbackDialog(const FeedbackContext& context, QWidget* parent)
     : Dialog(tr("Send feedback"), parent)

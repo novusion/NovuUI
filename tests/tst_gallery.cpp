@@ -1176,9 +1176,16 @@ void GalleryTest::feedbackAttachesNothingTheUserDidNotAgreeTo()
     typeReport(&form);
 
     const auto boxes = form.findChildren<CheckBox*>();
-    QCOMPARE(boxes.size(), 2);
+    // Three now: application info, logs, and the screenshot the host must
+    // offer before it can be ticked. The third is hidden and off unless
+    // setScreenshotAvailable() says the host can take one, which is the same
+    // rule the logs box follows.
+    QCOMPARE(boxes.size(), 3);
     CheckBox* info = boxes.at(0);
     CheckBox* logs = boxes.at(1);
+    CheckBox* screenshot = boxes.at(2);
+    QVERIFY(!screenshot->isChecked());
+    QVERIFY(!screenshot->isEnabled());
 
     // Application info is on by default and the values are listed in the form;
     // logs are off by default and are not read at all until asked for.
@@ -1210,7 +1217,8 @@ void GalleryTest::feedbackDisablesLogsWhenTheHostHasNone()
     form.setContext(contextWithLogs(false));
 
     const auto boxes = form.findChildren<CheckBox*>();
-    QCOMPARE(boxes.size(), 2);
+    // Three: the screenshot box rides along, hidden and off.
+    QCOMPARE(boxes.size(), 3);
     // Disabled and explained, not silently absent: the user learns the option
     // exists and that this application does not offer it.
     QVERIFY(!boxes.at(1)->isEnabled());

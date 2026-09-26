@@ -3,6 +3,7 @@
 #include "novu/ui/WindowShell.h"
 
 #include <QString>
+#include <QVector>
 #include <QWidget>
 
 #include <functional>
@@ -15,6 +16,7 @@ namespace novu::ui {
 
 class Button;
 class CheckBox;
+class ComboBox;
 class InfoBanner;
 class TabStrip;
 
@@ -23,6 +25,20 @@ enum class FeedbackType { Bug, Suggestion, General };
 
 QString feedbackTypeKey(FeedbackType type);      // "bug" | "suggestion" | "general"
 QString feedbackTypeLabel(FeedbackType type);
+
+// One entry in the optional module selector.
+//
+// The host supplies these. NovuUI has no list of anyone's modules and must
+// not grow one: an application with modules and an application without are
+// both ordinary here, and hard-coding either shape would make this component
+// one product's component.
+struct FeedbackModuleOption
+{
+    //! What travels with the report. Opaque to this library.
+    QString id;
+    //! What the person picks from the list.
+    QString label;
+};
 
 // What the consumer knows about itself and this library cannot.
 //
@@ -38,6 +54,11 @@ struct FeedbackContext
     // Whatever the product calls the thing the user is currently in - a
     // workspace, a project, a channel. Optional.
     QString workspace;
+
+    // Where in the application the user was when they opened the form - a
+    // screen, a folder, a view. Shown, not editable: it is context the form
+    // reports rather than something the person fills in. Optional.
+    QString contextLabel;
 
     // Recent logs, fetched only if the user asks for them.
     //
@@ -71,8 +92,17 @@ struct FeedbackRequest
     QString platform;
     QString workspace;
 
+    //! Empty when the host offered no modules, or the person chose the entry
+    //! the host marked as the general one.
+    QString moduleId;
+    QString contextLabel;
+
     bool includeApplicationInfo = true;
     bool includeLogs = false;
+    //! The user asked for a screenshot. Taking one is the host's job - this
+    //! library has no idea what is worth capturing - so this is a request,
+    //! not an image.
+    bool includeScreenshot = false;
     // Empty unless includeLogs is true - and collected at submit time, not at
     // construction.
     QString diagnosticData;
@@ -111,6 +141,19 @@ public:
     void setContext(const FeedbackContext& context);
     FeedbackContext context() const { return m_context; }
 
+    // The optional module selector. With fewer than two options there is
+    // nothing to choose, so the row is hidden rather than shown disabled -
+    // an application without modules should not look like one whose modules
+    // failed to load.
+    void setModules(const QVector<FeedbackModuleOption>& modules,
+                    const QString& preselectedId = QString());
+    QString selectedModuleId() const;
+
+    // Offers "Include a screenshot". Off unless the host says it can take
+    // one, for the same reason the logs option is: an option that cannot
+    // work should not be offered.
+    void setScreenshotAvailable(bool available);
+
     State state() const { return m_state; }
 
     // What would be submitted right now. Note that diagnostics are collected
@@ -148,6 +191,12 @@ private:
     QPlainTextEdit* m_description = nullptr;
     CheckBox* m_includeInfo = nullptr;
     CheckBox* m_includeLogs = nullptr;
+    CheckBox* m_includeScreenshot = nullptr;
+    QWidget* m_moduleRow = nullptr;
+    ComboBox* m_module = nullptr;
+    QLabel* m_contextLine = nullptr;
+    QVector<FeedbackModuleOption> m_modules;
+    bool m_screenshotAvailable = false;
     QLabel* m_attachmentSummary = nullptr;
     QLabel* m_logsHint = nullptr;
     InfoBanner* m_banner = nullptr;
