@@ -106,6 +106,23 @@ enum class Glyph {
     // means rather than what it looks like, and so Restore has somewhere to
     // be.
     WindowMinimise, WindowMaximise, WindowRestore,
+
+    // -- real-time communication ------------------------------------------
+    //
+    // Copied outline-for-outline from the approved NovuVoice design:
+    //
+    //     g:\Design\design\NovuVoice\mockups\NovuVoice-brand-mockup.html
+    //
+    // The library could not draw a call at all before these: there was no
+    // phone, no microphone, no screen share and no read receipt. They are
+    // family vocabulary rather than one product's - every Novusion window that
+    // shows somebody calling needs the same phone - so they live here.
+    //
+    // Appended at the end on purpose: an enumerator inserted anywhere above
+    // would renumber every value after it.
+    Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, PhoneOff,
+    Mic, MicOff, VideoOff, Monitor, Radio, Waveform,
+    Hash, Paperclip, Smile, CheckDouble, WifiOff, Alert, Pin, Headset,
 };
 
 // The name the design uses for a glyph ("chevron-down"), and the reverse.

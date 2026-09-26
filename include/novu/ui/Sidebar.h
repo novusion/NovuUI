@@ -190,6 +190,28 @@ public:
 
     int expandedWidth() const { return m_expandedWidth; }
     void setExpandedWidth(int px);
+
+    // ── user resizing ────────────────────────────────────────────────────
+    //
+    // Off by default, because a sidebar pinned to its design width is what
+    // every consumer has had and a width that moves on its own is a surprise.
+    //
+    // On, the rail stops fixing its own width and takes a range instead, so a
+    // QSplitter above it can drive the edge - Qt's own primitive, rather than a
+    // second mouse-drag implementation living in a widget. The width the user
+    // settles on becomes the expanded width, so collapsing and expanding
+    // returns to theirs rather than to the design's.
+    //
+    // The reason this exists: real content is wider than a mockup's. Workspace
+    // names that fit the approved 236px as "NovuAI" arrive from production as
+    // "Esanti_Unity_HEngine" and elide to nothing.
+    bool isUserResizable() const { return m_userResizable; }
+    void setUserResizable(bool resizable);
+
+    // The range a dragged edge is held to. Narrower than the minimum is a rail
+    // that cannot show a name; wider is a rail that has become the page.
+    static constexpr int kMinExpandedWidth = 180;
+    static constexpr int kMaxExpandedWidth = 560;
     int collapsedWidth() const;
 
     StyleSpec styleSpec() const;
@@ -204,6 +226,11 @@ signals:
 protected:
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
+
+private:
+    void applyWidthPolicy();
+
+protected:
     bool event(QEvent* event) override;
 
 private:
@@ -214,6 +241,7 @@ private:
     QString m_name;
     QString m_subtitle;
     bool m_collapsed = false;
+    bool m_userResizable = false;
     bool m_headVisible = true;
     int m_expandedWidth = 236;
 

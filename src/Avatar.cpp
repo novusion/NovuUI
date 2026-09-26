@@ -6,6 +6,7 @@
 
 #include <QEvent>
 #include <QFontMetrics>
+#include <QLinearGradient>
 #include <QPainter>
 #include <QPainterPath>
 
@@ -126,6 +127,50 @@ void Avatar::setHighlighted(bool highlighted)
     update();
 }
 
+void Avatar::setCornerRadius(int px)
+{
+    if (m_cornerRadius == px) {
+        return;
+    }
+    m_cornerRadius = px;
+    update();
+}
+
+void Avatar::setPlate(const QColor& plate)
+{
+    if (m_plate == plate && !m_plateTo.isValid()) {
+        return;
+    }
+    m_plate = plate;
+    m_plateTo = QColor();
+    update();
+}
+
+void Avatar::setPlateGradient(const QColor& from, const QColor& to)
+{
+    m_plate = from;
+    m_plateTo = to;
+    update();
+}
+
+void Avatar::setGlyph(Glyph glyph)
+{
+    if (m_glyph == glyph) {
+        return;
+    }
+    m_glyph = glyph;
+    update();
+}
+
+void Avatar::setPresence(Presence presence)
+{
+    if (m_presence == presence) {
+        return;
+    }
+    m_presence = presence;
+    update();
+}
+
 StyleSpec Avatar::styleSpec() const
 {
     StyleSpec spec;
@@ -172,16 +217,30 @@ void Avatar::paintEvent(QPaintEvent*)
     const double border = style.borderWidth;
     const QRectF box = QRectF(0, 0, m_diameter, m_diameter)
                            .adjusted(border / 2.0, border / 2.0, -border / 2.0, -border / 2.0);
-    const double radius = m_shape == Shape::Round ? box.height() / 2.0 : style.radius;
+    const double radius = m_shape == Shape::Round
+        ? box.height() / 2.0
+        : (m_cornerRadius >= 0 ? double(m_cornerRadius) : style.radius);
 
     QPainterPath shape;
     shape.addRoundedRect(box, radius, radius);
 
-    QColor plate = plateFor(profile, m_name);
-    // Tinted, not solid: a wall of fully saturated avatars in a list is a wall,
-    // and the initials have to stay legible on it.
-    plate.setAlphaF(m_highlighted ? 0.42 : 0.26);
-    painter.fillPath(shape, plate);
+    if (m_plate.isValid() && m_plateTo.isValid()) {
+        // The design's assistant mark: `linear-gradient(145deg, ...)`, which on
+        // a square box is the diagonal.
+        QLinearGradient wash(box.topLeft(), box.bottomRight());
+        wash.setColorAt(0.0, m_plate);
+        wash.setColorAt(1.0, m_plateTo);
+        painter.fillPath(shape, wash);
+    } else if (m_plate.isValid()) {
+        // Stated by the caller, so painted as stated - see setPlate().
+        painter.fillPath(shape, m_plate);
+    } else {
+        QColor plate = plateFor(profile, m_name);
+        // Tinted, not solid: a wall of fully saturated avatars in a list is a
+        // wall, and the initials have to stay legible on it.
+        plate.setAlphaF(m_highlighted ? 0.42 : 0.26);
+        painter.fillPath(shape, plate);
+    }
 
     if (!m_portrait.isNull()) {
         painter.save();
@@ -196,6 +255,12 @@ void Avatar::paintEvent(QPaintEvent*)
                                   target.width() * devicePixelRatioF(),
                                   target.height() * devicePixelRatioF()));
         painter.restore();
+    } else if (m_glyph != Glyph::None) {
+        // Proportioned to the avatar the same way the initials are, so a group
+        // mark and a set of initials sit on one optical size.
+        const double side = m_diameter * 0.45;
+        const QRectF mark((m_diameter - side) / 2.0, (m_diameter - side) / 2.0, side, side);
+        paintGlyph(&painter, m_glyph, mark, style.foreground, 0.0, 0.0, this);
     } else {
         QFont font = roleFont(this, TypeRole::Label, true);
         // Proportional to the avatar, so one component covers a 20px row mark
@@ -210,6 +275,49 @@ void Avatar::paintEvent(QPaintEvent*)
     painter.setPen(QPen(outline, border));
     painter.setBrush(Qt::NoBrush);
     painter.drawPath(shape);
+
+    paintPresence(&painter, profile);
+}
+
+// The corner dot. Cut out of the avatar rather than laid over it: the design
+// rings it in the window surface (`border:2px solid var(--window)`), which is
+// what keeps it readable over a portrait as well as over a plate.
+void Avatar::paintPresence(QPainter* painter, const ThemeProfile& profile) const
+{
+    if (m_presence == Presence::None) {
+        return;
+    }
+    const SemanticPalette& semantic = profile.semantic;
+    QColor ink = profile.colors.textTertiary.isValid() ? profile.colors.textTertiary
+                                                       : profile.colors.textDisabled;
+    switch (m_presence) {
+    case Presence::Online:
+    case Presence::InCall: ink = semantic.success.text; break;
+    case Presence::Busy:   ink = semantic.danger.text;  break;
+    case Presence::Away:   ink = semantic.warning.text; break;
+    case Presence::Offline:
+    case Presence::None:   break;
+    }
+
+    // `.av .pres{width:10px}` on a 32px avatar, `.av.s .pres{width:8px}` on 24
+    // and `.av.l .pres{13px}` on 44: one third of the avatar, to the pixel.
+    const double dot = qMax(6.0, m_diameter * 0.31);
+    const double ring = qMax(1.5, dot * 0.2);
+    const QRectF box(m_diameter - dot - 1.0, m_diameter - dot - 1.0, dot, dot);
+
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(profile.colors.windowBg);
+    painter->drawEllipse(box.adjusted(-ring, -ring, ring, ring));
+    painter->setBrush(ink);
+    painter->drawEllipse(box);
+
+    if (m_presence == Presence::InCall) {
+        // Online, and already talking: the same green, ringed rather than
+        // recoloured, so "reachable" does not turn into a fifth state.
+        painter->setBrush(Qt::NoBrush);
+        painter->setPen(QPen(withAlpha(ink, 0.28), ring));
+        painter->drawEllipse(box.adjusted(-ring, -ring, ring, ring));
+    }
 }
 
 } // namespace novu::ui

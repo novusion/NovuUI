@@ -99,8 +99,47 @@ ThemeProfile novuVoiceProfile()
     // NovuVoice-brand-mockup.html states the product identity explicitly:
     // --acc:#C47B85; --acc-l:#DA98A1; --acc-d:#A85F6A;
     // --ink-on-accent:#1B1014. Status hues stay on the shared semantic palette.
-    return applicationProfile(QStringLiteral("novuvoice"), QStringLiteral("NovuVoice"),
-                              hex("#C47B85"), hex("#DA98A1"), hex("#1B1014"));
+    ThemeProfile p = applicationProfile(QStringLiteral("novuvoice"),
+                                        QStringLiteral("NovuVoice"),
+                                        hex("#C47B85"), hex("#DA98A1"), hex("#1B1014"));
+
+    // ── geometry ──────────────────────────────────────────────────────────
+    //
+    // The palette above is the family's and stays the family's. The *scale* is
+    // not: the same approved design states a radius scale and a control height
+    // of its own, and it states them as tokens rather than as one-off numbers -
+    //
+    //     --r-sm:6px; --r-md:8px; --r-lg:11px; --r-xl:14px;
+    //     .btn{height:28px} .btn.sm{height:24px} .titlebar{height:44px}
+    //
+    // - which is exactly the case ThemeProfile documents: a product that
+    // genuinely needs different geometry overrides the roles it needs. A
+    // communication client is a denser surface than a workspace: NovuSpace's
+    // 32px control and 10px button corner put four fewer conversations on
+    // screen and round every chip in a message row a step too far.
+    p.radii = RadiusScale{0, 4, 6, 8, 11, 14, 9999};
+    p.controls.height = 28;        // .btn
+    p.controls.heightSmall = 24;   // .btn.sm
+    // .btn svg 13, .btn.sm svg 11, and a page-header mark 17.
+    p.icons = IconMetrics{11, 13, 17};
+    // `.titlebar{height:44px}` - the shared default, restated because
+    // novuSpaceProfile(), which this is built from, sets its own 42.
+    p.window.titleBarHeight = 44;
+
+    p.setRoleRadius(SurfaceRole::Card, RadiusStep::Large);     // .card 11
+    p.setRoleRadius(SurfaceRole::Button, RadiusStep::Small);   // .btn --r-sm
+    p.setRoleRadius(SurfaceRole::Input, RadiusStep::Small);    // .inp --r-sm
+    p.setRoleRadius(SurfaceRole::Table, RadiusStep::Large);
+    p.setRoleRadius(SurfaceRole::Window, RadiusStep::XL);      // .win 14
+    p.setRoleRadiusPx(SurfaceRole::Dialog, 14);                // .dlg --r-xl
+    p.setRoleRadiusPx(SurfaceRole::FloatingWindow, 11);        // .float --r-lg
+    p.setRoleRadiusPx(SurfaceRole::Overlay, 11);               // .pop --r-lg
+    p.setRoleRadiusPx(SurfaceRole::IconButton, 6);             // .icobtn --r-sm
+    p.setRoleRadiusPx(SurfaceRole::ActionIcon, 6);
+    p.setRoleRadiusPx(SurfaceRole::Segment, 4);                // .seg button
+
+    applyDerivedTokens(p);
+    return p;
 }
 
 ThemeProfile novuExplorerProfile()

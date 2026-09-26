@@ -237,3 +237,51 @@
      "<path d=\"M5.4 3.9h9L18.6 8.1v12H5.4z\"/><path d=\"M8.4 12h7.5M8.4 15.6h5.1\"/>"},
     {Glyph::Cloud, "cloud",
      "<path d=\"M6.9 18.6a4.5 4.5 0 0 1 -0.45 -9 6.15 6.15 0 0 1 11.55 -1.5 5.1 5.1 0 0 1 0.75 10.05z\"/><path d=\"M12 9.9l0.9 1.95 1.95 0.9-1.95 0.9L12 15.6l-0.9 -1.95L9.15 12.75l1.95 -0.9z\"/>"},
+
+    // -- real-time communication ------------------------------------------
+    //
+    // From the approved NovuVoice design's sprite:
+    //
+    //     g:\Design\design\NovuVoice\mockups\NovuVoice-brand-mockup.html
+    //
+    // Copied verbatim from its <symbol> set, which draws in the same 24x24
+    // box as the table above, so the outlines can be diffed against the
+    // design by eye like every other glyph here.
+    {Glyph::Phone, "phone",
+     "<path d=\"M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z\"/>"},
+    {Glyph::PhoneIncoming, "phone-in",
+     "<path d=\"M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z\"/><path d=\"M22 2l-6 6M16 3v5h5\"/>"},
+    {Glyph::PhoneOutgoing, "phone-out",
+     "<path d=\"M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z\"/><path d=\"M16 8l6-6M17 2h5v5\"/>"},
+    {Glyph::PhoneMissed, "phone-miss",
+     "<path d=\"M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z\"/><path d=\"M16 2l6 6M22 2l-6 6\"/>"},
+    {Glyph::PhoneOff, "phone-off",
+     "<path d=\"M11 5.1A10 10 0 0 1 14 6M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-4-3.7\"/><path d=\"M6.5 3.5A2 2 0 0 0 4.1 2h-3a2 2 0 0 0-2 2.2\"/><path d=\"M2 2l20 20\"/>"},
+    {Glyph::Mic, "mic",
+     "<rect x=\"9\" y=\"2\" width=\"6\" height=\"11\" rx=\"3\"/><path d=\"M5 10a7 7 0 0 0 14 0M12 17v4M8 21h8\"/>"},
+    {Glyph::MicOff, "mic-off",
+     "<path d=\"M15 9.3V5a3 3 0 0 0-5.9-.7M9 9v4a3 3 0 0 0 5 2.2\"/><path d=\"M5 10a7 7 0 0 0 10.6 6M19 10v.5\"/><path d=\"M12 17v4M8 21h8M2 2l20 20\"/>"},
+    {Glyph::VideoOff, "video-off",
+     "<path d=\"M15 10.5l6-3.5v10l-3-1.7\"/><path d=\"M12.5 6H4.5A2.5 2.5 0 0 0 2 8.5v7A2.5 2.5 0 0 0 4.5 18h8\"/><path d=\"M2 2l20 20\"/>"},
+    {Glyph::Monitor, "monitor",
+     "<rect x=\"2\" y=\"3\" width=\"20\" height=\"13\" rx=\"2.5\"/><path d=\"M8 21h8M12 16v5\"/>"},
+    {Glyph::Radio, "radio",
+     "<circle cx=\"12\" cy=\"12\" r=\"2.5\"/><path d=\"M8 8a5.7 5.7 0 0 0 0 8M16 16a5.7 5.7 0 0 0 0-8M5 5a10 10 0 0 0 0 14M19 19a10 10 0 0 0 0-14\"/>"},
+    {Glyph::Waveform, "waveform",
+     "<path d=\"M2 12h2M7 5v14M12 8v8M17 3v18M22 10v4\"/>"},
+    {Glyph::Hash, "hash",
+     "<path d=\"M4 9h16M4 15h16M10 3L8 21M16 3l-2 18\"/>"},
+    {Glyph::Paperclip, "paperclip",
+     "<path d=\"M21 11.5l-9.2 9.2a5.5 5.5 0 0 1-7.8-7.8l9.4-9.4a3.7 3.7 0 0 1 5.2 5.2l-9.3 9.3a1.8 1.8 0 0 1-2.6-2.6l8.6-8.6\"/>"},
+    {Glyph::Smile, "smile",
+     "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01\"/>"},
+    {Glyph::CheckDouble, "checkdouble",
+     "<path d=\"M2 12.5l4 4L14.5 8M12 16.5l1 1L22 8\"/>"},
+    {Glyph::WifiOff, "wifi-off",
+     "<path d=\"M2 2l20 20M8.7 16a5.8 5.8 0 0 1 6.6 0M12 19.5h.01M5.5 12.5a10.5 10.5 0 0 1 4-2.4M16.5 11a10.5 10.5 0 0 1 2 1.5M2.5 9a15 15 0 0 1 4.6-3M13 5.2A15 15 0 0 1 21.5 9\"/>"},
+    {Glyph::Alert, "alert",
+     "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v6M12 16h.01\"/>"},
+    {Glyph::Pin, "pin",
+     "<path d=\"M12 17v5M9 3h6l-1 6 3.5 3.5H6.5L10 9z\"/>"},
+    {Glyph::Headset, "headset",
+     "<path d=\"M4 15v-3a8 8 0 0 1 16 0v3\"/><rect x=\"2\" y=\"13\" width=\"4.5\" height=\"7\" rx=\"2\"/><rect x=\"17.5\" y=\"13\" width=\"4.5\" height=\"7\" rx=\"2\"/>"},

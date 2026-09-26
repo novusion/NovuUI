@@ -68,11 +68,18 @@ public:
     // `key` is the caller's own identifier and what every signal carries. It is
     // never shown, so it can stay stable while a label is translated.
     int addItem(const QString& key, const QString& label, Glyph glyph = Glyph::None);
-    // One indent below the preceding item. Depth stops at one on purpose — the
-    // design's note is that a sidebar must show two levels *without turning
-    // into a file browser*.
+    // One level in from the preceding item, and deeper on request.
+    //
+    // The rail is a tree and every level steps by the same amount, so a row's
+    // label always sits to the right of its parent's. `depth` counts from the
+    // item the row hangs under: 1 is a child, 2 a grandchild.
+    //
+    // An earlier note here said depth stopped at one so that a sidebar would
+    // not turn into a file browser. The Workspaces tree in the approved design
+    // *is* a file browser, and stopping at one is what made a workspace and the
+    // documents inside it sit at the same apparent level.
     int addChild(const QString& key, const QString& label,
-                 Glyph glyph = Glyph::None);
+                 Glyph glyph = Glyph::None, int depth = 1);
     // `.rail-sec` — a caption, not a row. Not selectable and not counted.
     // A section may carry a key, which is what makes it addressable: a
     // collapsible section, or one with an action on its heading, needs to
@@ -223,7 +230,16 @@ private:
         QString label;
         Glyph glyph = Glyph::None;
         bool section = false;
+        // Whether this row folds under the one above it and draws a leaf
+        // marker. Kept separate from `depth`: this one is about the
+        // disclosure, `depth` is about where the row sits.
         bool child = false;
+        // How many levels in the row is drawn. Captions are level 0 and every
+        // row under one starts at 1, because a caption is the parent of the
+        // rows beneath it. Every level is worth the same number of pixels,
+        // which is what makes the rail read as one tree rather than as a list
+        // with some rows nudged.
+        int depth = 0;
         int indentOffset = 0;
         bool enabled = true;
         // What the caller asked for (setRowVisible, a filter) and what is
@@ -257,6 +273,21 @@ private:
     // rather than each carrying its own copy of "which elements does this row
     // have" - the two disagreeing is how a badge ended up drawn where the
     // label's own box said it still had room.
+    // Where a row's content starts: the rail padding plus one step per level.
+    // One answer, because three places used to compute it and the tree only
+    // lines up if they agree.
+    int rowIndent(const Row& row) const;
+    // The furniture every row in this list reserves room for, whether or not
+    // it carries any.
+    //
+    // A twisty and a folder icon are wider than a nesting step, so a parent
+    // that has both used to push its own label past its children's - the rail
+    // stepped left as it went deeper. Reserving the slots list-wide instead
+    // means a level is the only thing that moves a label, and a list with no
+    // glyphs anywhere reserves nothing and is unchanged.
+    struct LeadReserve { bool twisty = false; bool glyph = false; bool status = false; };
+    LeadReserve leadReserve() const;
+
     int leadingZoneWidth(const Row& row) const;
     int trailingZoneWidth(const Row& row) const;
     // The row's own floor: leading + trailing + just enough for a label to
@@ -284,6 +315,9 @@ private:
     // application refreshes its rail by rebuilding it and a fold that does
     // not survive that is a fold nobody can use. See addSection().
     QSet<QString> m_shutSections;
+    // 1 once a caption has been added, because everything after one hangs
+    // under it. Reset by clear().
+    int m_sectionDepth = 0;
     int m_current = -1;
     int m_hovered = -1;
     bool m_plainCounts = false;

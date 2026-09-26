@@ -25,6 +25,15 @@ namespace {
 constexpr int kRowPaddingH = 9;
 constexpr int kRowPaddingV = 2;
 constexpr int kRowGap = 10;
+// The gap *inside* a row, between the twisty, the glyph, the status dot and
+// the label.
+//
+// Tighter than kRowGap because those four are one item, not four things in a
+// row: at the full gap they read as separate controls, and the 69px of
+// furniture it put before the label was enough to elide "Documents" on a rail
+// wide enough to show it. kRowGap still separates what a row is *from* what
+// sits at its trailing edge.
+constexpr int kLeadGap = 5;
 constexpr int kRowRadiusBump = 5;   // over the profile's small radius
 
 // `.navbtn svg { 16px }`, `.navbtn .tw { 16px }`.
@@ -47,14 +56,16 @@ QRectF centredSquare(const QRect& target, int side)
                   side, side);
 }
 
-// `.navbtn.child { padding-left:31px }`, and the 6px square marker in it.
-// One tree level advances by five pixels from its parent's text axis. The
-// remaining width is the row furniture (twisty, status and leaf marker), not
-// hierarchy spacing, so it must not be counted as another indentation step.
-constexpr int kChildIndent = 57;
-// Where a level's rule sits: half a nesting step in from the row's own
-// padding, which is where the indent the children take begins.
-constexpr int kIndentStep = 17;
+// One nesting level. Every level is worth exactly this, at every depth, which
+// is the whole of the rail being a tree: a label moves right because its row
+// is deeper and for no other reason.
+//
+// The row furniture - twisty, glyph, status dot - is reserved list-wide rather
+// than counted per row (see leadReserve()). It used to be added only to the
+// rows that carried it, and since a twisty and a folder icon together are
+// wider than a step, a workspace pushed its own label past the documents
+// inside it: the rail stepped *left* as it went deeper.
+constexpr int kIndentStep = 12;
 constexpr int kChildMarker = 6;
 
 // `.navbtn .wsdot { 7px }`.
@@ -164,22 +175,31 @@ NavList::NavList(QWidget* parent)
     setAttribute(Qt::WA_TranslucentBackground, false);
 }
 
+// Whether a caption has been added yet, and so whether the rows that follow
+// hang under one.
+//
+// A caption is the parent of the rows beneath it - that is what a caption is -
+// so those rows start one level in. Without it "Workspaces" and the workspaces
+// under it sat on the same axis, and the rail read as a flat list with a label
+// dropped into the middle of it.
 int NavList::addItem(const QString& key, const QString& label, Glyph glyph)
 {
     Row row;
     row.key = key;
     row.label = label;
     row.glyph = glyph;
+    row.depth = m_sectionDepth;
     m_rows.append(row);
     applyDisclosure();
     update();
     return m_rows.size() - 1;
 }
 
-int NavList::addChild(const QString& key, const QString& label, Glyph glyph)
+int NavList::addChild(const QString& key, const QString& label, Glyph glyph, int depth)
 {
     const int index = addItem(key, label, glyph);
     m_rows[index].child = true;
+    m_rows[index].depth = m_sectionDepth + qMax(1, depth);
     // A child added under a shut parent must not appear, which is the whole
     // point of the list owning the fold: a caller streaming rows in cannot be
     // expected to check the state of the row above each one.
@@ -205,6 +225,10 @@ int NavList::addSection(const QString& title, const QString& key)
     row.key = key;
     row.label = title;
     row.section = true;
+    // A caption sits at the rail's own padding and everything after it is one
+    // level in.
+    row.depth = 0;
+    m_sectionDepth = 1;
     // `renderRail()` wraps every group marker in a `.sb-block` whose head is
     // a toggle, in every module - so a caption folds unless an application
     // says otherwise, rather than only when one remembers to ask. It was
@@ -231,6 +255,8 @@ void NavList::clear()
 {
     // m_shutSections deliberately survives: see addSection().
     m_rows.clear();
+    // The next row added is top level again until a caption says otherwise.
+    m_sectionDepth = 0;
     m_current = -1;
     m_hovered = -1;
     m_pressed = -1;
@@ -635,17 +661,38 @@ void NavList::setRowVisible(const QString& key, bool visible)
     update();
 }
 
+int NavList::rowIndent(const Row& row) const
+{
+    return kRowPaddingH + row.depth * kIndentStep + row.indentOffset;
+}
+
+NavList::LeadReserve NavList::leadReserve() const
+{
+    LeadReserve reserve;
+    for (const Row& row : m_rows) {
+        if (row.section) {
+            continue;
+        }
+        reserve.twisty = reserve.twisty || row.expandable;
+        reserve.glyph = reserve.glyph || row.glyph != Glyph::None;
+        reserve.status = reserve.status
+            || (row.hasStatus && m_statusPlacement == StatusPlacement::Leading);
+    }
+    return reserve;
+}
+
 int NavList::leadingZoneWidth(const Row& row) const
 {
-    int left = (row.child ? kChildIndent : kRowPaddingH) + row.indentOffset;
-    if (row.expandable) {
-        left += kTwistySide + kRowGap;
+    const LeadReserve reserve = leadReserve();
+    int left = rowIndent(row);
+    if (reserve.twisty) {
+        left += kTwistySide + kLeadGap;
     }
-    if (row.glyph != Glyph::None) {
-        left += kGlyphSide + kRowGap;
+    if (reserve.glyph) {
+        left += kGlyphSide + kLeadGap;
     }
-    if (row.hasStatus && m_statusPlacement == StatusPlacement::Leading) {
-        left += kStatusDot + kRowGap;
+    if (reserve.status) {
+        left += kStatusDot + kLeadGap;
     }
     return left;
 }
@@ -746,7 +793,7 @@ QRect NavList::twistyRect(int index) const
         return QRect();
     }
     const QRect box = rowRect(index);
-    const int left = (row.child ? kChildIndent : kRowPaddingH) + row.indentOffset;
+    const int left = rowIndent(row);
     if (row.section) {
         // Centred on the caption rather than on the whole block: a section is
         // mostly the margin above it.
@@ -849,18 +896,12 @@ QSize NavList::sizeHint() const
                                           .horizontalAdvance(row.label.toUpper()));
             continue;
         }
-        int own = 2 * kRowPaddingH + kRowGap
+        // From leadingZoneWidth(), so the width a row asks for and the place
+        // its label is drawn cannot disagree - they did, and the row that
+        // reserved the least was the one that clipped.
+        int own = leadingZoneWidth(row) + kRowPaddingH + kLeadGap
             + QFontMetrics(rowFont(this, row.child)).horizontalAdvance(row.label);
-        own += row.indentOffset;
-        if (row.child) {
-            own += kChildIndent - kRowPaddingH;
-        } else if (row.glyph != Glyph::None) {
-            own += kGlyphSide + kRowGap;
-        }
-        if (row.expandable) {
-            own += kTwistySide + kRowGap;
-        }
-        if (row.hasStatus) {
+        if (row.hasStatus && m_statusPlacement == StatusPlacement::Trailing) {
             own += kStatusDot + kRowGap;
         }
         if (row.count >= 0) {
@@ -1112,6 +1153,10 @@ void NavList::paintEvent(QPaintEvent*)
     const QFont counts = countFont(this);
     const QFontMetrics countMetrics(counts);
 
+    // Once for the list, not once per row: it is a property of the whole list
+    // and asking each row for it made painting quadratic in the row count.
+    const LeadReserve reserve = leadReserve();
+
     int y = 0;
     for (int index = 0; index < m_rows.size(); ++index) {
         const Row& row = m_rows.at(index);
@@ -1240,7 +1285,7 @@ void NavList::paintEvent(QPaintEvent*)
         }
 
         // ── the leading zone ─────────────────────────────────────────────
-        int left = (row.child ? kChildIndent : kRowPaddingH) + row.indentOffset;
+        int left = rowIndent(row);
         if (m_collapsed) {
             left = (width() - kGlyphSide) / 2;
         }
@@ -1261,7 +1306,11 @@ void NavList::paintEvent(QPaintEvent*)
             // is what made the disclosure read as a hairline.
             paintGlyph(&painter, Glyph::ChevronDown, centredSquare(twisty, kTwistyGlyph),
                        ink, row.expanded ? 0.0 : -90.0, kTwistyStroke);
-            left = twisty.right() + kRowGap;
+        }
+        // Reserved whether or not this row has one, so a leaf and the branch
+        // above it start their labels on the same axis.
+        if (reserve.twisty && !m_collapsed) {
+            left += kTwistySide + kLeadGap;
         }
 
         if (row.child && !m_collapsed) {
@@ -1270,8 +1319,9 @@ void NavList::paintEvent(QPaintEvent*)
                 // A classic tree branch: consecutive children share the
                 // vertical rule and the last child closes it at its elbow.
                 painter.setPen(QPen(profile.colors.borderSubtle, 1));
-                const double guide = kRowPaddingH + row.indentOffset
-                    + kChildIndent / 2.0;
+                // Half a step in from the parent's own indent, so the rule
+                // sits between the level above and this one at every depth.
+                const double guide = rowIndent(row) - kIndentStep / 2.0;
                 bool hasNextSibling = false;
                 for (int next = index + 1; next < m_rows.size(); ++next) {
                     const Row& candidate = m_rows.at(next);
@@ -1288,7 +1338,7 @@ void NavList::paintEvent(QPaintEvent*)
                                  QPointF(left - 8, box.center().y()));
             } else if (!row.expandable) {
                 // `.navbtn.child .dot` — a small square, accent when current.
-                const QRectF marker(left - kChildMarker - kRowGap + 4,
+                const QRectF marker(left - kChildMarker - kLeadGap + 4,
                                     box.center().y() - kChildMarker / 2.0,
                                     kChildMarker, kChildMarker);
                 painter.setPen(Qt::NoPen);
@@ -1303,7 +1353,9 @@ void NavList::paintEvent(QPaintEvent*)
         if (row.glyph != Glyph::None) {
             paintGlyph(&painter, row.glyph, glyphBox,
                        current && m_accentCurrentGlyph ? profile.colors.accent : ink);
-            left = static_cast<int>(glyphBox.right()) + kRowGap;
+            if (!reserve.glyph || m_collapsed) {
+                left = static_cast<int>(glyphBox.right()) + kLeadGap;
+            }
         } else if (m_collapsed) {
             // A glyph-less row - most often a child added without one - still
             // needs a mark in an icon-only rail, or the height its row
@@ -1316,7 +1368,10 @@ void NavList::paintEvent(QPaintEvent*)
             painter.setPen(Qt::NoPen);
             painter.setBrush(current ? profile.colors.accent : profile.colors.border);
             painter.drawRoundedRect(marker, 2, 2);
-            left = static_cast<int>(glyphBox.right()) + kRowGap;
+            left = static_cast<int>(glyphBox.right()) + kLeadGap;
+        }
+        if (reserve.glyph && !m_collapsed) {
+            left += kGlyphSide + kLeadGap;
         }
 
         // One drawing, either side of the row. `.wsdot.archived` is an
@@ -1342,7 +1397,12 @@ void NavList::paintEvent(QPaintEvent*)
         if (row.hasStatus && (m_statusPlacement == StatusPlacement::Leading
                               || m_collapsed)) {
             paintStatus(left);
-            left += kStatusDot + kRowGap;
+            if (!reserve.status || m_collapsed) {
+                left += kStatusDot + kLeadGap;
+            }
+        }
+        if (reserve.status && !m_collapsed) {
+            left += kStatusDot + kLeadGap;
         }
 
         if (m_collapsed) {

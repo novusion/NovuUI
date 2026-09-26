@@ -656,9 +656,37 @@ void Sidebar::toggleCollapsed()
     setCollapsed(!m_collapsed);
 }
 
+void Sidebar::applyWidthPolicy()
+{
+    if (m_collapsed) {
+        // Collapsed is one width by definition - there is nothing to drag to.
+        setFixedWidth(collapsedWidth());
+        return;
+    }
+    if (!m_userResizable) {
+        setFixedWidth(m_expandedWidth);
+        return;
+    }
+    // setFixedWidth() pinned minimum and maximum together; both have to be
+    // widened again or the range is still a point.
+    setMinimumWidth(kMinExpandedWidth);
+    setMaximumWidth(kMaxExpandedWidth);
+    resize(qBound(kMinExpandedWidth, m_expandedWidth, kMaxExpandedWidth), height());
+}
+
+void Sidebar::setUserResizable(bool resizable)
+{
+    if (m_userResizable == resizable) {
+        return;
+    }
+    m_userResizable = resizable;
+    applyWidthPolicy();
+    updateGeometry();
+}
+
 void Sidebar::applyCollapsed()
 {
-    setFixedWidth(m_collapsed ? collapsedWidth() : m_expandedWidth);
+    applyWidthPolicy();
     if (m_connection) {
         m_connection->setCompact(m_collapsed);
     }
@@ -685,9 +713,7 @@ void Sidebar::setExpandedWidth(int px)
         return;
     }
     m_expandedWidth = clamped;
-    if (!m_collapsed) {
-        setFixedWidth(clamped);
-    }
+    applyWidthPolicy();
     updateGeometry();
 }
 
@@ -797,6 +823,14 @@ QSize Sidebar::minimumSizeHint() const
 void Sidebar::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
+
+    // What the user dragged to becomes the expanded width, so collapsing and
+    // expanding comes back to theirs. Only while expanded and only while they
+    // are allowed to drag: a collapse is a width change too, and recording it
+    // would lose the width being collapsed away from.
+    if (m_userResizable && !m_collapsed) {
+        m_expandedWidth = qBound(kMinExpandedWidth, width(), kMaxExpandedWidth);
+    }
     relayout();
 }
 
