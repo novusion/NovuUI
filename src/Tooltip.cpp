@@ -1,5 +1,8 @@
 #include "novu/ui/Tooltip.h"
 
+#include <QApplication>
+#include <QKeyEvent>
+
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
 
@@ -23,6 +26,7 @@ namespace {
 // second is how long the pointer must stay before the long form is offered.
 constexpr int kShowDelayMs = 140;
 constexpr int kDetailDelayMs = 620;
+constexpr int kHintGap = 5;
 
 // `.tip { max-width:274px; padding:9px 11px; border-radius:9px }`.
 constexpr int kMaxWidth = 274;
@@ -261,7 +265,20 @@ bool Tooltip::eventFilter(QObject* watched, QEvent* event)
     case QEvent::MouseButtonPress:
     case QEvent::Wheel:
     case QEvent::Hide:
+    // A tip is about the window the pointer is in. Losing activation means
+    // the person is somewhere else - possibly in another application - and a
+    // tip left floating over that is not a tip about anything.
+    case QEvent::WindowDeactivate:
         dismiss();
+        break;
+
+    case QEvent::KeyPress:
+        // Escape dismisses whatever is in front of you, and a tip is in
+        // front of you. Only Escape: a tip must not eat any other key, since
+        // the target keeps the focus while it shows.
+        if (static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape) {
+            dismiss();
+        }
         break;
     default:
         break;
@@ -271,14 +288,33 @@ bool Tooltip::eventFilter(QObject* watched, QEvent* event)
 
 void Tooltip::scheduleFor(QWidget* target)
 {
+    // A menu or a transient surface opening takes over the screen the tip is
+    // drawn on, and Qt gives popups their own window. Checking here rather
+    // than watching for it means no timer runs to find out.
+    if (QApplication::activePopupWidget()) {
+        return;
+    }
     m_pending = target;
     m_showTimer->start();
+}
+
+// The hint line's own font: a step under the brief, because it is an aside
+// about the tooltip rather than part of what the control does.
+static QFont hintFont(const QWidget* context)
+{
+    const ThemeProfile& profile = themeFor(context);
+    QFont font(profile.type.family);
+    font.setPixelSize(profile.type.xs);
+    return font;
 }
 
 QSize Tooltip::measure(const TipContent& content, bool withDetail) const
 {
     const int maxWidth = content.compact ? kCompactMaxWidth : kMaxWidth;
     const int textWidth = maxWidth - 2 * kPaddingH;
+    // Reserved whenever the hint will be drawn - that is, there is a detail
+    // and it has not arrived yet.
+    const bool withHint = !withDetail && !content.detail.isEmpty() && !content.compact;
 
     const QFontMetrics titleMetrics(titleFont(this, content));
     const QFontMetrics chipMetrics(chipFont(this, content));
@@ -475,6 +511,20 @@ void Tooltip::paintEvent(QPaintEvent*)
         painter.setPen(profile.colors.accentLight);
         painter.drawText(QRect(left, y, textWidth, fm.height()),
                          Qt::AlignLeft | Qt::AlignVCenter, m_content.status);
+        y += fm.height();
+    }
+
+    if (!m_detail && !m_content.detail.isEmpty() && !m_content.compact) {
+        // There is more, and the only way anyone finds that out is being
+        // told. One muted line, the same place the detail will appear.
+        const QFont font = hintFont(context);
+        const QFontMetrics fm(font);
+        y += kHintGap;
+        painter.setFont(font);
+        painter.setPen(profile.colors.textTertiary);
+        painter.drawText(QRect(left, y, textWidth, fm.height()),
+                         Qt::AlignLeft | Qt::AlignVCenter,
+                         QObject::tr("keep hovering for more"));
         y += fm.height();
     }
 

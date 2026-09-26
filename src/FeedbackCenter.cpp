@@ -6,6 +6,7 @@
 #include "novu/ui/IconButton.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/Theme.h"
+#include "novu/ui/Tooltip.h"
 #include "novu/ui/ThemeManager.h"
 
 #include <QAbstractListModel>
@@ -226,7 +227,15 @@ FeedbackButton::FeedbackButton(QWidget* parent)
     layout->setSpacing(0);
 
     m_button = new IconButton(Glyph::Chat, IconButton::Variant::Chrome, this);
-    m_button->setToolTip(tr("Feedback"));
+    // The shared progressive tip, not QToolTip: one hover gives the name, a
+    // longer one explains what the panel is for. The host may replace this
+    // with wording of its own through Tooltip::install().
+    Tooltip::install(m_button, TipContent{
+        tr("Feedback"), {},
+        tr("Send feedback and follow your reports."), {},
+        tr("Report a bug or suggest something, and see what happened to it - "
+           "each report stays attached to this application and the area it "
+           "came from.")});
     layout->addWidget(m_button);
     connect(m_button, &QAbstractButton::clicked, this, &FeedbackButton::clicked);
 
@@ -245,7 +254,7 @@ void FeedbackButton::setUnseenCount(int count)
     m_unseen = qMax(0, count);
     if (m_unseen == 0) {
         m_badge->hide();
-        m_button->setToolTip(tr("Feedback"));
+        Tooltip::install(m_button, Tooltip::contentFor(m_button));
         return;
     }
 
@@ -254,7 +263,11 @@ void FeedbackButton::setUnseenCount(int count)
                                   : QString::number(m_unseen));
     m_badge->adjustSize();
     m_badge->show();
-    m_button->setToolTip(tr("Feedback - %n update(s)", nullptr, m_unseen));
+    // The count belongs in the status line, which is the field the design
+    // reserves for what a control is doing right now.
+    TipContent tip = Tooltip::contentFor(m_button);
+    tip.status = tr("%n new update(s)", nullptr, m_unseen);
+    Tooltip::install(m_button, tip);
     positionBadge();
 }
 

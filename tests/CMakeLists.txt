@@ -31,6 +31,12 @@ target_link_libraries(tst_feedback_center PRIVATE Novu::UI Qt6::Test Qt6::Widget
 add_test(NAME feedback_center COMMAND tst_feedback_center)
 set_tests_properties(feedback_center PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
 
+# The progressive tip: two levels, and every way out of it.
+add_executable(tst_tooltip_help tst_tooltip_help.cpp)
+target_link_libraries(tst_tooltip_help PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME tooltip_help COMMAND tst_tooltip_help)
+set_tests_properties(tooltip_help PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+
 add_executable(tst_card_interaction tst_card_interaction.cpp)
 target_link_libraries(tst_card_interaction PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
 add_test(NAME card_interaction COMMAND tst_card_interaction)
