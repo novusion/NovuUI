@@ -188,12 +188,77 @@ QString Badge::displayText() const
     return m_uppercase ? m_text.toUpper() : m_text;
 }
 
+QSize badgeSizeFor(const QWidget* context, const QString& text, Badge::Size size,
+                   bool withDot, bool uppercase)
+{
+    const QString shown = uppercase ? text.toUpper() : text;
+    const QFontMetrics fm(badgeFont(context, size));
+    const int lead = withDot ? kDotDiameter + kDotGap : 0;
+    return QSize(fm.horizontalAdvance(shown) + lead + 2 * paddingH(context, size),
+                 qMax(minHeight(context, size), fm.height() + 2 * paddingV(context, size)));
+}
+
+void paintBadge(QPainter* painter, const QRectF& box, const QWidget* context,
+                const QString& text, Badge::Tone tone, Badge::Size size,
+                bool withDot, bool uppercase, const QColor& classificationHue)
+{
+    if (!painter || !context) {
+        return;
+    }
+    const ThemeProfile& profile = themeFor(context);
+
+    SemanticColor colors = profile.semantic.role(roleFor(tone));
+    if (classificationHue.isValid()) {
+        // NovuAI's LAN / IMA / VID / AUD tags use the family hue as opaque
+        // ink and only tint the plate. Keeping this branch outside Tone stops
+        // a data type from pretending to be a semantic status.
+        colors.text = classificationHue;
+        colors.fill = withAlpha(classificationHue, 0.10);
+        colors.border = withAlpha(classificationHue, 0.42);
+    } else if (tone == Badge::Tone::Accent) {
+        colors.text = profile.colors.accentLight;
+        colors.fill = withAlpha(profile.colors.accent, 0.12);
+        colors.border = withAlpha(profile.colors.accent, 0.42);
+    }
+
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing, true);
+
+    const int borderWidth = qMax(1, profile.border(BorderRole::Card));
+    const QRectF pillRect = box.adjusted(borderWidth / 2.0, borderWidth / 2.0,
+                                         -borderWidth / 2.0, -borderWidth / 2.0);
+    const double radius = resolveRadius(profile.radius(SurfaceRole::Badge),
+                                        static_cast<int>(pillRect.height()));
+
+    // The outline is what separates a badge from a coloured word. Without it a
+    // Neutral badge on the panel it sits in has no edge at all, which is how
+    // the tinted plate stopped reading as a pill.
+    painter->setPen(QPen(colors.border, borderWidth));
+    painter->setBrush(colors.fill);
+    painter->drawRoundedRect(pillRect, radius, radius);
+
+    painter->setFont(badgeFont(context, size));
+    painter->setPen(colors.text);
+
+    const int pad = paddingH(context, size);
+    QRectF textBox = box.adjusted(pad, 0, -pad, 0);
+    if (withDot) {
+        const QRectF dot(textBox.left(), box.center().y() - kDotDiameter / 2.0,
+                         kDotDiameter, kDotDiameter);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(colors.text);
+        painter->drawEllipse(dot);
+        painter->setPen(colors.text);
+        textBox.setLeft(textBox.left() + kDotDiameter + kDotGap);
+    }
+    painter->drawText(textBox, Qt::AlignVCenter | Qt::AlignLeft,
+                      uppercase ? text.toUpper() : text);
+    painter->restore();
+}
+
 QSize Badge::sizeHint() const
 {
-    const QFontMetrics fm(badgeFont(this, m_size));
-    const int lead = m_dot ? kDotDiameter + kDotGap : 0;
-    return QSize(fm.horizontalAdvance(displayText()) + lead + 2 * paddingH(this, m_size),
-                 qMax(minHeight(this, m_size), fm.height() + 2 * paddingV(this, m_size)));
+    return badgeSizeFor(this, m_text, m_size, m_dot, m_uppercase);
 }
 
 bool Badge::event(QEvent* event)
@@ -210,54 +275,9 @@ bool Badge::event(QEvent* event)
 
 void Badge::paintEvent(QPaintEvent*)
 {
-    const ThemeProfile& profile = themeFor(this);
-
-    SemanticColor colors = profile.semantic.role(roleFor(m_tone));
-    if (m_classificationHue.isValid()) {
-        // NovuAI's LAN / IMA / VID / AUD tags use the family hue as opaque
-        // ink and only tint the plate. Keeping this branch outside Tone stops
-        // a data type from pretending to be a semantic status.
-        colors.text = m_classificationHue;
-        colors.fill = withAlpha(m_classificationHue, 0.10);
-        colors.border = withAlpha(m_classificationHue, 0.42);
-    } else if (m_tone == Tone::Accent) {
-        colors.text = profile.colors.accentLight;
-        colors.fill = withAlpha(profile.colors.accent, 0.12);
-        colors.border = withAlpha(profile.colors.accent, 0.42);
-    }
-
     QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing, true);
-
-    const int borderWidth = qMax(1, profile.border(BorderRole::Card));
-    const QRectF pill = QRectF(rect()).adjusted(borderWidth / 2.0, borderWidth / 2.0,
-                                                -borderWidth / 2.0, -borderWidth / 2.0);
-    const double radius = resolveRadius(profile.radius(SurfaceRole::Badge),
-                                        static_cast<int>(pill.height()));
-
-    // The outline is what separates a badge from a coloured word. Without it a
-    // Neutral badge on the panel it sits in has no edge at all, which is how
-    // the tinted plate stopped reading as a pill.
-    painter.setPen(QPen(colors.border, borderWidth));
-    painter.setBrush(colors.fill);
-    painter.drawRoundedRect(pill, radius, radius);
-
-    const QFont font = badgeFont(this, m_size);
-    painter.setFont(font);
-    painter.setPen(colors.text);
-
-    QRect textBox = rect().adjusted(paddingH(this, m_size), 0, -paddingH(this, m_size), 0);
-    if (m_dot) {
-        const QRectF dot(textBox.left(),
-                         (height() - kDotDiameter) / 2.0,
-                         kDotDiameter, kDotDiameter);
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(colors.text);
-        painter.drawEllipse(dot);
-        painter.setPen(colors.text);
-        textBox.setLeft(textBox.left() + kDotDiameter + kDotGap);
-    }
-    painter.drawText(textBox, Qt::AlignVCenter | Qt::AlignLeft, displayText());
+    paintBadge(&painter, QRectF(rect()), this, m_text, m_tone, m_size, m_dot,
+               m_uppercase, m_classificationHue);
 }
 
 Badge* pill(const QString& text, QWidget* parent)

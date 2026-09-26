@@ -2,6 +2,7 @@
 
 #include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
+#include "novu/ui/Theme.h"
 #include "novu/ui/ThemeProfile.h"
 
 #include <QAbstractButton>
@@ -78,6 +79,9 @@ protected:
     void enterEvent(QEnterEvent* event) override;
     void leaveEvent(QEvent* event) override;
     bool event(QEvent* event) override;
+    void focusInEvent(QFocusEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
 
 private:
     Glyph m_glyph = Glyph::None;
@@ -89,6 +93,12 @@ private:
     ColorToken m_checkedInk;
     int m_glyphSize=0;
     bool m_actionPlate=false;
+    // The ring is the keyboard's, not the mouse's - the same FocusRing
+    // ModuleBar, TabBar and NavList share. This control used to paint on bare
+    // hasFocus(), so any route that left focus on it after a click - a theme
+    // toggle rebuilding the chrome, a popup closing, the window activating -
+    // left an accent ring around a title-bar icon that nobody had tabbed to.
+    FocusRing m_ring;
 };
 
 // The row action every table offers: small, ghost, one glyph. A named factory

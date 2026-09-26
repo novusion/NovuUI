@@ -1,6 +1,7 @@
 #pragma once
 
 #include "novu/ui/Badge.h"
+#include "novu/ui/StatusDot.h"
 #include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
 
@@ -95,6 +96,17 @@ public:
     void setGlyph(const QString& id, Glyph glyph);
     // -1 removes the pill.
     void setCount(const QString& id, int count);
+
+    // `.navbtn .wsdot` - the dot that says this node has something running in
+    // it, at the trailing edge in front of the count. NavList has carried this
+    // since the first sidebar; a tree needs it for the same reason and for the
+    // same rows, now that navigation deeper than one level is a tree.
+    //
+    // Not a mark and not a tag: a mark is a property glyph and a tag is a
+    // word, and neither reads as "live" at a glance the way the design's dot
+    // does. Painted, like everything else in a row.
+    void setStatus(const QString& id, StatusDot::Tone tone);
+    void clearStatus(const QString& id);
     // `.trow .tag` — a short word after the name: a branch, a state, a format.
     void setTag(const QString& id, const QString& text,
                 Badge::Tone tone = Badge::Tone::Neutral);
@@ -184,6 +196,8 @@ private:
         Kind kind = Kind::Item;
         Mark mark = Mark::None;
         int count = -1;
+        bool hasStatus = false;
+        StatusDot::Tone status = StatusDot::Tone::Neutral;
         int depth = 0;
         bool expanded = false;
         bool enabled = true;

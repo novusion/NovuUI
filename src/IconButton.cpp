@@ -5,6 +5,9 @@
 
 #include <QEnterEvent>
 #include <QEvent>
+#include <QFocusEvent>
+#include <QKeyEvent>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 
@@ -94,6 +97,28 @@ bool IconButton::event(QEvent* event)
         update();
     }
     return QAbstractButton::event(event);
+}
+
+void IconButton::focusInEvent(QFocusEvent* event)
+{
+    m_ring.noteFocusIn(event->reason());
+    QAbstractButton::focusInEvent(event);
+    update();
+}
+
+void IconButton::keyPressEvent(QKeyEvent* event)
+{
+    // Driving the control from the keyboard is exactly when the ring is for,
+    // including the case where focus arrived some other way first.
+    m_ring.noteKeyPress();
+    QAbstractButton::keyPressEvent(event);
+    update();
+}
+
+void IconButton::mousePressEvent(QMouseEvent* event)
+{
+    m_ring.noteMousePress();
+    QAbstractButton::mousePressEvent(event);
 }
 
 void IconButton::enterEvent(QEnterEvent* event)
@@ -201,8 +226,9 @@ void IconButton::paintEvent(QPaintEvent*)
 
     // Focus is drawn, not styled: a focus ring on a self-painted control has
     // nowhere else to come from, and a keyboard user must be able to see which
-    // action is about to fire.
-    if (hasFocus()) {
+    // action is about to fire. Only a keyboard user, though - visibleOn() is
+    // `:focus-visible`, so a click leaves no ring behind.
+    if (m_ring.visibleOn(this)) {
         QPen ring(withAlpha(t.accent, 0.75), profile.border(BorderRole::Focus));
         painter.setPen(ring);
         painter.setBrush(Qt::NoBrush);

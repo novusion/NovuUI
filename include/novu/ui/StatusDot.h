@@ -74,4 +74,14 @@ private:
     bool m_animating = false;
 };
 
+// The dot's colour, for the components that paint a dot instead of holding
+// one. A tree row or a table row draws thousands of these; a StatusDot widget
+// per row is exactly what a painted row exists to avoid, and a second copy of
+// the tone table is how the two would drift apart.
+//
+// Accent is the reason this is a function rather than a SemanticRole lookup:
+// the design says a status never wears the product accent, so that tone lives
+// outside the semantic palette.
+ColorToken statusDotToken(StatusDot::Tone tone);
+
 } // namespace novu::ui

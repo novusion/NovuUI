@@ -35,7 +35,9 @@ SemanticRole statusFor(StatusDot::Tone tone)
     return SemanticRole::Neutral;
 }
 
-ColorToken tokenFor(StatusDot::Tone tone)
+} // namespace
+
+ColorToken statusDotToken(StatusDot::Tone tone)
 {
     // Accent is the one tone outside the semantic palette, deliberately: the
     // design says a status never wears the product accent, so it cannot be a
@@ -45,8 +47,6 @@ ColorToken tokenFor(StatusDot::Tone tone)
     }
     return statusToken(statusFor(tone), ColorRole::StatusText);
 }
-
-} // namespace
 
 StatusDot::StatusDot(Tone tone, QWidget* parent)
     : QWidget(parent)
@@ -68,8 +68,8 @@ StyleSpec StatusDot::styleSpec() const
 {
     StyleSpec spec;
     spec.radius = SurfaceRole::Badge;
-    spec.foreground = tokenFor(m_tone);
-    spec.background = tokenFor(m_previousTone);
+    spec.foreground = statusDotToken(m_tone);
+    spec.background = statusDotToken(m_previousTone);
     spec.disabledForeground = token(ColorRole::TextDisabled);
     return spec;
 }

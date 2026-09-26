@@ -9,6 +9,7 @@
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QRadialGradient>
 #include <QPainterPath>
 #include <QPen>
 #include <QResizeEvent>
@@ -21,6 +22,9 @@ namespace novu::ui {
 namespace {
 
 // `.trow { gap:6px; padding:0 6px 0 4px }` and `--tree-step`.
+// `.wsdot{width:6px}` and the halo around it, matching StatusDot's own.
+constexpr int kStatusDot = 6;
+constexpr int kStatusHalo = 2;
 constexpr int kRowGap = 6;
 constexpr int kRowPaddingLeft = 4;
 constexpr int kRowPaddingRight = 6;
@@ -313,6 +317,27 @@ void TreeView::setGlyph(const QString& id, Glyph glyph)
         return;
     }
     entry->glyph = glyph;
+    viewport()->update();
+}
+
+void TreeView::setStatus(const QString& id, StatusDot::Tone tone)
+{
+    Node* entry = node(id);
+    if (!entry || (entry->hasStatus && entry->status == tone)) {
+        return;
+    }
+    entry->hasStatus = true;
+    entry->status = tone;
+    viewport()->update();
+}
+
+void TreeView::clearStatus(const QString& id)
+{
+    Node* entry = node(id);
+    if (!entry || !entry->hasStatus) {
+        return;
+    }
+    entry->hasStatus = false;
     viewport()->update();
 }
 
@@ -945,6 +970,29 @@ void TreeView::paintEvent(QPaintEvent*)
             painter.setPen(tone.text);
             painter.drawText(pill, Qt::AlignCenter, entry->tag);
             rightEdge = static_cast<int>(pill.left()) - kRowGap;
+        }
+
+        if (entry->hasStatus) {
+            // `.wsdot{width:6px}` with the same halo StatusDot draws, so a dot
+            // in a tree row and a dot in a nav row are the same dot.
+            // statusDotToken() is StatusDot's own table, not a copy of it, so
+            // a dot painted in a row and a StatusDot widget are the same
+            // colour in every theme.
+            const QColor dotColour = statusDotToken(entry->status).resolve(profile);
+            const double radius = kStatusDot / 2.0;
+            const QPointF centre(rightEdge - radius, box.center().y());
+            QColor halo = dotColour;
+            halo.setAlphaF(halo.alphaF() * 0.55);
+            QRadialGradient glow(centre, radius + kStatusHalo);
+            glow.setColorAt(0.0, halo);
+            halo.setAlphaF(0.0);
+            glow.setColorAt(1.0, halo);
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(glow);
+            painter.drawEllipse(centre, radius + kStatusHalo, radius + kStatusHalo);
+            painter.setBrush(dotColour);
+            painter.drawEllipse(centre, radius, radius);
+            rightEdge -= kStatusDot + kRowGap;
         }
 
         if (entry->count >= 0) {

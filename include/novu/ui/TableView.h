@@ -1,5 +1,8 @@
 #pragma once
 
+#include "novu/ui/Badge.h"
+#include "novu/ui/StatusDot.h"
+
 #include <QColor>
 #include <QFont>
 #include <QHash>
@@ -96,8 +99,45 @@ public:
     // each column exactly once.
     void setColumns(const QVector<QPair<QString, ColumnRole>>& columns);
 
+    // ── painted cells ────────────────────────────────────────────────────
+    //
+    // The cell vocabulary for repeated rows: a status dot, a primary text and
+    // any number of badges after it, described as data and drawn by the
+    // table's delegate.
+    //
+    // This is what setWidget() was being used for and should not have been.
+    // A models table of 28 rows built a container, a dot, a title, a
+    // quantisation badge and a badge per capability in every row - 336
+    // widgets - and because selecting a row rebuilt the page, every one of
+    // them was destroyed and built again on a click. Content described this
+    // way costs nothing per row: there is no widget to create, the row is
+    // painted only while it is on screen, and selection is a repaint.
+    //
+    // A cell still gets a widget when it holds a control somebody clicks.
+    // A badge is not a control.
+    struct CellBadge
+    {
+        QString text;
+        Badge::Tone tone = Badge::Tone::Neutral;
+    };
+
+    struct CellContent
+    {
+        bool hasStatus = false;
+        StatusDot::Tone status = StatusDot::Tone::Neutral;
+        QString text;
+        // Drawn after the text, in order, each sized to its own caption.
+        QVector<CellBadge> badges;
+        // Muted, and only if there is room left once the badges have theirs.
+        QString trailing;
+        bool strongText = false;
+    };
+
+    void setContent(int row, int column, const CellContent& content);
+
     // Installs a widget in a cell. Use this instead of setCellWidget() so the
-    // table can account for the widget when measuring the column.
+    // table can account for the widget when measuring the column. Prefer
+    // setContent() for anything that is only drawn.
     void setWidget(int row, int column, QWidget* widget);
 
     // Convenience: a cell containing one or more widgets laid out
@@ -203,4 +243,12 @@ private:
     int m_hoveredRow = -1;
 };
 
+// What a painted cell measures and how it draws, so the delegate and the
+// column measurement cannot disagree about how wide a row needs to be.
+QSize cellContentSize(const QWidget* context, const TableView::CellContent& content);
+void paintCellContent(QPainter* painter, const QRect& box, const QWidget* context,
+                      const TableView::CellContent& content, const QColor& textInk);
+
 } // namespace novu::ui
+
+Q_DECLARE_METATYPE(novu::ui::TableView::CellContent)

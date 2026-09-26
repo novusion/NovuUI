@@ -3,6 +3,8 @@
 #include <QColor>
 #include <QWidget>
 
+class QPainter;
+
 namespace novu::ui {
 
 // A pill-shaped label (status, tag, plan, release, price).
@@ -105,5 +107,23 @@ Badge* pill(const QString& text, QWidget* parent = nullptr);
 // A live status: tone, a dot, sentence case. The other half of the same
 // distinction.
 Badge* statusBadge(const QString& text, Badge::Tone tone, QWidget* parent = nullptr);
+
+// The badge, without the widget.
+//
+// A row in a painted list draws these by the dozen, and a Badge instance per
+// tag is exactly what a painted row exists to avoid - a table of 28 models
+// with three capabilities each is 84 widgets that only ever draw a pill with
+// a word in it. Badge itself paints through these two functions, so a badge
+// in a row and a Badge on a card are the same badge, measured and drawn by
+// the same code.
+//
+// `context` is the widget whose theme scope decides the colours and the font;
+// it is the row's view, not the badge, because there is no badge.
+QSize badgeSizeFor(const QWidget* context, const QString& text, Badge::Size size,
+                   bool withDot = false, bool uppercase = false);
+void paintBadge(QPainter* painter, const QRectF& box, const QWidget* context,
+                const QString& text, Badge::Tone tone, Badge::Size size,
+                bool withDot = false, bool uppercase = false,
+                const QColor& classificationHue = QColor());
 
 } // namespace novu::ui

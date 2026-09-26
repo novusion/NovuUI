@@ -8,6 +8,7 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QMouseEvent>
+#include <QStyledItemDelegate>
 #include <QPainter>
 #include <QEvent>
 #include <QResizeEvent>
@@ -16,6 +17,18 @@
 #include <QVBoxLayout>
 
 namespace novu::ui {
+
+namespace {
+
+// The role a painted cell rides on. A cell either carries one of these or it
+// is an ordinary text cell; the delegate checks and falls through.
+constexpr int kCellContentRole = Qt::UserRole + 977;
+
+constexpr int kContentGap = 7;
+constexpr int kContentDot = 6;
+
+} // namespace
+
 
 namespace {
 
@@ -124,9 +137,74 @@ int giveBack(QVector<int>& widths,
 
 } // namespace
 
+namespace {
+
+// One delegate for the whole table. It draws the selection and the focus the
+// style would have drawn, then the cell's own content on top.
+class CellContentDelegate : public QStyledItemDelegate
+{
+public:
+    explicit CellContentDelegate(TableView* table)
+        : QStyledItemDelegate(table)
+        , m_table(table)
+    {
+    }
+
+    void paint(QPainter* painter, const QStyleOptionViewItem& option,
+               const QModelIndex& index) const override
+    {
+        const QVariant data = index.data(kCellContentRole);
+        if (!data.isValid()) {
+            QStyledItemDelegate::paint(painter, option, index);
+            return;
+        }
+
+        QStyleOptionViewItem shell(option);
+        initStyleOption(&shell, index);
+        // The row's own background and selection, drawn by the style so a
+        // painted cell and a text cell sit on the same plate. The text is
+        // cleared out of it because this delegate draws that part itself.
+        shell.text.clear();
+        shell.features &= ~QStyleOptionViewItem::HasDisplay;
+        const QWidget* widget = shell.widget;
+        QStyle* style = widget ? widget->style() : QApplication::style();
+        style->drawControl(QStyle::CE_ItemViewItem, &shell, painter, widget);
+
+        const ThemeProfile& profile = themeFor(m_table);
+        const int pad = profile.roleSpacing.value(
+            static_cast<int>(SpacingRole::TableCellPaddingH),
+            profile.space(SpacingRole::TableCellPadding));
+        const QColor ink = (option.state & QStyle::State_Selected)
+                               ? profile.colors.textPrimary
+                               : profile.colors.textSecondary;
+        paintCellContent(painter, option.rect.adjusted(pad, 0, -pad, 0), m_table,
+                         data.value<TableView::CellContent>(), ink);
+    }
+
+    QSize sizeHint(const QStyleOptionViewItem& option,
+                   const QModelIndex& index) const override
+    {
+        const QVariant data = index.data(kCellContentRole);
+        if (!data.isValid()) {
+            return QStyledItemDelegate::sizeHint(option, index);
+        }
+        return cellContentSize(m_table, data.value<TableView::CellContent>());
+    }
+
+private:
+    TableView* m_table = nullptr;
+};
+
+} // namespace
+
 TableView::TableView(QWidget* parent)
     : QTableWidget(parent)
 {
+    // Every cell goes through it; cells with no content of their own fall
+    // straight back to the base delegate, so nothing that already worked
+    // changes shape.
+    setItemDelegate(new CellContentDelegate(this));
+
     const ThemeProfile& profile = themeFor(this);
     const ThemeColors& t = profile.colors;
     const int rowHeight = profile.table.rowHeight;
@@ -384,6 +462,125 @@ void TableView::setColumns(const QVector<QPair<QString, ColumnRole>>& columns)
     }
 }
 
+QSize cellContentSize(const QWidget* context, const TableView::CellContent& content)
+{
+    if (!context) {
+        return QSize();
+    }
+    const QFontMetrics metrics(roleFont(context, TypeRole::Body));
+    int width = 0;
+    int height = metrics.height();
+
+    if (content.hasStatus) {
+        width += kContentDot + kContentGap;
+    }
+    if (!content.text.isEmpty()) {
+        width += metrics.horizontalAdvance(content.text);
+    }
+    for (const TableView::CellBadge& badge : content.badges) {
+        const QSize size = badgeSizeFor(context, badge.text, Badge::Size::Regular);
+        width += kContentGap + size.width();
+        height = qMax(height, size.height());
+    }
+    if (!content.trailing.isEmpty()) {
+        width += kContentGap + metrics.horizontalAdvance(content.trailing);
+    }
+    return QSize(width, height);
+}
+
+void paintCellContent(QPainter* painter, const QRect& box, const QWidget* context,
+                      const TableView::CellContent& content, const QColor& textInk)
+{
+    if (!painter || !context) {
+        return;
+    }
+    const ThemeProfile& profile = themeFor(context);
+    int x = box.left();
+
+    if (content.hasStatus) {
+        const QColor dot = statusDotToken(content.status).resolve(profile);
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing, true);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(dot);
+        painter->drawEllipse(QPointF(x + kContentDot / 2.0, box.center().y()),
+                             kContentDot / 2.0, kContentDot / 2.0);
+        painter->restore();
+        x += kContentDot + kContentGap;
+    }
+
+    // The badges and the trailing note are measured first and reserved at the
+    // right of what is left, so the name is the only thing that ever elides.
+    int reserved = 0;
+    QVector<QSize> badgeSizes;
+    badgeSizes.reserve(content.badges.size());
+    for (const TableView::CellBadge& badge : content.badges) {
+        const QSize size = badgeSizeFor(context, badge.text, Badge::Size::Regular);
+        badgeSizes.append(size);
+        reserved += kContentGap + size.width();
+    }
+    const QFontMetrics trailingMetrics(roleMonoFont(context, TypeRole::Mono));
+    if (!content.trailing.isEmpty()) {
+        reserved += kContentGap + trailingMetrics.horizontalAdvance(content.trailing);
+    }
+
+    if (!content.text.isEmpty()) {
+        QFont font = roleFont(context, TypeRole::Body);
+        if (content.strongText) {
+            font.setWeight(QFont::Medium);
+        }
+        const QFontMetrics metrics(font);
+        const int room = qMax(0, box.right() - x - reserved);
+        painter->save();
+        painter->setFont(font);
+        painter->setPen(textInk);
+        painter->drawText(QRect(x, box.top(), room, box.height()),
+                          Qt::AlignVCenter | Qt::AlignLeft,
+                          metrics.elidedText(content.text, Qt::ElideRight, room));
+        painter->restore();
+        x += qMin(room, metrics.horizontalAdvance(content.text));
+    }
+
+    for (int i = 0; i < content.badges.size(); ++i) {
+        const QSize size = badgeSizes.at(i);
+        x += kContentGap;
+        if (x + size.width() > box.right()) {
+            break;
+        }
+        paintBadge(painter, QRectF(x, box.center().y() - size.height() / 2.0,
+                                   size.width(), size.height()),
+                   context, content.badges.at(i).text, content.badges.at(i).tone,
+                   Badge::Size::Regular);
+        x += size.width();
+    }
+
+    if (!content.trailing.isEmpty()) {
+        x += kContentGap;
+        painter->save();
+        painter->setFont(roleMonoFont(context, TypeRole::Mono));
+        painter->setPen(profile.colors.textDisabled);
+        painter->drawText(QRect(x, box.top(), qMax(0, box.right() - x), box.height()),
+                          Qt::AlignVCenter | Qt::AlignLeft, content.trailing);
+        painter->restore();
+    }
+}
+
+void TableView::setContent(int row, int column, const CellContent& content)
+{
+    QTableWidgetItem* cell = item(row, column);
+    if (!cell) {
+        cell = new QTableWidgetItem;
+        setItem(row, column, cell);
+    }
+    cell->setData(kCellContentRole, QVariant::fromValue(content));
+    // The text is still the item's, so sorting, keyboard search and anything
+    // that reads a table by its model keep working on a painted row.
+    cell->setText(content.text);
+    if (!content.text.isEmpty()) {
+        cell->setToolTip(content.text);
+    }
+}
+
 void TableView::setWidget(int row, int column, QWidget* widget)
 {
     // The item carries the widget's size hint. QHeaderView and our own
@@ -637,6 +834,13 @@ int TableView::measureColumn(int column) const
         }
         const QTableWidgetItem* item = this->item(row, column);
         if (!item) {
+            continue;
+        }
+        const QVariant content = item->data(kCellContentRole);
+        if (content.isValid()) {
+            // A painted cell measures itself, by the same function that draws
+            // it - so a column can never come out narrower than its content.
+            cells = qMax(cells, cellContentSize(this, content.value<CellContent>()).width());
             continue;
         }
         const QVariant fontData = item->data(Qt::FontRole);
