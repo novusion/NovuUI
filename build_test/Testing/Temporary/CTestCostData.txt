@@ -1,6 +1,0 @@
-window_chrome 18 0.00296139
-card_interaction 18 0.00372356
-widget_editor 18 0.00268582
-gallery 17 0.982555
-popover_dismissal 1 0.0440483
----
