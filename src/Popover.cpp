@@ -674,9 +674,17 @@ void Popover::popupUnder(QWidget* anchor)
     if (!anchor) {
         return;
     }
+    popupUnder(anchor, anchor->rect());
+}
+
+void Popover::popupUnder(QWidget* anchor, const QRect& anchorRect)
+{
+    if (!anchor) {
+        return;
+    }
     dismissForeignPopup();
     m_anchor = anchor;
-    const QRect box(anchor->mapToGlobal(QPoint(0, 0)), anchor->size());
+    const QRect box(anchor->mapToGlobal(anchorRect.topLeft()), anchorRect.size());
 
     const QSize size = sizeHint();
     setFixedSize(size);

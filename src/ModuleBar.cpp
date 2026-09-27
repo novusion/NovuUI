@@ -189,6 +189,20 @@ bool ModuleBar::stripItemEnabled(int index) const
     return index >= 0 && index < m_modules.size() && m_modules.at(index).enabled;
 }
 
+bool ModuleBar::stripItemRepeats(int index) const
+{
+    return index >= 0 && index < m_modules.size() && m_modules.at(index).reopens;
+}
+
+void ModuleBar::setModuleReopens(const QString& key, bool reopens)
+{
+    const int index = indexOfKey(key);
+    if (index < 0) {
+        return;
+    }
+    m_modules[index].reopens = reopens;
+}
+
 QString ModuleBar::stripItemTooltip(int index) const
 {
     // Only when the label is not on screen. A tip repeating a word the pointer

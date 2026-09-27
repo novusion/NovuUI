@@ -66,6 +66,16 @@ protected:
 
     // ── what it may override ─────────────────────────────────────────────
     virtual bool stripItemEnabled(int) const { return true; }
+
+    // An item that answers a click it has already answered.
+    //
+    // Choosing is normally a change: picking the value that is already
+    // picked is a no-op, and a strip that re-emitted it would make a
+    // selection handler fire for nothing. But an item can be a door rather
+    // than a destination - one that opens a menu - and a door has to open
+    // again the second time it is pushed. Opt-in, so a picker keeps the
+    // behaviour it has.
+    virtual bool stripItemRepeats(int) const { return false; }
     virtual QString stripItemTooltip(int) const { return QString(); }
     // The inset before the first item, the gap between items, and the band the
     // items occupy. Defaults are a flush strip filling the widget's height.

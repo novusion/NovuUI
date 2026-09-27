@@ -149,6 +149,12 @@ public:
     // Opens under `anchor`, aligned to its left edge, flipped above and clamped
     // to the screen when there is no room. The usual case in one call.
     void popupUnder(QWidget* anchor);
+    // Opens under one PART of an anchor, given in the anchor's own
+    // coordinates. A painted strip - a module bar, a tab bar - has items that
+    // are not widgets, so anchoring a menu to the whole strip drops it under
+    // the strip's left edge rather than under the item that was clicked. The
+    // flipping and the screen clamping are the same, and stay in one place.
+    void popupUnder(QWidget* anchor, const QRect& anchorRect);
     // Opens at a screen position — for a context menu, where there is no anchor
     // widget, only a click.
     void popupAt(const QPoint& globalPosition);

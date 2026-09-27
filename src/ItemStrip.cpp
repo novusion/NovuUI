@@ -28,8 +28,11 @@ void ItemStrip::setCurrentIndex(int index)
 
 void ItemStrip::choose(int index)
 {
-    if (index < 0 || index >= stripCount() || index == m_current
-        || !stripItemEnabled(index)) {
+    if (index < 0 || index >= stripCount() || !stripItemEnabled(index)) {
+        return;
+    }
+    // Already current, and not a door: nothing happened.
+    if (index == m_current && !stripItemRepeats(index)) {
         return;
     }
     setCurrentIndex(index);

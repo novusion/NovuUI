@@ -64,6 +64,12 @@ public:
     void setCount(const QString& key, int count, CountTone tone = CountTone::Normal);
     void setModuleEnabled(const QString& key, bool enabled);
 
+    // A slot that opens a menu instead of going somewhere. It still draws and
+    // selects like a module - the bar's last slot becomes whichever module is
+    // open behind it - but choosing it while it is already chosen has to open
+    // the menu again rather than do nothing.
+    void setModuleReopens(const QString& key, bool reopens);
+
     // Glyphs only — what the bar becomes in a narrow window. The design hides
     // `.modbtn span.ml` and keeps the icon, so a module is still reachable at
     // any width.
@@ -98,6 +104,7 @@ protected:
     int stripItemWidth(int index) const override;
     void stripItemChosen(int index) override;
     bool stripItemEnabled(int index) const override;
+    bool stripItemRepeats(int index) const override;
     QString stripItemTooltip(int index) const override;
     int stripGap() const override;
     int stripTop() const override;
@@ -119,6 +126,7 @@ private:
         int count = -1;
         CountTone tone = CountTone::Normal;
         bool enabled = true;
+        bool reopens = false;
     };
 
     const Module* find(const QString& key) const;
