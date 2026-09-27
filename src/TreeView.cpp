@@ -59,15 +59,33 @@ QFont nameFont(const QWidget* context, TreeView::Kind kind)
 {
     const ThemeProfile& profile = themeFor(context);
     if (kind == TreeView::Kind::Group) {
-        // `.trow.k-group .tname` — the tracked uppercase caption.
-        QFont font = roleFont(context, TypeRole::Eyebrow, true);
-        font.setPixelSize(qMax(8, profile.type.xs));
+        // `.trow.k-group .tname{ font-family:var(--f-head); font-weight:600;
+        //  font-size:calc(var(--fs-sm)); letter-spacing:.055em;
+        //  text-transform:uppercase }`
+        //
+        // The head face, stated by that rule - NOT the Eyebrow role, which
+        // this asked for before. Eyebrow declares itself monospace in the
+        // NovuAI profile, so every group caption in every tree came out in
+        // the mono stack: ESANTI and HOUDINI wore a typewriter's serifed
+        // capital I, and a navigation rail read as technical output. A
+        // display role resolves to the profile's displayFamily, which is
+        // `--f-head`, and the weight is stated outright rather than reached
+        // by bolding a role that already has an opinion.
+        //
+        // The size is `sm` for the same reason: the rule says fs-sm and this
+        // was drawing xs, a step too small.
+        QFont font = roleFont(context, TypeRole::CardTitle, false, QFont::DemiBold);
+        font.setPixelSize(qMax(8, profile.type.sm));
         font.setLetterSpacing(QFont::PercentageSpacing, 105.5);
         return font;
     }
+    // `.trow .tname` inherits the body face; the kinds differ only in weight
+    // and colour. `.trow.k-ws .tname{font-weight:500}` - Medium, not DemiBold:
+    // a workspace is the heavier of the two rows, one step up from a category,
+    // not as heavy as the group heading above it.
     QFont font = roleFont(context, TypeRole::Body);
     font.setPixelSize(profile.type.sm);
-    font.setWeight(kind == TreeView::Kind::Emphasis ? QFont::DemiBold : QFont::Normal);
+    font.setWeight(kind == TreeView::Kind::Emphasis ? QFont::Medium : QFont::Normal);
     return font;
 }
 

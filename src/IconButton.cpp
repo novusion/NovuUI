@@ -1,5 +1,7 @@
 #include "novu/ui/IconButton.h"
 
+#include "novu/ui/Tooltip.h"
+
 #include "novu/ui/StyleSheet.h"
 #include "novu/ui/ThemeManager.h"
 
@@ -153,11 +155,29 @@ void IconButton::paintEvent(QPaintEvent*)
         // sits in has no visible edge at all.
         outline = t.borderHover;
     } else if (m_variant == Variant::Chrome) {
-        // `.winbtn{color:var(--text3);background:transparent;border:none}`.
-        ink = t.textDisabled;
+        // `.winbtn{color:var(--text3);background:transparent;border:none}` -
+        // and window.controlGlyph IS --text3, which is the token the window
+        // controls beside this button already paint with. textDisabled is
+        // --text4, a step darker, so a chrome icon drawn with it sat quietly
+        // below the minimise and close it is meant to match.
+        ink = profile.window.controlGlyph;
     }
 
-    if (on) {
+    if (on && m_variant == Variant::Chrome) {
+        // A window control does not wear the product accent.
+        //
+        // The chrome has exactly one accent in it - the module you are in -
+        // and that is what makes a glance at the frame answer "where am I".
+        // An accented toggle beside the module bar says it twice, and the
+        // window buttons this control sits among have no outline in any
+        // state, so neither does this. The plate is the window's own, one
+        // step up from the bar it sits on.
+        plate = profile.window.controlPressedBg;
+        outline = Qt::transparent;
+        // The ink does not brighten. `.winbtn` states the colour once and
+        // only :hover changes it; a checked window control says so with its
+        // plate, the way the reference draws a held-down layout toggle.
+    } else if (on) {
         // The `.on` state: the product accent, the same signal an active
         // module and a selected row already use.
         plate = withAlpha(t.accent, 0.14);
@@ -171,6 +191,11 @@ void IconButton::paintEvent(QPaintEvent*)
             plate = danger.fill;
             outline = danger.border;
             ink = danger.text;
+        } else if (on && m_variant == Variant::Chrome) {
+            // `.winbtn:hover{background:var(--panel);color:var(--text)}`.
+            plate = profile.window.controlHoverBg;
+            outline = Qt::transparent;
+            ink = profile.window.titleText;
         } else if (on) {
             plate = withAlpha(t.accent, 0.20);
             outline = t.accent;
@@ -256,7 +281,11 @@ IconButton* rowAction(Glyph glyph, QWidget* parent, const QString& tooltip)
     button->setControlSize(ControlSize::Small);
     button->setActionPlate(true);
     if (!tooltip.isEmpty()) {
-        button->setToolTip(tooltip);
+        // Through the shared tip, not QToolTip. An icon-only button *is* the
+        // case a tooltip exists for - the glyph is the whole label - so it is
+        // the last control that should be explained by the OS in its own
+        // typeface on its own square surface.
+        Tooltip::install(button, tooltip);
     }
     return button;
 }

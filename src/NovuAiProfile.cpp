@@ -281,7 +281,11 @@ ThemeProfile novuAiProfile()
     // need 8px clear of its simulated corner radius.
     p.window.titleBarTrailingInset = 8;
     p.window.titleBarPadding = 13;
-    p.window.titleBarGap = 12;
+    // `.brand{gap:9px}` -- the mark and the application's name are one thing,
+    // so they sit at the brand's own gap rather than at the wider spacing the
+    // title bar uses between unrelated controls. 12 read as a gap between an
+    // icon and a caption instead of as a logo with its name beside it.
+    p.window.titleBarGap = 9;
     p.window.titleBarHeight   = 44;   // --titlebar-h
     p.window.statusBarHeight  = 26;   // --statusbar-h
     p.window.titleBarBg       = c(kTitlebarTop);

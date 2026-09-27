@@ -1,6 +1,8 @@
 #pragma once
 
 #include "novu/ui/Icon.h"
+
+#include <QColor>
 #include "novu/ui/StyleSpec.h"
 
 #include <QIcon>
@@ -109,6 +111,18 @@ public:
     static AppMark* avatar(const QString& initials, QWidget* parent,
                            Tone tone = Tone::Neutral, Size size = Size::Small);
 
+    // The product mark's own three faces.
+    //
+    // A gem normally tints itself from the profile's accent, which is right
+    // for a mark that stands for whatever surface it is on. The application's
+    // OWN mark is not that: NovuAI's logo is the blue ramp in every theme, and
+    // Hub's is green and Explorer's teal even when drawn inside a NovuAI
+    // window. A logo that changed colour with the accent would be a different
+    // logo.
+    //
+    // Set all three, or leave them unset and the accent decides as before.
+    void setGemTints(const QColor& left, const QColor& right, const QColor& top);
+
     StyleSpec styleSpec() const;
     ResolvedStyle resolvedStyle() const;
 
@@ -129,6 +143,10 @@ private:
     Tone m_tone = Tone::Neutral;
     int m_sideOverride = 0;
     bool m_accented = true;
+    bool m_gemTinted = false;
+    QColor m_gemLeft;
+    QColor m_gemRight;
+    QColor m_gemTop;
 };
 
 // ── the product mark ────────────────────────────────────────────────────

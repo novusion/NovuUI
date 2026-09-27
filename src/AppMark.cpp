@@ -44,7 +44,10 @@ const QColor kAgentInk(QStringLiteral("#C9B6F5"));
 // The family mark, in its own 48x48 space: a left face, a right face and a
 // top face. The numbers are the design's own polygons; only the tints are
 // resolved, so a NovuHub gem and a NovuAI gem are one drawing.
-void paintGem(QPainter* painter, const QRectF& box, const QColor& accent)
+// Three faces from one hue, or three faces stated outright. The isometric
+// polygons are the same either way; only where the colours come from differs.
+void paintGem(QPainter* painter, const QRectF& box, const QColor& accent,
+              const QColor* left, const QColor* right, const QColor* top)
 {
     static const QPointF kLeft[] = {{23.58, 23.76}, {23.58, 10.74},
                                     {12.30, 17.25}, {12.30, 30.27}};
@@ -67,11 +70,11 @@ void paintGem(QPainter* painter, const QRectF& box, const QColor& accent)
                       int(a.green() + (b.green() - a.green()) * t),
                       int(a.blue() + (b.blue() - a.blue()) * t));
     };
-    painter->setBrush(mix(accent, QColor(0, 0, 0), 0.22));
+    painter->setBrush(left && left->isValid() ? *left : mix(accent, QColor(0, 0, 0), 0.22));
     painter->drawPolygon(kLeft, 4);
-    painter->setBrush(accent);
+    painter->setBrush(right && right->isValid() ? *right : accent);
     painter->drawPolygon(kRight, 4);
-    painter->setBrush(mix(accent, QColor(255, 255, 255), 0.33));
+    painter->setBrush(top && top->isValid() ? *top : mix(accent, QColor(255, 255, 255), 0.33));
     painter->drawPolygon(kTop, 4);
     painter->restore();
 }
@@ -169,6 +172,15 @@ void AppMark::setMarkSize(Size size)
     update();
 }
 
+void AppMark::setGemTints(const QColor& left, const QColor& right, const QColor& top)
+{
+    m_gemTinted = left.isValid() && right.isValid() && top.isValid();
+    m_gemLeft = left;
+    m_gemRight = right;
+    m_gemTop = top;
+    update();
+}
+
 void AppMark::setSideOverride(int px)
 {
     const int clamped = qMax(0, px);
@@ -263,7 +275,10 @@ void AppMark::paintEvent(QPaintEvent*)
     // The family mark is the drawing, not something drawn on a plate, so it
     // takes none of the plate's fill, outline or ink.
     if (m_shape == Shape::Gem) {
-        paintGem(&painter, QRectF(0, 0, edge, edge), profile.colors.accent);
+        paintGem(&painter, QRectF(0, 0, edge, edge), profile.colors.accent,
+                 m_gemTinted ? &m_gemLeft : nullptr,
+                 m_gemTinted ? &m_gemRight : nullptr,
+                 m_gemTinted ? &m_gemTop : nullptr);
         return;
     }
 
