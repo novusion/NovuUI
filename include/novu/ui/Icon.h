@@ -162,6 +162,23 @@ const QPainterPath& glyphPath(Glyph glyph,const QWidget* context=nullptr);
 void paintGlyph(QPainter* painter, Glyph glyph, const QRectF& box, const QColor& color,
                 double rotationDeg = 0.0, double strokeWidth = 0.0,const QWidget* context=nullptr);
 
+// -----------------------------------------------------------------------------
+// The same outline, filled
+// -----------------------------------------------------------------------------
+// No second set of shapes: the glyph table is copied from the approved design
+// and says so ("change the design first"), and a filled variant invented here
+// would be the divergence it warns about. This paints THE SAME path with a
+// brush instead of a pen.
+//
+// Only for a glyph whose outline is a single closed shape. A folder and a chat
+// bubble are; a workspace cube is an outer hexagon plus the interior edges that
+// make it read as a cube, and filling it would bury them.
+// glyphFillsCleanly() answers which is which, so a caller does not have to know
+// the shapes.
+bool glyphFillsCleanly(Glyph glyph);
+void paintGlyphFilled(QPainter* painter, Glyph glyph, const QRectF& box,
+                      const QColor& color, const QWidget* context = nullptr);
+
 // A square pixmap, cached per (glyph, size, colour, device ratio). Components
 // that draw a glyph every paint event should call paintGlyph() instead; this is
 // for the places Qt insists on a QPixmap or a QIcon.

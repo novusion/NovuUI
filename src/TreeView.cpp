@@ -946,8 +946,20 @@ void TreeView::paintEvent(QPaintEvent*)
             } else if (entry->mark == Mark::Detached) {
                 iconInk = withAlpha(ink, kMarkIdleOpacity);
             }
-            paintGlyph(&painter, entry->glyph,
-                       QRectF(x, box.center().y() - kIcon / 2.0, kIcon, kIcon), iconInk);
+            // A row's own icon is drawn solid where the shape allows it.
+            //
+            // A dense tree is read by the shape of the column, and outlines at
+            // this size have too little mass to hold one - the rows blur into
+            // each other. Same glyph, same box, same ink: only the weight
+            // changes, and only for the glyphs whose outline is a single
+            // closed shape.
+            //
+            // Here rather than in a caller, because this is where a glyph
+            // means "a node of a tree" - every tree gets the same answer
+            // without each one deciding for itself.
+            paintGlyphFilled(&painter, entry->glyph,
+                             QRectF(x, box.center().y() - kIcon / 2.0, kIcon, kIcon),
+                             iconInk, this);
             x += kIcon + kRowGap;
         }
 

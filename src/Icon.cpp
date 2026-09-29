@@ -574,6 +574,55 @@ void paintGlyph(QPainter* painter, Glyph glyph, const QRectF& box, const QColor&
     painter->restore();
 }
 
+bool glyphFillsCleanly(Glyph glyph)
+{
+    // A single closed outline. Everything else keeps its stroke.
+    switch (glyph) {
+    case Glyph::Folder:
+    case Glyph::Chat:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void paintGlyphFilled(QPainter* painter, Glyph glyph, const QRectF& box,
+                      const QColor& color, const QWidget* context)
+{
+    if (!painter || box.isEmpty()) {
+        return;
+    }
+    if (!glyphFillsCleanly(glyph)) {
+        paintGlyph(painter, glyph, box, color, 0.0, 0.0, context);
+        return;
+    }
+
+    const QPainterPath& path = glyphPath(glyph, context);
+    if (path.isEmpty()) {
+        return;
+    }
+
+    const double side = qMin(box.width(), box.height());
+    const double scale = side / kViewBox;
+
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing, true);
+    painter->translate(box.center());
+    painter->scale(scale, scale);
+    painter->translate(-kViewBox / 2.0, -kViewBox / 2.0);
+    // Pen as well as brush, and at the outline's own weight: filling alone
+    // loses the half-stroke the shape is drawn with, and the icon comes out
+    // visibly smaller than the stroked one beside it.
+    QPen pen(color);
+    pen.setWidthF(kStrokeWidth);
+    pen.setCapStyle(Qt::RoundCap);
+    pen.setJoinStyle(Qt::RoundJoin);
+    painter->setPen(pen);
+    painter->setBrush(color);
+    painter->drawPath(path);
+    painter->restore();
+}
+
 QPixmap glyphPixmap(Glyph glyph, int size, const QColor& color, qreal devicePixelRatio,
                     double rotationDeg,const QWidget* context)
 {
