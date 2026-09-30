@@ -6,10 +6,14 @@
 #include "novu/ui/StyleSpec.h"
 
 #include <QAbstractScrollArea>
+#include <QPoint>
+#include <QRect>
 #include <QHash>
 #include <QString>
 #include <QStringList>
 #include <QVector>
+
+class QLineEdit;
 
 namespace novu::ui {
 
@@ -129,6 +133,34 @@ public:
     void setNodeExpandable(const QString& id, bool expandable);
     bool isNodeExpandable(const QString& id) const;
 
+    // ── gestures ─────────────────────────────────────────────────────────
+    //
+    // A tree offers them; what any of them MEANS is the caller's. None of
+    // these know what a node is. A tree that renames a file and a tree that
+    // renames a conversation make the same gesture and call different
+    // services, and neither service is ever in here.
+
+    // The small action a row offers while the pointer is on it.
+    //
+    // Its slot in the trailing zone is reserved as soon as the action is set
+    // and the glyph is only drawn while the row is hovered, so nothing in the
+    // row moves when the pointer arrives - a count that shifts sideways under
+    // the cursor is how a row becomes impossible to click.
+    void setRowAction(const QString& id, Glyph glyph, const QString& tooltip = QString());
+    void clearRowAction(const QString& id);
+    QRect rowActionRect(int row) const;
+
+    // Rename, in the row. F2 starts it on the current node; a caller can
+    // start it on any node, which is what "made a new one, name it now"
+    // needs. Enter commits, Escape abandons, and losing focus commits - the
+    // behaviour every file manager has, where clicking away means you are
+    // done rather than that you changed your mind.
+    void beginRename(const QString& id);
+    void commitRename();
+    void cancelRename();
+    bool isRenaming() const { return m_editor != nullptr; }
+    QString renamingId() const { return m_editing; }
+
     // ── state ────────────────────────────────────────────────────────────
     bool isExpanded(const QString& id) const;
     void setExpanded(const QString& id, bool expanded);
@@ -169,6 +201,17 @@ signals:
     void currentChanged(const QString& id);
     void expandToggled(const QString& id, bool expanded);
 
+    void rowActionTriggered(const QString& id);
+    // A right-click, with the node under the pointer already made current.
+    //
+    // Making it current is the point: a menu built from "the selection" after
+    // a right-click somewhere else acts on the node the user last clicked,
+    // not the one they just aimed at, and deletes the wrong thing. Empty when
+    // the click landed on no row.
+    void contextMenuRequested(const QString& id, const QPoint& globalPosition);
+    void renameCommitted(const QString& id, const QString& text);
+    void renameCancelled(const QString& id);
+
 protected:
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
@@ -178,10 +221,19 @@ protected:
     void mouseMoveEvent(QMouseEvent* event) override;
     void leaveEvent(QEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
+    void contextMenuEvent(QContextMenuEvent* event) override;
     bool event(QEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     int indentStep() const;
+    // Where a row's name starts: the indent, the chevron's reserved width and
+    // the icon. Shared so the inline editor sits exactly where the label it
+    // replaces was.
+    int contentLeft(int row) const;
+    void layOutEditor();
+    void endRename(bool commit);
+
     struct Node
     {
         QString id;
@@ -193,6 +245,8 @@ private:
         Badge::Tone tagTone = Badge::Tone::Neutral;
         QVector<Glyph> marks;
         Glyph glyph = Glyph::None;
+        Glyph action = Glyph::None;
+        QString actionTip;
         Kind kind = Kind::Item;
         Mark mark = Mark::None;
         int count = -1;
@@ -230,6 +284,10 @@ private:
     bool m_hoveredChevron = false;
     int m_pressed = -1;
     bool m_pressedChevron = false;
+    int m_pressedAction = -1;
+    QLineEdit* m_editor = nullptr;
+    QString m_editing;
+    bool m_endingRename = false;
     bool m_compact = false;
     bool m_branchesVisible=true,m_guidesVisible=true;
     int m_rowHeight=0;

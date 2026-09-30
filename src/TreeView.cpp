@@ -6,7 +6,9 @@
 
 #include <QEvent>
 #include <QFontMetrics>
+#include <QContextMenuEvent>
 #include <QKeyEvent>
+#include <QLineEdit>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QRadialGradient>
@@ -36,6 +38,9 @@ constexpr int kRowPaddingRight = 6;
 constexpr int kChevron = 14;
 constexpr int kIcon = 14;
 constexpr int kMarkGlyph = 12;
+// The hover action sits in the trailing zone at a mark's size: it is
+// one more small glyph at the end of a row, not a button bolted on.
+constexpr int kRowAction = 14;
 constexpr int kMarkGap = 5;
 
 // `.trow .cnt { padding:1px 6px }`.
@@ -623,8 +628,190 @@ void TreeView::resizeEvent(QResizeEvent* event)
 
 void TreeView::scrollContentsBy(int dx, int dy)
 {
+    if (m_editor) {
+        layOutEditor();
+    }
     QAbstractScrollArea::scrollContentsBy(dx, dy);
     viewport()->update();
+}
+
+// =============================================================================
+// Gestures
+// =============================================================================
+
+void TreeView::setRowAction(const QString& id, Glyph glyph, const QString& tooltip)
+{
+    auto it = m_nodes.find(id);
+    if (it == m_nodes.end()) {
+        return;
+    }
+    it->action = glyph;
+    it->actionTip = tooltip;
+    viewport()->update();
+}
+
+void TreeView::clearRowAction(const QString& id)
+{
+    setRowAction(id, Glyph::None, QString());
+}
+
+QRect TreeView::rowActionRect(int row) const
+{
+    const QRect box = rowRect(row);
+    if (!box.isValid()) {
+        return {};
+    }
+    return QRect(box.right() - kRowPaddingRight - kRowAction,
+                 box.center().y() - kRowAction / 2, kRowAction, kRowAction);
+}
+
+int TreeView::contentLeft(int row) const
+{
+    if (row < 0 || row >= m_rows.size()) {
+        return kRowPaddingLeft;
+    }
+    const Node* entry = node(m_rows.at(row));
+    if (!entry) {
+        return kRowPaddingLeft;
+    }
+    int x = kRowPaddingLeft + entry->depth * indentStep();
+    if (m_branchesVisible) {
+        x += kChevron + kRowGap;
+    }
+    // The same two shapes paintEvent puts here, measured the same way: a file
+    // type chip when the name has an extension worth naming, an icon
+    // otherwise.
+    const QString fileType = fileTypeText(entry->label, entry->glyph);
+    if (!fileType.isEmpty()) {
+        QFont typeFont = roleMonoFont(this, TypeRole::Mono);
+        typeFont.setPixelSize(qMax(8, themeFor(this).type.xxs));
+        const QFontMetrics typeMetrics(typeFont, viewport());
+        x += qMax(20, typeMetrics.horizontalAdvance(fileType) + 6) + kRowGap;
+    } else if (entry->glyph != Glyph::None) {
+        x += kIcon + kRowGap;
+    }
+    return x;
+}
+
+void TreeView::beginRename(const QString& id)
+{
+    if (!m_nodes.contains(id)) {
+        return;
+    }
+    if (m_editor) {
+        endRename(true);
+    }
+    revealNode(id);
+    const int row = rowOf(id);
+    if (row < 0) {
+        return;   // an ancestor refused to open; nothing to edit in place
+    }
+
+    m_editing = id;
+    m_editor = new QLineEdit(viewport());
+    m_editor->setObjectName(QStringLiteral("tree.rename"));
+    m_editor->setFrame(false);
+    m_editor->setText(label(id));
+    m_editor->selectAll();
+    m_editor->installEventFilter(this);
+    layOutEditor();
+    m_editor->show();
+    m_editor->setFocus(Qt::OtherFocusReason);
+    viewport()->update();
+}
+
+void TreeView::layOutEditor()
+{
+    if (!m_editor) {
+        return;
+    }
+    const int row = rowOf(m_editing);
+    if (row < 0) {
+        // Scrolled out of the visible set. Committing here would write a name
+        // the user can no longer see; the edit is abandoned instead.
+        endRename(false);
+        return;
+    }
+    const QRect box = rowRect(row);
+    const int left = contentLeft(row);
+    m_editor->setGeometry(QRect(box.left() + left, box.top() + 2,
+                                qMax(40, box.right() - kRowPaddingRight - box.left() - left),
+                                box.height() - 4));
+}
+
+void TreeView::commitRename() { endRename(true); }
+void TreeView::cancelRename() { endRename(false); }
+
+void TreeView::endRename(bool commit)
+{
+    // Committing on focus-out means the editor is destroyed from inside its
+    // own event handling, and Qt hands focus on during that - straight back
+    // into here. Once is enough.
+    if (!m_editor || m_endingRename) {
+        return;
+    }
+    m_endingRename = true;
+
+    const QString id = m_editing;
+    const QString text = m_editor->text().trimmed();
+    QLineEdit* editor = m_editor;
+    m_editor = nullptr;
+    m_editing.clear();
+    editor->removeEventFilter(this);
+    editor->hide();
+    editor->deleteLater();
+    setFocus(Qt::OtherFocusReason);
+    viewport()->update();
+    m_endingRename = false;
+
+    // An empty name and an unchanged one are both "nothing happened". The
+    // caller is told nothing was renamed rather than being asked to work out
+    // that the new name equals the old one.
+    if (!commit || text.isEmpty() || text == label(id)) {
+        emit renameCancelled(id);
+        return;
+    }
+    // The label is NOT written here. Whether the rename took is the service's
+    // answer, and a row that renamed itself optimistically and then failed is
+    // a lie the tree told on the service's behalf.
+    emit renameCommitted(id, text);
+}
+
+bool TreeView::eventFilter(QObject* watched, QEvent* event)
+{
+    if (m_editor && watched == m_editor) {
+        if (event->type() == QEvent::KeyPress) {
+            const int key = static_cast<QKeyEvent*>(event)->key();
+            if (key == Qt::Key_Return || key == Qt::Key_Enter) {
+                endRename(true);
+                return true;
+            }
+            if (key == Qt::Key_Escape) {
+                endRename(false);
+                return true;
+            }
+        } else if (event->type() == QEvent::FocusOut) {
+            endRename(true);
+            return false;
+        }
+    }
+    return QAbstractScrollArea::eventFilter(watched, event);
+}
+
+void TreeView::contextMenuEvent(QContextMenuEvent* event)
+{
+    const int row = rowAt(event->pos());
+    if (row < 0 || row >= m_rows.size()) {
+        emit contextMenuRequested(QString(), event->globalPos());
+        event->accept();
+        return;
+    }
+    const QString id = m_rows.at(row);
+    // Current first, then the menu: everything the menu offers is about this
+    // node, and it must be the node the pointer is on.
+    setCurrentId(id);
+    emit contextMenuRequested(id, event->globalPos());
+    event->accept();
 }
 
 bool TreeView::event(QEvent* event)
@@ -653,6 +840,15 @@ void TreeView::mousePressEvent(QMouseEvent* event)
         m_pressed = -1;
         return;
     }
+    // So is the row action, for the same reason the chevron is: pressing the
+    // plus on a row is not pressing the row.
+    if (entry->action != Glyph::None && rowActionRect(row).contains(position)) {
+        m_pressed = -1;
+        m_pressedAction = row;
+        viewport()->update();
+        return;
+    }
+
     m_pressed = row;
     // The chevron is a target of its own: opening a folder and selecting it are
     // different actions on the same line.
@@ -662,6 +858,18 @@ void TreeView::mousePressEvent(QMouseEvent* event)
 
 void TreeView::mouseReleaseEvent(QMouseEvent* event)
 {
+    if (event->button() == Qt::LeftButton && m_pressedAction >= 0) {
+        const int pressedAction = m_pressedAction;
+        m_pressedAction = -1;
+        viewport()->update();
+        const QPoint position = event->position().toPoint();
+        if (rowAt(position) == pressedAction
+            && rowActionRect(pressedAction).contains(position)
+            && pressedAction < m_rows.size()) {
+            emit rowActionTriggered(m_rows.at(pressedAction));
+        }
+        return;
+    }
     if (event->button() != Qt::LeftButton || m_pressed < 0) {
         QAbstractScrollArea::mouseReleaseEvent(event);
         return;
@@ -697,6 +905,13 @@ void TreeView::mouseMoveEvent(QMouseEvent* event)
     const QPoint position = event->position().toPoint();
     const int row = rowAt(position);
     const bool onChevron = row >= 0 && chevronRect(row).contains(position);
+    // The action says what it does while the pointer is on it. A bare glyph
+    // that appears on hover and is never explained is a guess.
+    const Node* hoveredNode = row >= 0 && row < m_rows.size() ? node(m_rows.at(row)) : nullptr;
+    const bool onAction = hoveredNode && hoveredNode->action != Glyph::None
+        && rowActionRect(row).contains(position);
+    viewport()->setToolTip(onAction ? hoveredNode->actionTip : QString());
+
     if (row != m_hovered || onChevron != m_hoveredChevron) {
         m_hovered = row;
         m_hoveredChevron = onChevron;
@@ -720,6 +935,11 @@ void TreeView::keyPressEvent(QKeyEvent* event)
     const int row = rowOf(m_current);
 
     switch (event->key()) {
+    case Qt::Key_F2:
+        if (!m_current.isEmpty()) {
+            beginRename(m_current);
+        }
+        return;
     case Qt::Key_Down:
         if (row + 1 < m_rows.size()) {
             setCurrentId(m_rows.at(row + 1));
@@ -966,6 +1186,24 @@ void TreeView::paintEvent(QPaintEvent*)
         // The trailing zone, measured from the right so the name gets what is
         // left rather than the other way round.
         int rightEdge = box.right() - kRowPaddingRight;
+
+        // The hover action takes the outermost slot. It is subtracted whether
+        // or not it is drawn, so arriving with the pointer reveals a glyph
+        // and moves nothing.
+        if (entry->action != Glyph::None) {
+            const QRect slot = rowActionRect(row);
+            if (row == m_hovered) {
+                if (m_pressedAction == row) {
+                    painter.setPen(Qt::NoPen);
+                    painter.setBrush(profile.colors.surfaceHover);
+                    painter.drawRoundedRect(QRectF(slot), profile.radii.xs + 1,
+                                            profile.radii.xs + 1);
+                }
+                paintGlyph(&painter, entry->action, QRectF(slot).adjusted(2, 2, -2, -2),
+                           withAlpha(ink, 0.9));
+            }
+            rightEdge = slot.left() - kRowGap;
+        }
         if(!entry->meta.isEmpty()){
             auto font=roleMonoFont(this,TypeRole::Mono);font.setPointSizeF(9.0*72/logicalDpiY());const QFontMetrics metrics(font,viewport());const int width=metrics.horizontalAdvance(entry->meta);
             painter.setFont(font);painter.setPen(current?profile.colors.accent:profile.colors.textDisabled);painter.drawText(QRect(rightEdge-width,box.top(),width,box.height()),Qt::AlignVCenter,entry->meta);rightEdge-=width+kRowGap;
