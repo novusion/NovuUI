@@ -1336,8 +1336,12 @@ void NavList::paintEvent(QPaintEvent*)
                                                    : box.center().y()));
                 painter.drawLine(QPointF(guide, box.center().y()),
                                  QPointF(left - 8, box.center().y()));
-            } else if (!row.expandable) {
+            } else if (!row.expandable && row.glyph == Glyph::None) {
                 // `.navbtn.child .dot` — a small square, accent when current.
+                //
+                // Only for a child with no icon of its own: the marker stands
+                // in for one. A row that has a glyph was getting both, which
+                // read as a bullet point in front of an icon.
                 const QRectF marker(left - kChildMarker - kLeadGap + 4,
                                     box.center().y() - kChildMarker / 2.0,
                                     kChildMarker, kChildMarker);
@@ -1351,8 +1355,38 @@ void NavList::paintEvent(QPaintEvent*)
         const QRectF glyphBox(left, box.center().y() - kGlyphSide / 2.0,
                               kGlyphSide, kGlyphSide);
         if (row.glyph != Glyph::None) {
-            paintGlyph(&painter, row.glyph, glyphBox,
-                       current && m_accentCurrentGlyph ? profile.colors.accent : ink);
+            // Size and idle tint taken from TreeView, which is the tree
+            // NovuAI's workspaces are drawn in - not estimated here. It draws
+            // a node icon at kIcon = 14 against this list's 16, and steps a
+            // quiet one back with kMarkIdleOpacity = 0.7 on the row's own ink
+            // rather than reaching for a different colour.
+            //
+            // The 14 is centred inside the 16 the row already reserves, so the
+            // icon matches the tree while every row in the rail keeps the
+            // column it had - and the box does not change between selected and
+            // not, which would make the icon jump as you move through the list.
+            constexpr double kTreeIcon = 14.0;
+            constexpr double kTreeIdleOpacity = 0.7;
+            const QRectF filledBox =
+                QRectF(glyphBox.center().x() - kTreeIcon / 2.0,
+                       glyphBox.center().y() - kTreeIcon / 2.0,
+                       kTreeIcon, kTreeIcon);
+
+            QColor glyphInk = ink;
+            if (current && m_accentCurrentGlyph) {
+                glyphInk = profile.colors.accent;
+            } else if (m_filledGlyphs && row.enabled) {
+                glyphInk = withAlpha(ink, kTreeIdleOpacity);
+            }
+            // Solid where the glyph has a solid form, and only when the list
+            // was asked for it. paintGlyphFilled() paints the same path with
+            // a brush, so this is the same icon rather than a second one.
+            if (m_filledGlyphs
+                && (glyphFillsCleanly(row.glyph) || glyphFillsAsSilhouette(row.glyph))) {
+                paintGlyphFilled(&painter, row.glyph, filledBox, glyphInk, this);
+            } else {
+                paintGlyph(&painter, row.glyph, glyphBox, glyphInk);
+            }
             if (!reserve.glyph || m_collapsed) {
                 left = static_cast<int>(glyphBox.right()) + kLeadGap;
             }

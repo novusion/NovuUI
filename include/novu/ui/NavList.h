@@ -174,6 +174,15 @@ public:
     // selected row's glyph in the product accent, as in NovuAI Documents.
     void setPlainCounts(bool plain) { m_plainCounts = plain; updateGeometry(); update(); }
     void setAccentCurrentGlyph(bool accent) { m_accentCurrentGlyph = accent; update(); }
+
+    //! Draw row icons solid rather than as outlines, where the glyph has a
+    //! solid form. Off by default: a rail of outlines is what the other
+    //! modules draw, and this must not change under them.
+    //!
+    //! Only glyphs that say they fill are affected - glyphFillsCleanly() for
+    //! a folder, glyphFillsAsSilhouette() for the workspace cube - so a glyph
+    //! that would turn into a blob is left as an outline.
+    void setFilledGlyphs(bool filled) { m_filledGlyphs = filled; update(); }
     bool hasPlainCounts() const { return m_plainCounts; }
     bool accentsCurrentGlyph() const { return m_accentCurrentGlyph; }
 
@@ -322,6 +331,7 @@ private:
     int m_hovered = -1;
     bool m_plainCounts = false;
     bool m_accentCurrentGlyph = false;
+    bool m_filledGlyphs = false;
     bool m_hoveredTwisty = false;
     // Where the press landed, and in which zone. A click is press and release
     // in the same place; a release elsewhere is a cancelled gesture.

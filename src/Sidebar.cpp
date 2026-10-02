@@ -28,6 +28,9 @@ namespace {
 constexpr int kConnPaddingH = 10;
 constexpr int kConnPaddingV = 7;
 constexpr int kConnGap = 8;
+// Between the host and the detail beneath it. Tight: they are one block
+// saying one thing, not two rows.
+constexpr int kConnLineGap = 1;
 constexpr int kConnDot = 7;
 constexpr double kConnGlowScale = 2.6;
 
@@ -58,6 +61,7 @@ SemanticRole roleFor(ConnectionStrip::State state)
     switch (state) {
     case ConnectionStrip::State::Degraded: return SemanticRole::Warning;
     case ConnectionStrip::State::Offline:  return SemanticRole::Danger;
+    case ConnectionStrip::State::Unknown:  return SemanticRole::Neutral;
     case ConnectionStrip::State::Online:   break;
     }
     return SemanticRole::Success;
@@ -371,14 +375,26 @@ ResolvedStyle ConnectionStrip::resolvedStyle() const
 QSize ConnectionStrip::sizeHint() const
 {
     const QFontMetrics hosts(hostFont(this));
-    const int height = qMax(hosts.height(), kConnActionSide) + 2 * kConnPaddingV;
+    const QFontMetrics details(detailFont(this));
+
+    // Two stacked lines, not one shared one. A strip with nothing to add is
+    // still one line tall, so a module that reports no detail does not leave
+    // a gap where a second line would have been.
+    int textHeight = hosts.height();
+    if (!m_detail.isEmpty()) {
+        textHeight += kConnLineGap + details.height();
+    }
+    const int height = qMax(textHeight, kConnActionSide) + 2 * kConnPaddingV;
+
     if (m_compact) {
         return QSize(kConnDot + 2 * kConnPaddingH, height);
     }
-    int width = 2 * kConnPaddingH + kConnDot + kConnGap + hosts.horizontalAdvance(m_host);
+    // The widest line decides the width now that they are stacked.
+    int text = hosts.horizontalAdvance(m_host);
     if (!m_detail.isEmpty()) {
-        width += kConnGap + QFontMetrics(detailFont(this)).horizontalAdvance(m_detail);
+        text = qMax(text, details.horizontalAdvance(m_detail));
     }
+    int width = 2 * kConnPaddingH + kConnDot + kConnGap + text;
     if (m_action != Glyph::None) {
         width += kConnGap + kConnActionSide;
     }
@@ -415,7 +431,13 @@ void ConnectionStrip::paintEvent(QPaintEvent*)
     }
 
     const double dotLeft = m_compact ? (width() - kConnDot) / 2.0 : kConnPaddingH;
-    const QRectF dot(dotLeft, (height() - kConnDot) / 2.0, kConnDot, kConnDot);
+    // Centred on the host's line rather than on the widget, so it reads as
+    // marking the name it belongs to instead of floating between two lines.
+    const QFontMetrics hostLineMetrics(hostFont(this));
+    const double dotTop = m_compact || m_detail.isEmpty()
+        ? (height() - kConnDot) / 2.0
+        : kConnPaddingV + (hostLineMetrics.height() - kConnDot) / 2.0;
+    const QRectF dot(dotLeft, dotTop, kConnDot, kConnDot);
     const QPointF centre = dot.center();
     const double glow = kConnDot * kConnGlowScale / 2.0;
 
@@ -455,25 +477,56 @@ void ConnectionStrip::paintEvent(QPaintEvent*)
         rightEdge = box.left() - kConnGap;
     }
 
-    if (!m_detail.isEmpty()) {
-        const QFont font = detailFont(this);
-        const QFontMetrics fm(font);
-        const int detailWidth = fm.horizontalAdvance(m_detail);
-        painter.setFont(font);
-        painter.setPen(profile.colors.textDisabled);
-        painter.drawText(QRect(rightEdge - detailWidth, 0, detailWidth, height()),
-                         Qt::AlignVCenter | Qt::AlignRight, m_detail);
-        rightEdge -= detailWidth + kConnGap;
+    // The band the two texts share: everything between the dot and whatever the
+    // action left of the right edge. Both are laid out inside it and neither may
+    // leave it.
+    //
+    // The detail used to be drawn at its natural width at `rightEdge - width`,
+    // with nothing clamping it. A detail longer than the strip - "server replied:
+    // Not Found" on a 238px rail - therefore started at a negative x, so its tail
+    // was painted over and to the left of the status dot and its head was cut off
+    // by the widget edge. That fragment before the dot was the bug. The host then
+    // got a width of zero and vanished, which is why the strip showed a transport
+    // error where the hostname belongs.
+    const int contentLeft = static_cast<int>(dot.right()) + kConnGap;
+    const int contentRight = rightEdge;
+    const int band = qMax(0, contentRight - contentLeft);
+
+    if (band <= 0) {
+        return;
     }
 
-    const QFont font = hostFont(this);
-    const QFontMetrics fm(font);
-    const int left = static_cast<int>(dot.right()) + kConnGap;
-    painter.setFont(font);
+    const QFont hostTypeface = hostFont(this);
+    const QFontMetrics hostMetrics(hostTypeface);
+    const QFont detailTypeface = detailFont(this);
+    const QFontMetrics detailMetrics(detailTypeface);
+
+    // Stacked, each with the whole band. Neither competes with the other for
+    // width any more, so a long host elides against the rail rather than
+    // against a status sentence, and the sentence is readable instead of
+    // being cut to half a strip.
+    const bool twoLines = !m_detail.isEmpty();
+    const int textHeight = hostMetrics.height()
+        + (twoLines ? kConnLineGap + detailMetrics.height() : 0);
+    const int top = (height() - textHeight) / 2;
+
+    painter.setFont(hostTypeface);
     painter.setPen(style.foreground);
-    const QRect textBox(left, 0, qMax(0, rightEdge - left), height());
-    painter.drawText(textBox, Qt::AlignVCenter | Qt::AlignLeft,
-                     fm.elidedText(m_host, Qt::ElideMiddle, textBox.width()));
+    const QRect hostBox(contentLeft, top, band, hostMetrics.height());
+    // The middle of a host is what you can lose - "imap.novusion.io" shortens
+    // to "imap...io" and still says which one it is.
+    painter.drawText(hostBox, Qt::AlignVCenter | Qt::AlignLeft,
+                     hostMetrics.elidedText(m_host, Qt::ElideMiddle, band));
+
+    if (twoLines) {
+        painter.setFont(detailTypeface);
+        painter.setPen(profile.colors.textDisabled);
+        const QRect detailBox(contentLeft, hostBox.bottom() + 1 + kConnLineGap,
+                              band, detailMetrics.height());
+        // A sentence loses its end, like any other sentence.
+        painter.drawText(detailBox, Qt::AlignVCenter | Qt::AlignLeft,
+                         detailMetrics.elidedText(m_detail, Qt::ElideRight, band));
+    }
 }
 
 // == Sidebar ================================================================

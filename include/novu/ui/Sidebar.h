@@ -34,6 +34,11 @@ public:
         Online,    // the light breathes
         Degraded,  // amber, still lit
         Offline,   // danger, and the breathing stops
+        // Nothing has been established yet, or the module does not track a
+        // link. Neutral rather than Offline: "not connected" and "we have not
+        // looked" are different things, and a red light for the second is a
+        // fault the person then goes looking for.
+        Unknown,
     };
 
     explicit ConnectionStrip(QWidget* parent = nullptr);
@@ -43,6 +48,12 @@ public:
 
     // Free text rather than a number, because "52 ms", "—" and "timing out"
     // all belong in the same place and only the first is a measurement.
+    //
+    // Drawn on its own line under the host. It shared a line with it and took
+    // at most half the width, so a host long enough to matter and a detail
+    // worth reading could not both be there: "trade.novuhub.com" elided to
+    // "trade...com" to make room for "Connection to..." which elided as well,
+    // and two half-sentences side by side read as neither.
     QString detail() const { return m_detail; }
     void setDetail(const QString& detail);
 

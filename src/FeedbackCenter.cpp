@@ -12,6 +12,7 @@
 #include <QAbstractListModel>
 #include <QHBoxLayout>
 #include <QListView>
+#include <QScrollBar>
 #include <QPainter>
 #include <QResizeEvent>
 #include <QStackedWidget>
@@ -132,21 +133,33 @@ private:
 
 namespace {
 
-// One compact row: the title, where it came from, and where it got to.
-// Deliberately not a card - a card per report in a list of two hundred is a
-// lot of chrome for very little information.
+// One line per report: its reference, its title, and its status as a badge.
+//
+// Three things, because three is what it takes to find a report again - which
+// one it is, what it was about, and whether anything has happened to it. The
+// row carried a second line of area, status and version as running text as
+// well, and a list of those reads as a stack of paragraphs rather than as a
+// list you can scan. Everything else now lives in the detail, which is one
+// click away and has room for it.
+//
+// Painted rather than built from widgets, and the badge is painted too:
+// paintBadge() is what Badge itself draws through, so the pill in a row and a
+// Badge on a card are the same badge measured by the same code. A Badge
+// instance per row is exactly what a painted list exists to avoid.
 class RowDelegate : public QStyledItemDelegate
 {
 public:
-    RowDelegate(FeedbackCenterView::Model* model, QObject* parent)
-        : QStyledItemDelegate(parent), m_model(model) {}
+    RowDelegate(FeedbackCenterView::Model* model, QWidget* view)
+        : QStyledItemDelegate(view), m_model(model), m_view(view) {}
 
     QSize sizeHint(const QStyleOptionViewItem& option,
                    const QModelIndex& index) const override
     {
         Q_UNUSED(option)
         Q_UNUSED(index)
-        return {0, 58};
+        // One line of text plus the plate's own breathing room. Was 58 for
+        // two lines; a list of ten now fits where four did.
+        return {0, 34};
     }
 
     void paint(QPainter* painter, const QStyleOptionViewItem& option,
@@ -156,63 +169,79 @@ public:
             return;
         }
         const FeedbackPresentationItem& item = m_model->at(index.row());
-        const ThemeProfile& profile = ThemeManager::instance().defaultProfile();
+        const ThemeProfile& profile = themeFor(m_view);
 
         painter->save();
         painter->setRenderHint(QPainter::Antialiasing, true);
 
-        QRect box = option.rect.adjusted(6, 3, -6, -3);
-        if (option.state & QStyle::State_Selected) {
-            painter->setBrush(profile.colors.surfaceHover);
-            painter->setPen(Qt::NoPen);
-            painter->drawRoundedRect(box, 8, 8);
-        } else if (option.state & QStyle::State_MouseOver) {
+        const QRect box = option.rect.adjusted(4, 1, -4, -1);
+        if (option.state & (QStyle::State_Selected | QStyle::State_MouseOver)) {
             painter->setBrush(profile.colors.surfaceHover);
             painter->setPen(Qt::NoPen);
             painter->drawRoundedRect(box, 8, 8);
         }
 
-        const QRect text = box.adjusted(10, 8, -10, -8);
+        QRect content = box.adjusted(10, 0, -10, 0);
+
+        // The badge first, from the right: it is the only part whose width is
+        // not negotiable, so the title gets whatever is left rather than the
+        // badge being pushed off the end by a long one.
+        const FeedbackStatusDisplay display = feedbackStatusDisplay(item);
+        const QSize badge = badgeSizeFor(m_view, display.label,
+                                         Badge::Size::Compact, true);
+        const QRect badgeRect(content.right() - badge.width() + 1,
+                              content.top() + (content.height() - badge.height()) / 2,
+                              badge.width(), badge.height());
+        paintBadge(painter, badgeRect, m_view, display.label, display.tone,
+                   Badge::Size::Compact, true);
+        content.setRight(badgeRect.left() - profile.space(SpacingRole::ToolbarGap));
+
+        // The reference, in the mono face: it is an identifier, and a column
+        // of them only lines up in a face where the digits do.
+        //
+        // The column is reserved whether or not this row has one. A report
+        // queued on the device has no server reference yet, and letting its
+        // title start where the references do would make the one row that is
+        // not finished the one row that looks different - the eye reads the
+        // ragged edge as the status, which is what the badge is for.
+        QFont referenceFont(profile.type.monoFamily);
+        referenceFont.setPixelSize(profile.type.sm);
+        painter->setFont(referenceFont);
+        const QFontMetrics referenceMetrics(referenceFont);
+        const int referenceColumn =
+            referenceMetrics.horizontalAdvance(QStringLiteral("FB-0000"))
+            + profile.space(SpacingRole::ToolbarGap);
+        if (!item.reference.isEmpty()) {
+            painter->setPen(profile.colors.textTertiary);
+            painter->drawText(QRect(content.left(), content.top(),
+                                    referenceColumn, content.height()),
+                              Qt::AlignLeft | Qt::AlignVCenter,
+                              referenceMetrics.elidedText(item.reference, Qt::ElideRight,
+                                                          referenceColumn));
+        }
+        content.setLeft(content.left() + referenceColumn);
 
         QFont titleFont(profile.type.family);
         titleFont.setPixelSize(profile.type.md);
         titleFont.setWeight(QFont::DemiBold);
         painter->setFont(titleFont);
-        painter->setPen(profile.colors.textPrimary);
-        painter->drawText(QRect(text.left(), text.top(), text.width(), 18),
-                          Qt::AlignLeft | Qt::AlignVCenter,
-                          painter->fontMetrics().elidedText(
-                              item.title, Qt::ElideRight, text.width()));
-
-        // Second line: area, status, and the version it shipped in when there
-        // is one. Assembled rather than fixed, so a report with no module and
-        // no version still reads as a sentence.
-        QStringList parts;
-        if (!item.moduleLabel.isEmpty()) {
-            parts << item.moduleLabel;
+        // A report the server has not seen is not the same thing as one it
+        // has. The badge says so in words; this keeps the row from reading as
+        // settled at a glance, without a second colour of its own.
+        painter->setPen(item.pending ? profile.colors.textSecondary
+                                     : profile.colors.textPrimary);
+        if (content.width() > 0) {
+            painter->drawText(content, Qt::AlignLeft | Qt::AlignVCenter,
+                              painter->fontMetrics().elidedText(
+                                  item.title, Qt::ElideRight, content.width()));
         }
-        const FeedbackStatusDisplay display = feedbackStatusDisplay(item);
-        parts << display.label;
-        if (!item.resolvedVersion.isEmpty() && !item.pending && !item.failed) {
-            parts << QObject::tr("Available in %1").arg(item.resolvedVersion);
-        }
-
-        QFont subFont(profile.type.family);
-        subFont.setPixelSize(profile.type.sm);
-        painter->setFont(subFont);
-        painter->setPen(item.failed ? profile.semantic.danger.text
-                                    : profile.colors.textSecondary);
-        painter->drawText(QRect(text.left(), text.top() + 20, text.width(), 16),
-                          Qt::AlignLeft | Qt::AlignVCenter,
-                          painter->fontMetrics().elidedText(
-                              parts.join(QStringLiteral(" · ")),
-                              Qt::ElideRight, text.width()));
 
         painter->restore();
     }
 
 private:
     FeedbackCenterView::Model* m_model = nullptr;
+    QWidget* m_view = nullptr;
 };
 
 }
@@ -358,15 +387,43 @@ FeedbackCenterView::FeedbackCenterView(QWidget* parent)
     m_list = new QListView(content);
     m_list->setModel(m_model);
     m_list->setItemDelegate(new RowDelegate(m_model, m_list));
+    m_list->setSpacing(0);
     m_list->setSelectionMode(QAbstractItemView::SingleSelection);
     m_list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_list->setFrameShape(QFrame::NoFrame);
     m_list->setMouseTracking(true);
+    // The list draws on whatever is behind it.
+    //
+    // QListView fills its viewport with QPalette::Base, and that palette is
+    // the host application's, not this popup's. NovuExplorer sets Base to its
+    // panel colour application-wide, so the list blended into the surface;
+    // NovuSpace sets no application palette at all, so Qt's own default Base
+    // painted a pale rectangle behind the rows - a card inside the card, and
+    // the whole of the difference between the two.
+    //
+    // Transparent rather than "the right colour": the right colour is
+    // whatever PopupSurface is painting, and a component that had to know
+    // that would be wrong again in the next host.
+    QPalette listPalette = m_list->palette();
+    listPalette.setColor(QPalette::Base, Qt::transparent);
+    listPalette.setColor(QPalette::Window, Qt::transparent);
+    m_list->setPalette(listPalette);
+    m_list->viewport()->setAutoFillBackground(false);
     m_list->setUniformItemSizes(true);
     contentLayout->addWidget(m_list, 1);
 
     // Enter opens, which is what a keyboard user expects of a list.
     connect(m_list, &QListView::activated, this, [this](const QModelIndex& index) {
+        if (index.isValid()) {
+            const FeedbackPresentationItem item = m_model->at(index.row());
+            showDetail(item);
+            emit itemOpened(item.id);
+        }
+    });
+    // A single click opens. activated() alone is a double click on this
+    // platform, and a list whose rows open on the second click reads as
+    // broken when every row is obviously a link.
+    connect(m_list, &QListView::clicked, this, [this](const QModelIndex& index) {
         if (index.isValid()) {
             const FeedbackPresentationItem item = m_model->at(index.row());
             showDetail(item);
@@ -419,6 +476,20 @@ void FeedbackCenterView::applyFilter()
     const bool empty = visible.isEmpty();
     m_empty->setVisible(empty);
     m_list->setVisible(!empty);
+
+    // A refresh arriving while somebody is reading a report must not throw
+    // them back to the list. The open detail is re-rendered from the new data
+    // instead, so a status that changed underneath is simply shown; and if
+    // the report is gone from the set entirely, what is on screen is left
+    // alone rather than replaced by an empty page.
+    if (!m_openDetailId.isEmpty()) {
+        for (const FeedbackPresentationItem& item : m_items) {
+            if (item.id == m_openDetailId) {
+                showDetail(item);
+                break;
+            }
+        }
+    }
 }
 
 void FeedbackCenterView::setFilterOptions(const QVector<QPair<QString, QString>>& options)
@@ -444,20 +515,53 @@ QString FeedbackCenterView::activeFilterId() const
 
 void FeedbackCenterView::showList()
 {
+    m_openDetailId.clear();
     m_stack->setCurrentWidget(m_listPage);
+    // The list widget was never destroyed, so its filter and its selection
+    // are still what they were; the scroll offset is restored explicitly
+    // because a refresh that changed the set of rows while the detail was
+    // open would have reset it underneath us.
+    if (m_list->verticalScrollBar()) {
+        m_list->verticalScrollBar()->setValue(m_listScroll);
+    }
 }
 
 void FeedbackCenterView::showDetail(const FeedbackPresentationItem& item)
 {
+    // Where the list was, so Back returns to it rather than to the top. Taken
+    // before the page changes and only when we are coming from the list - a
+    // re-render of an open detail must not overwrite it with whatever the
+    // hidden list reads now.
+    if (m_openDetailId.isEmpty() && m_list->verticalScrollBar()) {
+        m_listScroll = m_list->verticalScrollBar()->value();
+    }
+    m_openDetailId = item.id;
+
     while (QLayoutItem* child = m_detailLayout->takeAt(0)) {
         delete child->widget();
         delete child;
     }
 
-    // No back-arrow glyph in this set; the word carries it on its own.
-    auto* back = secondaryButton(tr("Back"), m_detailPage);
-    m_detailLayout->addWidget(back);
+    const ThemeProfile& profile = themeFor(this);
+
+    // The header is the way back and says where back goes. One row, so the
+    // detail opens where the list's own heading was and the panel does not
+    // appear to jump.
+    auto* header = new QWidget(m_detailPage);
+    auto* headerRow = new QHBoxLayout(header);
+    headerRow->setContentsMargins(0, 0, 0, 0);
+    headerRow->setSpacing(profile.space(SpacingRole::ToolbarGap));
+    auto* back = new IconButton(Glyph::Back, header);
+    back->setControlSize(ControlSize::Small);
+    back->setToolTip(tr("Back to your reports"));
+    headerRow->addWidget(back);
+    headerRow->addWidget(label(tr("Your reports"), header,
+                               TypeRole::Eyebrow, Ink::Muted));
+    headerRow->addStretch(1);
+    m_detailLayout->addWidget(header);
     connect(back, &QAbstractButton::clicked, this, &FeedbackCenterView::showList);
+
+    m_detailLayout->addSpacing(profile.space(SpacingRole::SectionGap));
 
     if (!item.reference.isEmpty()) {
         m_detailLayout->addWidget(label(item.reference, m_detailPage,
@@ -469,12 +573,15 @@ void FeedbackCenterView::showDetail(const FeedbackPresentationItem& item)
     m_detailLayout->addWidget(title);
 
     const FeedbackStatusDisplay display = feedbackStatusDisplay(item);
-    auto* status = new Badge(display.label, display.tone, m_detailPage);
+    auto* status = statusBadge(display.label, display.tone, m_detailPage);
     m_detailLayout->addWidget(status, 0, Qt::AlignLeft);
 
+    m_detailLayout->addSpacing(profile.space(SpacingRole::SectionGap));
+
     // Only what the model actually carries. A field the host did not supply
-    // is left out rather than shown empty or invented.
-    const auto addLine = [this](const QString& caption, const QString& value) {
+    // is left out rather than shown empty or filled with something invented -
+    // an "Application" line reading "unknown" would be worse than no line.
+    const auto addLine = [this, &profile](const QString& caption, const QString& value) {
         if (value.isEmpty()) {
             return;
         }
@@ -483,15 +590,16 @@ void FeedbackCenterView::showDetail(const FeedbackPresentationItem& item)
         auto* text = label(value, m_detailPage, TypeRole::Body, Ink::Secondary);
         text->setWordWrap(true);
         m_detailLayout->addWidget(text);
+        m_detailLayout->addSpacing(profile.space(SpacingRole::CardGap));
     };
 
     addLine(tr("Area"), item.moduleLabel);
-    addLine(tr("Context"), item.contextLabel);
     addLine(tr("Type"), item.category);
-    addLine(tr("Reported"), item.createdAt);
     addLine(tr("Description"), item.description);
+    addLine(tr("Submitted"), item.createdAt);
+    addLine(tr("Application"), item.contextLabel);
+    addLine(tr("Resolved in"), item.resolvedVersion);
     addLine(tr("Resolution"), item.resolutionMessage);
-    addLine(tr("Available in"), item.resolvedVersion);
 
     if (item.failed) {
         auto* retry = secondaryButton(tr("Try again"), m_detailPage);

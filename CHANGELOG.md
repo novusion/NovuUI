@@ -10,6 +10,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Foundation work for NUI-002 — making NovuUI the single source of truth for
 desktop UI. Everything here is additive; existing consumers link unchanged.
 
+### Fixed
+
+- **The gem filled half the box it was given.** `paintGem()` scales polygons
+  that occupy 23.40 x 26.77 of their 48-unit grid - 49% of the width and 56%
+  of the height - onto whatever box a caller asks for, so every caller got a
+  mark a little over half the size it requested with the rest as air. A
+  splash screen asking for 24px drew an 11.7 x 13.4px gem. The window is
+  tightened to a 29-unit square around the mark's own centre, which is the
+  viewBox `novuai-mark.svg` already carries; the polygons, tints and grid
+  coordinates are untouched.
+
+- **`FeedbackCenterView` drew a card inside the card.** `QListView` fills its
+  viewport with `QPalette::Base`, and that palette belongs to the host
+  application rather than to the popup: an application that sets Base to its
+  panel colour got a list that blended in, and one that sets no application
+  palette got Qt's own default painting a pale rectangle behind the rows. The
+  viewport is transparent now, so the component sits on whatever surface it
+  is given instead of having to know what colour that is.
+
+- **A child row's icon never reached the list.** `NavList::addChild()` takes a
+  glyph and `SpaceWindow` was not passing one, so a tree whose children asked
+  for an icon got the fallback marker instead - and the module's icon was
+  dropped two layers from where it would have shown.
+
+- **A child row with an icon drew the marker as well.** The small square is a
+  stand-in for a missing icon, so a row that had one got a bullet point in
+  front of it.
+
+### Changed
+
+- **The feedback list is one line per report.** Reference, title and status,
+  with the status drawn through `paintBadge()` - the same code `Badge` itself
+  draws through, so the pill in a row and a Badge on a card are one badge. The
+  row carried a second line of area, status and version as running text, and a
+  list of those reads as a stack of paragraphs rather than something you can
+  scan. Row height 58 to 34. The reference column is reserved whether or not a
+  report has one, so a report still queued on the device keeps its title on
+  the same guide as the rest.
+
+- **The feedback detail opens on a back control** rather than a button in the
+  body, and a cache update arriving while it is open re-renders it in place
+  instead of dropping the reader back to the list.
+
+- **`ConnectionStrip` stacks its host and its detail.** They shared one line
+  and the detail was capped at half of it, so a host worth reading and a state
+  worth reading could not both be there - `trade.novuhub.com` elided to
+  `trade...com` to make room for `Connection to...`, which elided too, and two
+  half-sentences side by side read as neither.
+
+### Added
+
+- **`ConnectionStrip::State::Unknown`**, drawn neutral. "Not connected" and
+  "we have not looked yet" are different things, and a red light for the
+  second is a fault somebody then goes looking for.
+
+- **`NavList::setFilledGlyphs()`**, off by default. Draws row icons solid
+  where the glyph has a solid form - `glyphFillsCleanly()` for a folder,
+  `glyphFillsAsSilhouette()` for the workspace cube - at the size and idle
+  tint `TreeView` already uses for a tree node, so a rail and a tree look like
+  the same product. Opt-in, so the rails that did not ask are untouched.
+
 ### Added
 
 - **`FeedbackForm` / `FeedbackDialog`.** A shared feedback reporter for every

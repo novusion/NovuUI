@@ -157,6 +157,12 @@ private:
     Button* m_send = nullptr;
     QVector<QPair<QString, QString>> m_filterOptions;
     QVector<FeedbackPresentationItem> m_items;
+    //! Which report the detail page is showing, empty while the list is up.
+    //! It is what lets a refresh update an open detail in place instead of
+    //! dropping the reader back to the list.
+    QString m_openDetailId;
+    //! Where the list was when the detail was opened, so Back returns there.
+    int m_listScroll = 0;
 };
 
 // The release channel, when it is worth saying.
