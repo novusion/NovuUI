@@ -219,10 +219,17 @@ TitleBar::TitleBar(QWidget* parent)
     m_row = new QHBoxLayout(this);
     // Real value set in applyTheme(), called at the end of this constructor.
 
-    m_iconLabel = new QLabel(this);
+    m_brand = new QWidget(this);
+    m_brandRow = new QHBoxLayout(m_brand);
+    m_brandRow->setContentsMargins(0, 0, 0, 0);
+    // Spacing set in applyTheme(), like the row's.
+
+    m_iconLabel = new QLabel(m_brand);
     m_iconLabel->setAlignment(Qt::AlignCenter);
     m_iconLabel->hide();
-    m_row->addWidget(m_iconLabel);
+    m_brandRow->addWidget(m_iconLabel);
+    m_brand->hide();   // nothing in it yet
+    m_row->addWidget(m_brand);
 
     m_titleLabel = new QLabel(this);
     m_titleLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
@@ -341,17 +348,19 @@ void TitleBar::setLeading(QWidget* widget)
         return;
     }
     if (m_leading) {
-        m_row->removeWidget(m_leading);
+        m_brandRow->removeWidget(m_leading);
         // Reparented away rather than deleted: the caller owns it.
         m_leading->setParent(nullptr);
     }
     m_leading = widget;
     if (m_leading) {
-        m_leading->setParent(this);
-        // After the icon, before the caption: index 1 is where the icon ends,
-        // and a menu bar reads as belonging to the application mark next to it.
-        m_row->insertWidget(1, m_leading);
+        m_leading->setParent(m_brand);
+        // Beside the mark, in the mark's own row: a menu bar or a brand block
+        // reads as belonging to the application mark next to it, and the two
+        // are spaced as one thing rather than as two controls on the bar.
+        m_brandRow->addWidget(m_leading);
     }
+    updateBrandVisibility();
     applyTheme();
 }
 
@@ -427,6 +436,8 @@ void TitleBar::applyTheme()
     // gap around a hidden QWidgetItem, which is why the icon-only left inset
     // this used to carry on the title label is gone rather than doubled.
     m_row->setSpacing(w.titleBarGap);
+    // The mark and the leading widget are one block when the profile says so.
+    m_brandRow->setSpacing(w.brandGap >= 0 ? w.brandGap : w.titleBarGap);
 
     m_iconLabel->setFixedSize(w.iconSize, w.titleBarHeight);
 
@@ -440,12 +451,34 @@ void TitleBar::applyTheme()
         if (!widget) {
             continue;
         }
-        // A button in the bar is a control, not a row: `.winbtn` is 30x24
-        // and centred, and letting it take the bar's own height gives it a
-        // hover plate the full height of the chrome.
-        if (qobject_cast<QAbstractButton*>(widget)) {
+        // An icon button in the bar is a control, not a row: `.winbtn` is
+        // 30x24 and centred, and letting it take the bar's own height gives
+        // it a hover plate the full height of the chrome.
+        //
+        // Only an icon button, though. A button that asks for more than that
+        // box is a different design primitive carrying a label - `.select.xs`,
+        // a pill with its option written on the front - and forcing it into
+        // `.winbtn` leaves the width of an icon with the label elided away to
+        // nothing, which is exactly what happened to the first labelled
+        // control anybody put in this slot.
+        //
+        // The test is the widget's own sizeHint and nothing this loop writes.
+        // An earlier attempt keyed off the widget's fixed height, which this
+        // very branch then overwrote - so the next applyTheme() saw a widget
+        // that no longer stated its height and boxed it after all. A rule
+        // that destroys the thing it tests works once and then stops.
+        const QSize hint = widget->sizeHint();
+        const bool isBarIcon = hint.width() <= w.controlWidth
+            && hint.height() <= w.controlHeight;
+        if (qobject_cast<QAbstractButton*>(widget) && isBarIcon) {
             widget->setFixedSize(w.controlWidth, w.controlHeight);
-        } else {
+        } else if (widget->maximumHeight() > w.titleBarHeight) {
+            // Only a widget that would otherwise overrun the bar. Writing this
+            // unconditionally caps a control that already states its own
+            // height - and that cap is itself the damage: a layout substitutes
+            // a Fixed-policy widget's sizeHint only while its maximum is still
+            // QWIDGETSIZE_MAX, so handing one a maximum of the bar height is
+            // read as permission to grow to it. A 23px pill came out 40.
             widget->setMaximumHeight(w.titleBarHeight);
         }
     }
@@ -460,6 +493,7 @@ void TitleBar::updateIconPixmap()
     if (m_iconSource.isNull()) {
         m_iconLabel->hide();
         m_iconLabel->clear();
+        updateBrandVisibility();
         return;
     }
     // devicePixelRatio, so the mark is not a blurred 16px bitmap on a 150%
@@ -468,6 +502,17 @@ void TitleBar::updateIconPixmap()
     m_iconLabel->setPixmap(m_iconSource.pixmap(QSize(w.iconSize, w.iconSize),
                                                devicePixelRatioF()));
     m_iconLabel->show();
+    updateBrandVisibility();
+}
+
+// An empty brand row would still take the bar's spacing on either side of
+// itself, which is the gap the hidden-icon case was careful not to leave.
+void TitleBar::updateBrandVisibility()
+{
+    if (!m_brand) {
+        return;
+    }
+    m_brand->setVisible((m_iconLabel && m_iconLabel->isVisible()) || m_leading);
 }
 
 void TitleBar::updateElidedTitle()
@@ -523,11 +568,16 @@ void TitleBar::layoutCentre()
     const ThemeProfile& profile = themeFor(this);
     const int gap = profile.window.titleBarGap;
 
+    // Mapped, not read: both of these live inside the brand row now, so
+    // their own geometry is relative to it rather than to the bar.
+    const auto rightEdgeIn = [this](QWidget* widget) {
+        return widget->mapTo(this, QPoint(widget->width(), 0)).x();
+    };
     int leftLimit = profile.window.titleBarPadding;
     if (m_leading && m_leading->isVisible()) {
-        leftLimit = m_leading->geometry().right() + gap;
+        leftLimit = rightEdgeIn(m_leading) + gap;
     } else if (m_iconLabel && m_iconLabel->isVisible()) {
-        leftLimit = m_iconLabel->geometry().right() + gap;
+        leftLimit = rightEdgeIn(m_iconLabel) + gap;
     }
 
     int rightLimit = width() - profile.window.titleBarPadding;

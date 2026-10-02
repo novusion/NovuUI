@@ -353,7 +353,13 @@ struct ControlMetrics
     qreal buttonDisabledOpacity=-1;
     bool scrollThumbOnAreaHover=false;
     int scrollThumbInset=0;
-    int selectHeight=0,selectSmallHeight=0;
+    // `.select` and `.select.xs`. SelectButton falls back to the button
+    // heights when a profile leaves these at zero, which made `.select.xs`
+    // come out at the small BUTTON height - taller than the 23px the design
+    // gives it, and taller than StatusBar already documents it as being.
+    // Stated here so the component is the height its own header says it is
+    // rather than borrowing a button's.
+    int selectHeight=0,selectSmallHeight=23;
     int iconHeight=0,iconSmallHeight=0;
 
 };
@@ -467,6 +473,18 @@ struct WindowTokens
     // and any trailing widget an application adds.
     int titleBarPadding = 12;
     int titleBarGap = 8;
+    // The gap between the window mark and the application's own leading
+    // widget, when that pair should read tighter than the rest of the bar.
+    //
+    // A logo with the product's name beside it is one block; the bar's other
+    // neighbours - a caption, a toolbar button, a window control - are
+    // separate things and want the wider gap. QHBoxLayout has one spacing for
+    // the whole row, so the pair gets a row of its own.
+    //
+    // -1 means "no opinion": the pair is spaced like everything else and the
+    // bar lays out exactly as it did before this existed. A profile opts in
+    // by setting a value.
+    int brandGap = -1;
     // The trailing edge past the last control, before the window's own edge -
     // the same clearance titleBarPadding gives the icon on the other side, so
     // Close is never flush against the window's own outer edge. Was zero for
