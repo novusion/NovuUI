@@ -56,9 +56,40 @@ void paintGem(QPainter* painter, const QRectF& box, const QColor& accent,
     static const QPointF kTop[] = {{24.00, 24.49}, {35.27, 31.00},
                                    {24.00, 37.51}, {12.73, 31.00}};
 
-    const double scale = box.width() / 48.0;
+    // The box is the mark, not a canvas the mark sits in the middle of.
+    //
+    // The polygons above were drawn on a 48-unit grid and occupy 23.40 x 26.77
+    // of it - 49% of the width and 56% of the height. Scaling that grid onto
+    // the box meant every caller that asked for a mark of a given size got one
+    // a little over half that size, with the rest as air: the splash screen's
+    // 24px request drew an 11.7 x 13.4px gem with 5.8px of nothing around it,
+    // which reads as a small logo placed too far from the name beside it.
+    //
+    // The fix is the window, not the size. Compensating with a larger request
+    // would have scaled the air up with the mark and moved the imbalance
+    // somewhere else.
+    //
+    // Same polygons, same tints, same grid coordinates: only the window onto
+    // them is tightened, to a 29-unit square around the mark's own centre
+    // (24, 24.125). That is the viewBox novuai-mark.svg already carries, so
+    // the drawn mark and the shipped asset agree. The mark then fills 80.7% of
+    // the box horizontally and 92.3% vertically - the proportions are
+    // untouched, both axes simply gained the same factor.
+    constexpr double kWindow = 29.0;
+    constexpr double kWindowX = 9.5;
+    constexpr double kWindowY = 9.625;
+
+    // qMin, so a box that is not square cannot clip the mark on its short
+    // axis. Every caller today passes a square; this costs nothing and stops
+    // one that does not from cutting a corner off.
+    const double unit = qMin(box.width(), box.height()) / kWindow;
     painter->save();
     painter->translate(box.topLeft());
+    // Centre the window in the box, for the same non-square case.
+    painter->translate((box.width() - kWindow * unit) / 2.0,
+                       (box.height() - kWindow * unit) / 2.0);
+    painter->translate(-kWindowX * unit, -kWindowY * unit);
+    const double scale = unit;
     painter->scale(scale, scale);
     painter->setPen(Qt::NoPen);
 
