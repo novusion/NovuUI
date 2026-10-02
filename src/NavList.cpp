@@ -1430,7 +1430,10 @@ void NavList::paintEvent(QPaintEvent*)
 
             const bool filled =
                 profile.controls.navCountStyle == NavCountStyle::Filled;
-            QColor pillInk = profile.colors.textDisabled;
+            // Muted by default, so every rail that has not asked for anything
+            // else draws the chip the approved designs draw.
+            QColor pillInk =
+                token(inkRole(profile.controls.navCountInk)).resolve(profile);
             // `.sb-count{background:var(--card)}` carries no outline of its
             // own; `.cnt` is an outline over the window. One or the other.
             QColor pillBorder = filled ? QColor(Qt::transparent)

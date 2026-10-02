@@ -190,7 +190,7 @@ private slots:
     void novuTradeMatchesTheApprovedMockupTokens();
     void applicationProfilesShareOnePalette();
     void everyProfileSharesTheSemanticPalette();
-    void theOnlyStatusOverrideIsTheLightProfile();
+    void statusOverridesAreStatedOneByOne();
     void semanticColoursReadAgainstTheirOwnSurface();
     void infoIsAStatusAndNotTheApplicationAccent();
     void badgeTonesResolveThroughTheSharedPalette();
@@ -839,9 +839,19 @@ double contrast(const QColor& a, const QColor& b)
 // else that overrides them is drift, and the test below says so by name.
 bool mayOverrideStatus(const QString& profileId)
 {
-    // Surface polarity, not product identity: the shared hues are tuned for
-    // dark panels and fall to 2.5:1 against white.
-    return profileId == QLatin1String("novu-light");
+    // Two exemptions, and each one is here because something other than taste
+    // forces it.
+    //
+    // novu-light: surface polarity, not product identity. The shared hues are
+    // tuned for dark panels and fall to 2.5:1 against white.
+    //
+    // novuvoice: collision. Its approved accent #C47B85 *is* the family's
+    // Danger hue, so on that one profile "failed" and "this is NovuVoice"
+    // would be the same colour - and its design says outright that the accent
+    // is never a status. It states --red:#E5484D for exactly this reason. It
+    // overrides Danger and nothing else.
+    return profileId == QLatin1String("novu-light")
+        || profileId == QLatin1String("novuvoice");
 }
 
 } // namespace
@@ -890,6 +900,20 @@ void GalleryTest::applicationProfilesShareOnePalette()
             {"infoPlate", c.infoPlate, shared.infoPlate},
         };
         for (const auto& e : entries) {
+            // A profile that mayOverrideStatus() lets state its own status hue
+            // states it here as well. Everything that is not a status - every
+            // surface, every hairline, every ink - stays identical, which is
+            // the part of this test that is actually about drift.
+            const QLatin1String name(e.name);
+            const bool status = name == QLatin1String("success")
+                || name == QLatin1String("warning") || name == QLatin1String("danger")
+                || name == QLatin1String("info") || name == QLatin1String("successPlate")
+                || name == QLatin1String("warningPlate")
+                || name == QLatin1String("dangerPlate")
+                || name == QLatin1String("infoPlate");
+            if (status && mayOverrideStatus(id)) {
+                continue;
+            }
             QVERIFY2(same(e.mine, e.theirs),
                      qPrintable(QStringLiteral("%1 forked %2: %3 against %4")
                                     .arg(id, QLatin1String(e.name),
@@ -926,6 +950,10 @@ void GalleryTest::applicationProfilesShareOnePalette()
     const ThemeColors voice = ThemeManager::instance().profile(QStringLiteral("novuvoice")).colors;
     QCOMPARE(voice.accentLight.name(), QStringLiteral("#da98a1"));
     QCOMPARE(voice.textOnAccent.name(), QStringLiteral("#1b1014"));
+    // `--red:#E5484D`, stated by the same mockup as the accent above, and the
+    // whole point of it: on this one profile the two must not be one colour.
+    QCOMPARE(voice.danger.name(), QStringLiteral("#e5484d"));
+    QVERIFY(voice.danger != voice.accent);
 }
 
 void GalleryTest::everyProfileSharesTheSemanticPalette()
@@ -946,10 +974,11 @@ void GalleryTest::everyProfileSharesTheSemanticPalette()
     }
 }
 
-void GalleryTest::theOnlyStatusOverrideIsTheLightProfile()
+void GalleryTest::statusOverridesAreStatedOneByOne()
 {
-    // Stated as a test so that adding a second exception is a deliberate act
-    // with a reason attached, not a line in a palette nobody re-reads.
+    // Stated as a test so that adding an exception is a deliberate act with a
+    // reason attached, not a line in a palette nobody re-reads. Each id below
+    // is answered by mayOverrideStatus(), which carries the reason.
     const SemanticHues& shared = sharedSemanticHues();
     QStringList overriding;
     for (const QString& id : ThemeManager::instance().profileIds()) {
@@ -962,7 +991,9 @@ void GalleryTest::theOnlyStatusOverrideIsTheLightProfile()
             overriding.append(id);
         }
     }
-    QCOMPARE(overriding, QStringList{QStringLiteral("novu-light")});
+    overriding.sort();
+    QCOMPARE(overriding, (QStringList{QStringLiteral("novu-light"),
+                                      QStringLiteral("novuvoice")}));
 }
 
 void GalleryTest::semanticColoursReadAgainstTheirOwnSurface()
@@ -2242,6 +2273,13 @@ void GalleryTest::aProductOwnsItsAccentAndNothingElse()
         QCOMPARE(c.windowBg.name(), base.windowBg.name());
         QCOMPARE(c.panelBg.name(), base.panelBg.name());
         QCOMPARE(c.textPrimary.name(), base.textPrimary.name());
+        // A profile that mayOverrideStatus() lets state its own status hue is
+        // still held to the surfaces and the ink above, which is where "and
+        // nothing else" actually bites. See mayOverrideStatus() for why the
+        // two exemptions exist.
+        if (mayOverrideStatus(id)) {
+            continue;
+        }
         QCOMPARE(c.success.name(), base.success.name());
         QCOMPARE(c.danger.name(), base.danger.name());
     }

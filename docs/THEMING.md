@@ -201,16 +201,42 @@ rejected on the way there, correctly:
   the shared reference sheet and everything on it wears one accent — evidence
   the value is plausible, not a statement that it is NovuAI's.
 
-NovuVoice follows the same one-line profile rule as the other products:
+NovuVoice starts from the same one-line profile rule as the other products:
 
 ```cpp
 // src/AppProfiles.cpp
-return applicationProfile(QStringLiteral("novuvoice"), QStringLiteral("NovuVoice"),
-                          hex("#C47B85"), hex("#DA98A1"), hex("#1B1014"));
+ThemeProfile p = applicationProfile(QStringLiteral("novuvoice"), QStringLiteral("NovuVoice"),
+                                    hex("#C47B85"), hex("#DA98A1"), hex("#1B1014"));
 ```
 
 `applyDerivedTokens()` then re-derives the chart series and the window chrome,
 and `applicationProfilesShareOnePalette()` holds everything else identical.
+
+### The one product that owns a status hue
+
+NovuVoice then does one more thing, and it is the only application that does:
+
+```cpp
+p.colors.danger = p.colors.dangerPlate = hex("#E5484D");   // --red
+```
+
+It is allowed because its accent **is** a shared status hue. `#C47B85` is the
+family's Danger and NovuVoice's identity at the same time, so on this one
+profile "failed" and "this is NovuVoice" would be the same colour — and its
+approved design says outright that *"the accent ... is never a status colour:
+a rose element on screen is always identity or selection, never state"*. That
+design is also the only one of the six that states a `--red` of its own, for
+exactly this reason.
+
+Every other product leaves the four status hues alone, because for every other
+product the two layers never meet. Success, Warning and Info are untouched here
+too: NovuVoice overrides Danger and nothing else.
+
+The exemption is named in one place — `mayOverrideStatus()` in
+`tests/tst_gallery.cpp`, which carries the reason — and
+`statusOverridesAreStatedOneByOne()` holds the list to exactly the profiles
+that appear there, so a third exemption has to be argued for rather than
+quietly added.
 
 ### The ink on an accent is measured
 

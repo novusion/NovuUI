@@ -138,6 +138,56 @@ ThemeProfile novuVoiceProfile()
     p.setRoleRadiusPx(SurfaceRole::ActionIcon, 6);
     p.setRoleRadiusPx(SurfaceRole::Segment, 4);                // .seg button
 
+    // The navigation rail, row by row, as `.sb-item` and `.sb-head` state it:
+    //
+    //     .sb-item{height:28px;color:var(--text2)}
+    //     .sb-item.on{color:var(--text)}   .sb-item.on svg.i{color:var(--acc)}
+    //     .sb-head{padding:0 6px 6px}      .sb-sec{margin-bottom:13px}
+    //
+    // The current row takes the primary ink rather than the accent, because
+    // this rail spends its accent twice already - on the glyph and on the 2px
+    // edge beside the row. NovuAI's rail reached the same answer for the same
+    // reason; NovuSpace's did not, because its rail is the only accented thing
+    // on its page.
+    p.controls.navRowHeight = 28;
+    p.controls.navRestInk = NavInk::Secondary;
+    p.controls.navCurrentInk = NavInk::Primary;
+    // `.cnt.un` and `.cnt.miss` are both filled pills - the only counts this
+    // rail draws.
+    p.controls.navCountStyle = NavCountStyle::Filled;
+    // `.cnt.un{background:var(--acc);color:var(--ink-on-accent)}` - an unread
+    // count in this rail is the product's own number, not a status.
+    p.controls.navCountInk = NavInk::Accent;
+    p.controls.navSectionBottom = 6;
+    p.setRoleSpacing(SpacingRole::SectionGap, 13);             // .sb-sec
+
+    // -- the one status this product owns --------------------------------
+    //
+    // NovuVoice is the only application whose accent *is* one of the family's
+    // status hues: Danger and this product's identity are both #C47B85.
+    // Everywhere else the two layers never meet, so the shared palette costs
+    // nothing; here they would be the same colour, and End Call, Decline, a
+    // missed call and a failed message would all be drawn in the product
+    // accent - which is exactly what the approved design forbids:
+    //
+    //     "The accent means NOVUVOICE. It is never a status colour ... a rose
+    //      element on screen is always identity or selection, never state."
+    //
+    // So that design states a red of its own, and it is the only token in it
+    // that is not the family's:
+    //
+    //     --red:#E5484D; --red-rgb:229,72,77;
+    //
+    // This is the case ThemeColors documents - a profile overrides one of the
+    // status hues "only when its *surface* forces it to, never to have a look
+    // of its own". The surface forces it. Success, Warning and Info stay
+    // shared, and no other profile moves.
+    //
+    // Set before applyDerivedTokens() so semantic.danger, the close button's
+    // hover plate and the chart's bearish series are all re-derived from it.
+    p.colors.danger = hex("#E5484D");
+    p.colors.dangerPlate = hex("#E5484D");
+
     applyDerivedTokens(p);
     return p;
 }

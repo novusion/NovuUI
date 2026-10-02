@@ -8,6 +8,21 @@
 #include <QString>
 #include <QStringList>
 
+// Win32 defines `small` as a macro.
+//
+// `<rpcndr.h>`, which arrives with `windows.h`, contains `#define small char`.
+// RadiusScale and IconMetrics below both have a member called `small`, so any
+// Novusion application that reaches a Windows header before this one stops
+// compiling with "'int' followed by 'char' is illegal" - which names neither
+// the macro nor the member and sends people looking in the wrong file.
+//
+// Undefining it here is the standard remedy and costs nothing: no Novusion
+// code uses the macro, and a translation unit that genuinely wants RPC's
+// `small` can include <rpcndr.h> after this header.
+#ifdef small
+#undef small
+#endif
+
 namespace novu::ui {
 
 // A radius scale, not a radius. The design system owns the *steps*; each
@@ -297,6 +312,20 @@ struct ControlMetrics
     NavInk navRestInk = NavInk::Muted;
     NavInk navCurrentInk = NavInk::Accent;
     NavCountStyle navCountStyle = NavCountStyle::Outlined;
+
+    // The ink on a count pill that is only a count, on a row that is not the
+    // current one. The same disagreement as navRestInk, one level down: the
+    // approved designs draw `.cnt` as a muted chip, which is right where the
+    // rail's counts are incidental, and NovuAdmin's rail is the other case --
+    // the counts ARE the rail's content, one per administered collection, and
+    // they carry which of the two servers is being administered. So the same
+    // answer: a component cannot choose, a profile can.
+    //
+    // Only the ink. The pill's outline and fill stay neutral, which is what
+    // keeps a current row's pill (accent outline, no fill) still reading as
+    // the current one. And only CountTone::Normal -- an Alert or Bad count
+    // means something, and a product accent does not get to overrule it.
+    NavInk navCountInk = NavInk::Muted;
     NavChildMark navChildMark = NavChildMark::Dot;
     // `.sb-head{padding-bottom:5px}` against NovuSpace's own step. The gap
     // above a caption is SpacingRole::SectionGap; this is the one below it.

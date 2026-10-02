@@ -74,6 +74,12 @@ accessible ink without changing the semantic tint.
 Danger sits heavier than Success deliberately: a pink plate at .10 disappears
 where a green one reads.
 
+**One product overrides Danger.** NovuVoice's approved accent is `#C47B85` —
+the Danger hue itself — so on that profile a status and the product identity
+would be one colour. Its mockup is the only one of the six that states a red of
+its own, `--red:#E5484D`, and `novuVoiceProfile()` takes it. See
+[THEMING](THEMING.md#the-one-product-that-owns-a-status-hue).
+
 NovuAI states the same shape on `.tag` and differs only in two border alphas
 (.42 / .45 / .48). NovuExplorer agrees. The alphas above are the two-product
 verbatim set.
