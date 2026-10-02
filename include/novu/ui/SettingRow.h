@@ -84,6 +84,31 @@ public:
     int controlColumn() const { return m_controlColumn; }
     void setControlColumn(int px);
 
+    // ── a row that is also a choice ──────────────────────────────────────
+    //
+    // A list where picking one row decides what the rest of the page is
+    // about - a provider, a profile, an account. The alternative a page
+    // reaches for is a "Select" button in the control column, which puts a
+    // second thing to aim at inside a row that is already one target, and
+    // leaves the control column holding two unrelated widgets.
+    //
+    // A selectable row takes the whole row as the hit area and paints the
+    // selected one on the same surface every other selection in the library
+    // uses - the resolved style's checked background, as TreeView draws a
+    // current row. The control column is untouched, so a toggle or a status
+    // that lives there stays on the same axis on every row.
+    bool isSelectable() const { return m_selectable; }
+    void setSelectable(bool selectable);
+
+    bool isSelected() const { return m_selected; }
+    void setSelected(bool selected);
+
+signals:
+    // A selectable row was pressed and released inside itself.
+    void clicked();
+
+public:
+
     StyleSpec styleSpec() const;
     ResolvedStyle resolvedStyle() const;
 
@@ -96,6 +121,8 @@ protected:
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
     bool event(QEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
 
 private:
     int textWidth(int width) const;
@@ -109,6 +136,9 @@ private:
     QString m_error;
     bool m_mono = true;
     bool m_masked = false;
+    bool m_selectable = false;
+    bool m_selected = false;
+    bool m_pressed = false;
     bool m_divider = true;
     int m_controlColumn = 0;
     QWidget* m_control = nullptr;

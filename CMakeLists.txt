@@ -59,6 +59,7 @@ add_library(NovuUI STATIC
     include/novu/ui/PopupSurface.h
     include/novu/ui/FeedbackForm.h
     include/novu/ui/GateCard.h
+    include/novu/ui/HelpCenter.h
     include/novu/ui/HelpOverlay.h
     include/novu/ui/AddressBar.h
     include/novu/ui/AppMark.h
@@ -134,6 +135,7 @@ add_library(NovuUI STATIC
     src/PopupSurface.cpp
     src/FeedbackForm.cpp
     src/GateCard.cpp
+    src/HelpCenter.cpp
     src/HelpOverlay.cpp
     src/AddressBar.cpp
     src/AppMark.cpp

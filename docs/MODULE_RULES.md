@@ -9,7 +9,9 @@ as the ecosystem grows. They are binding on NovuUI and on every module that
 consumes it.
 
 `DESIGN_SYSTEM.md` describes how the library is built; this file describes who
-is allowed to build what, and where it goes.
+is allowed to build what, and where it goes. `VOCABULARY.md` defines the words
+both of them use - categories, states, and the terms that have been read two
+ways. Check it before naming or filing anything.
 
 ---
 
@@ -83,6 +85,59 @@ colour where a semantic or theme token exists.
 Application identity and accent may vary by theme. Success, Warning, Danger,
 Info and Neutral stay consistent across the ecosystem unless an explicit theme
 override is required — see `DESIGN_SYSTEM.md` §3.4a.
+
+## 7a. One hover explanation, two states
+
+A hover explanation is `novu::ui::Tooltip`, in one of exactly two states:
+
+| state | shows | design |
+|---|---|---|
+| **compact** | name, shortcut, what it does, what it is doing now, and a line saying there is more | `.tip-t` `.tip-s` `.tip-st` `.tip-more` |
+| **full** | the same card with the long form added under a rule, once the pointer has stayed | `+ .tip-d` |
+
+Compact is a *state of this card*, not a smaller card. Both are the one `.tip`
+the approved design defines, at its one `max-width: 274px` - verified constant
+by constant against `g:\Design\design\NovuSpace\mockups\NovuSpace-Trade-brand-mockup.html`.
+
+Content is `TipContent`: `title`, `shortcut`, `brief`, `status`, `detail`. The
+long form is the same description a help window lists, so a button is explained
+in one place rather than in three that drift.
+
+**Nothing else is allowed to explain a control on hover:**
+
+- not `QToolTip` — its surface, delay and type belong to the OS and cannot be
+  themed, so it is a different product's tooltip inside ours
+- not an application's own tip widget
+- not a third size. There was a `TipContent::compact` flag that drew the same
+  card one step down the type scale for tips about rows. The mockup has no
+  trace of it - one `.tip`, one width - so it is gone. A row that needs a
+  smaller explanation needs a shorter `brief`, not a smaller card
+
+This rule exists because three hover treatments across four applications is how
+the ecosystem got here, and a third state *inside* the shared component is the
+same drift with a shorter name.
+
+```bash
+# no OS tooltips anywhere a Novu surface is drawn
+grep -rn 'setToolTip\|QToolTip' <application>/src/
+```
+
+`setToolTip()` survives in two places, both narrow:
+
+1. **The text again.** A label or cell whose tip is its own truncated content,
+   so the tip restores what elision took rather than explaining anything —
+   `TitleBar`'s caption, `InfoBanner`'s full sentence, a `TableView` cell.
+2. **Things that are not widgets.** `Tooltip::install()` takes a `QWidget*`, and
+   a `QTableWidgetItem` is not one. A per-cell tip therefore has no shared
+   equivalent today. Noted rather than waved away: if item tips ever need to
+   carry a name and a shortcut, this is the gap to close.
+
+Anything with a name, a shortcut or a sentence goes through
+`Tooltip::install()`. NovuUI itself was audited against this when the rule was
+written — `IconButton`'s action helper, `BottomPanel`'s toggle, `Drawer`'s close
+and `detachButton()` were all using `setToolTip()` and were moved.
+
+---
 
 ## 8. Component states
 

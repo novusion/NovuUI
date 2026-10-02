@@ -1,5 +1,7 @@
 #include "novu/ui/BottomPanel.h"
 
+#include "novu/ui/Tooltip.h"
+
 #include "novu/ui/IconButton.h"
 #include "novu/ui/StyleSheet.h"
 #include "novu/ui/TabBar.h"
@@ -60,7 +62,8 @@ void BottomPanel::buildStrip()
     // move *to*, which is why it is a chevron and not a switch.
     auto* toggle = new IconButton(Glyph::ChevronDown, IconButton::Variant::Ghost, m_strip);
     toggle->setControlSize(ControlSize::Small);
-    toggle->setToolTip(tr("Show or hide the panel"));
+    Tooltip::install(toggle, TipContent::action(
+        tr("Panel"), tr("Shows or hides the panel below the page.")));
     m_toggle = toggle;
     m_stripRow->addWidget(toggle);
     connect(toggle, &IconButton::clicked, this,

@@ -16,6 +16,7 @@
 #include <QLineEdit>
 #include <QPainter>
 #include <QScrollArea>
+#include <QVector>
 #include <QStackedWidget>
 #include <QVBoxLayout>
 
@@ -94,7 +95,41 @@ void SettingsSection::relayout()
     // rows. A QLabel for the title and another for the sentence would be two
     // more widgets per section and twenty more in a settings window.
     m_body->setContentsMargins(0, headingHeight(), 0, 0);
+    alignControls();
     updateGeometry();
+}
+
+// One control column for the whole section.
+//
+// SettingRow has always said "the rows in one panel must agree, and a
+// measured column makes every row as wide as its own control" - and nothing
+// measured it, so every row WAS as wide as its own control. A column of
+// switches then stepped left and right down the page according to how long
+// each label's own control happened to be. The widest control in the section
+// sets the column and every row in it uses that, which is what puts them on
+// one axis without anyone writing a pixel width down.
+void SettingsSection::alignControls()
+{
+    int widest = 0;
+    QVector<SettingRow*> rows;
+    for (int i = 0; i < m_body->count(); ++i) {
+        auto* row = qobject_cast<SettingRow*>(m_body->itemAt(i)->widget());
+        if (!row || !row->control()) {
+            continue;
+        }
+        rows.append(row);
+        widest = qMax(widest, row->control()->sizeHint().width());
+    }
+    if (rows.isEmpty() || widest <= 0) {
+        return;
+    }
+    // Never more than half the section: a long control must not squeeze the
+    // label it belongs to off the row when the window is narrow.
+    const int ceiling = qMax(96, width() / 2);
+    const int column = qMin(widest, ceiling);
+    for (SettingRow* row : rows) {
+        row->setControlColumn(column);
+    }
 }
 
 SettingRow* SettingsSection::addRow(const QString& name, const QString& hint)

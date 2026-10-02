@@ -17,6 +17,15 @@ set_tests_properties(window_chrome PROPERTIES
     TIMEOUT 120
 )
 
+# The rail's connection strip is shared by every module, so a paint bug in it is
+# four bugs. This pins the one that shipped: a detail longer than the strip was
+# drawn starting at a negative x, leaving a cut-off word fragment to the left of
+# the status dot and erasing the hostname.
+add_executable(tst_connection_strip tst_connection_strip.cpp)
+target_link_libraries(tst_connection_strip PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME connection_strip COMMAND tst_connection_strip)
+set_tests_properties(connection_strip PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
+
 # A transient surface the user cannot dismiss is a broken surface. This pins
 # the popup window type and every documented way out of a menu.
 add_executable(tst_popover_dismissal tst_popover_dismissal.cpp)

@@ -27,44 +27,81 @@ QWidget* build(const PreviewContext& ctx)
     auto* page = new QWidget(ctx.parent);
     QVBoxLayout* column = previewPage(page);
 
-    // ── the short form ───────────────────────────────────────────────────
+    // ── LABEL ─────────────────────────────────────────────────
     {
-        Card* card = exampleCard(page, QStringLiteral("The short form"),
-                                 QStringLiteral("One string, and the OS tooltip "
-                                                "is out of the way."));
+        Card* card = exampleCard(page, QStringLiteral("LABEL"),
+                                 QStringLiteral("Identification only — a tab, a path, a "
+                                                "row. Nothing is promised, because "
+                                                "these are not activated."));
         QVBoxLayout* body = card->body();
 
         QHBoxLayout* row = exampleRow(body, card, QStringLiteral("Hover these"));
-        const struct { const char* caption; const char* tip; } simple[] = {
-            {"Refresh", "Re-reads the index from disk."},
-            {"Export", "Writes the current selection to CSV."},
-            {"Purge", "Removes every archived record older than the retention period. "
-                      "This cannot be undone."},
+        const struct { const char* caption; const char* name; const char* status; } labels[] = {
+            {"General", "General", "2 categories"},
+            {"Novusion", "Novusion", "20 categories"},
+            {"Archive 2024", "Archive 2024", ""},
         };
-        for (const auto& entry : simple) {
+        for (const auto& entry : labels) {
             auto* button = new Button(QString::fromLatin1(entry.caption),
-                                      Button::Variant::Secondary, card);
+                                      Button::Variant::Ghost, card);
             button->setControlSize(ControlSize::Small);
-            Tooltip::install(button, QString::fromLatin1(entry.tip));
+            Tooltip::install(button, TipContent::label(QString::fromLatin1(entry.name),
+                                                      QString::fromLatin1(entry.status)));
             row->addWidget(button);
         }
         row->addStretch(1);
 
         note(body, card,
-             QStringLiteral("Centred over the target, eight pixels clear of it, flipped below "
-                            "when there is no room above, clamped to the screen. That geometry "
-                            "is NovusionUI's Tooltip, kept unchanged — it was already right. "
-                            "The third one wraps at the design's 274px measure rather than "
-                            "running off the edge, which is what QToolTip does with a sentence "
-                            "that long."));
+             QStringLiteral("The one-string install() is this level: the string is the "
+                            "control's name. It used to fill the description instead, which "
+                            "produced a card with no title and matched none of the three "
+                            "levels."));
+        column->addWidget(card);
+    }
+
+    // ── ACTION ──────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("ACTION"),
+                                 QStringLiteral("The default for anything actionable. The "
+                                                "sentence says what happens when you "
+                                                "activate it."));
+        QVBoxLayout* body = card->body();
+
+        QHBoxLayout* row = exampleRow(body, card, QStringLiteral("Hover these"));
+        const struct {
+            const char* caption; const char* title; const char* brief; const char* key;
+        } actions[] = {
+            {"New workspace", "New workspace",
+             "Create a workspace for organizing chats, tasks and context.", "Ctrl N"},
+            {"Send / Share", "Send / Share",
+             "Send files, links or content to another destination.", ""},
+            {"Console", "Console",
+             "Open the runtime console and inspect current activity.", "F12"},
+        };
+        for (const auto& entry : actions) {
+            auto* button = new Button(QString::fromLatin1(entry.caption),
+                                      Button::Variant::Secondary, card);
+            button->setControlSize(ControlSize::Small);
+            Tooltip::install(button, TipContent::action(QString::fromLatin1(entry.title),
+                                                       QString::fromLatin1(entry.brief),
+                                                       QString::fromLatin1(entry.key)));
+            row->addWidget(button);
+        }
+        row->addStretch(1);
+
+        note(body, card,
+             QStringLiteral("The sentence must explain the result, never repeat the label. "
+                            "\"Create a workspace for organizing chats, tasks and context\" "
+                            "— not \"New workspace\" again. A brief that restates the "
+                            "title is the one way this level fails."));
         column->addWidget(card);
     }
 
     // ── the full form ────────────────────────────────────────────────────
     {
-        Card* card = exampleCard(page, QStringLiteral("The full form"),
-                                 QStringLiteral("Five fields, because the design's "
-                                                "tip is five things."));
+        Card* card = exampleCard(page, QStringLiteral("EXTENDED"),
+                                 QStringLiteral("Exceptional, not the default. Only where "
+                                                "the extra paragraph earns its place."));
         QVBoxLayout* body = card->body();
 
         QHBoxLayout* row = exampleRow(body, card, QStringLiteral("Toolbar"));
@@ -96,13 +133,10 @@ QWidget* build(const PreviewContext& ctx)
         };
         for (const auto& entry : rich) {
             auto* button = new IconButton(entry.glyph, card);
-            TipContent content;
-            content.title = QString::fromLatin1(entry.title);
-            content.shortcut = QString::fromLatin1(entry.shortcut);
-            content.brief = QString::fromLatin1(entry.brief);
-            content.status = QString::fromLatin1(entry.status);
-            content.detail = QString::fromLatin1(entry.detail);
-            Tooltip::install(button, content);
+            Tooltip::install(button, TipContent::extended(
+                QString::fromLatin1(entry.title), QString::fromLatin1(entry.brief),
+                QString::fromLatin1(entry.detail), QString::fromLatin1(entry.shortcut),
+                QString::fromLatin1(entry.status)));
             row->addWidget(button);
         }
         row->addStretch(1);
@@ -131,34 +165,6 @@ QWidget* build(const PreviewContext& ctx)
                             "on purpose: nothing is highlighted in advance and nothing is "
                             "covered, so the explanation appears where you were already "
                             "looking."));
-        column->addWidget(card);
-    }
-
-    // ── compact ──────────────────────────────────────────────────────────
-    {
-        Card* card = exampleCard(page, QStringLiteral("About a row"),
-                                 QStringLiteral("The compact card, for a list."));
-        QVBoxLayout* body = card->body();
-
-        QHBoxLayout* row = exampleRow(body, card, QStringLiteral("Rows"));
-        for (int i = 0; i < 3; ++i) {
-            auto* button = new Button(QStringLiteral("Row %1").arg(i + 1),
-                                      Button::Variant::Ghost, card);
-            button->setControlSize(ControlSize::Small);
-            TipContent content;
-            content.compact = true;
-            content.title = QStringLiteral("orders-2026-%1.csv").arg(i + 1, 2, 10, QLatin1Char('0'));
-            content.brief = QStringLiteral("Imported 14 March, 2,481 rows, no errors.");
-            Tooltip::install(button, content);
-            row->addWidget(button);
-        }
-        row->addStretch(1);
-
-        note(body, card,
-             QStringLiteral("A tip about a row is the same card in a smaller hand. Without it, "
-                            "a full-size tip under the pointer in a list covers the rows it is "
-                            "about — which is the whole reason the flag exists rather than a "
-                            "second tooltip class."));
         column->addWidget(card);
     }
 
@@ -199,7 +205,7 @@ ComponentSpec tooltipComponent()
     ComponentSpec spec;
     spec.id = QStringLiteral("tooltip");
     spec.name = QStringLiteral("Tooltip");
-    spec.category = Category::Feedback;
+    spec.category = Category::Help;
     spec.description = QStringLiteral(
         "The branded hover tip, in two modes. Off it gives the name and the key; on it "
         "explains the control, says what it is doing, and offers the long form.");
@@ -207,8 +213,8 @@ ComponentSpec tooltipComponent()
     spec.sourcePath = QStringLiteral("src/Tooltip.cpp");
     spec.designedFor = {QStringLiteral("novuspace")};
     spec.usedBy = {};
-    spec.variants = {QStringLiteral("Brief"), QStringLiteral("Full"),
-                     QStringLiteral("Compact")};
+    spec.variants = {QStringLiteral("LABEL"), QStringLiteral("ACTION"),
+                     QStringLiteral("EXTENDED")};
     spec.states = {QStringLiteral("Help off"), QStringLiteral("Help on"),
                    QStringLiteral("Detail shown")};
     spec.keywords = {QStringLiteral("tip"), QStringLiteral("hint"),
@@ -226,8 +232,6 @@ ComponentSpec tooltipComponent()
          QStringLiteral("What it is doing now, in the accent — .tip-st.")},
         {QStringLiteral("detail"), QStringLiteral("QString"), {}, QStringLiteral(""),
          QStringLiteral("The long form, in help mode after a second delay — .tip-d.")},
-        {QStringLiteral("compact"), QStringLiteral("bool"), {}, QStringLiteral("false"),
-         QStringLiteral("A tip about a row: the same card, one step smaller.")},
     };
     spec.build = build;
     return spec;

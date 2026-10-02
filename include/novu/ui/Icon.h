@@ -176,6 +176,19 @@ void paintGlyph(QPainter* painter, Glyph glyph, const QRectF& box, const QColor&
 // glyphFillsCleanly() answers which is which, so a caller does not have to know
 // the shapes.
 bool glyphFillsCleanly(Glyph glyph);
+
+// A glyph whose solid form is its OUTLINE, with the interior detail dropped.
+//
+// A workspace cube is an outer hexagon plus the three edges that make it read
+// as a cube. Those edges are drawn on an empty shape; once the shape is
+// filled they have nothing to sit on and only break the silhouette up, which
+// at sidebar size is the opposite of what filling it is for. Filled, the
+// hexagon IS the icon.
+//
+// Separate from glyphFillsCleanly() because the two mean different things: a
+// folder fills WITH its stroke and keeps every line it has, and this one
+// keeps only the first.
+bool glyphFillsAsSilhouette(Glyph glyph);
 void paintGlyphFilled(QPainter* painter, Glyph glyph, const QRectF& box,
                       const QColor& color, const QWidget* context = nullptr);
 

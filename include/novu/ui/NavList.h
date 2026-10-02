@@ -1,6 +1,8 @@
 #pragma once
 
 #include "novu/ui/Icon.h"
+
+#include <QFont>
 #include "novu/ui/StatusDot.h"
 #include "novu/ui/StyleSpec.h"
 #include "novu/ui/Theme.h"
@@ -11,6 +13,15 @@
 #include <QWidget>
 
 namespace novu::ui {
+
+// The type a rail's section headings are set in - NOW, TRADING, MODULE.
+//
+// Exported because a heading does not always live inside the list. NovuSpace
+// pins its account control under the navigation, in the sidebar's own actions
+// column, and its caption has to sit in the same column of words as the ones
+// above it. Copying the three lines that build this font is how two headings
+// start looking almost alike.
+QFont navSectionFont(const QWidget* context);
 
 // The rows in a sidebar: the design's `.navbtn`, `.navbtn.child` and
 // `.rail-sec`, as one painted list.

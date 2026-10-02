@@ -22,15 +22,19 @@ namespace novu::ui {
 
 namespace {
 
-// The design's timings. The first is the hover delay every tooltip has; the
-// second is how long the pointer must stay before the long form is offered.
-constexpr int kShowDelayMs = 140;
-constexpr int kDetailDelayMs = 620;
+// The design's timings, taken from `prefs` in the approved mockup:
+// `tipHelpDelay: 320`, `tipDelay: 420`, `tipDetail: 900`.
+//
+// Two hover delays, not one. With help on the card is worth showing sooner
+// because it says something; with help off it is a name, and a name that
+// arrives too eagerly is the OS tooltip's worst habit.
+constexpr int kShowDelayMs = 320;
+constexpr int kShowDelayPlainMs = 420;
+constexpr int kDetailDelayMs = 900;
 constexpr int kHintGap = 5;
 
 // `.tip { max-width:274px; padding:9px 11px; border-radius:9px }`.
 constexpr int kMaxWidth = 274;
-constexpr int kCompactMaxWidth = 210;
 constexpr int kPaddingH = 11;
 constexpr int kPaddingV = 9;
 
@@ -57,11 +61,12 @@ constexpr int kChipPaddingH = 5;
 constexpr int kChipPaddingV = 1;
 constexpr int kTitleGap = 8;
 
-// Compact tips are the same card one step down the type scale. A ratio rather
-// than a second set of sizes, so a profile that changes its scale moves both.
-double scaleFor(const TipContent& content)
+// One size. There was a compact card here, a step down the type scale, for
+// tips about rows rather than controls - a third thing to hover, on top of the
+// two states a tip already has. It is gone deliberately: see Tooltip's header.
+double scaleFor(const TipContent&)
 {
-    return content.compact ? 0.88 : 1.0;
+    return 1.0;
 }
 
 QFont sized(QFont font, int pixels)
@@ -147,11 +152,37 @@ Tooltip::Tooltip()
     });
 }
 
-void Tooltip::install(QWidget* target, const QString& brief)
+TipContent TipContent::label(const QString& title, const QString& status)
 {
     TipContent content;
+    content.title = title;
+    content.status = status;
+    return content;
+}
+
+TipContent TipContent::action(const QString& title, const QString& brief,
+                              const QString& shortcut, const QString& status)
+{
+    TipContent content;
+    content.title = title;
     content.brief = brief;
-    install(target, content);
+    content.shortcut = shortcut;
+    content.status = status;
+    return content;
+}
+
+TipContent TipContent::extended(const QString& title, const QString& brief,
+                                const QString& detail, const QString& shortcut,
+                                const QString& status)
+{
+    TipContent content = action(title, brief, shortcut, status);
+    content.detail = detail;
+    return content;
+}
+
+void Tooltip::install(QWidget* target, const QString& title)
+{
+    install(target, TipContent::label(title));
 }
 
 void Tooltip::install(QWidget* target, const TipContent& content)
@@ -295,6 +326,10 @@ void Tooltip::scheduleFor(QWidget* target)
         return;
     }
     m_pending = target;
+    // Chosen per hover rather than once at construction: help mode is a
+    // toggle, and the delay that suits a card is not the one that suits a
+    // bare name.
+    m_showTimer->setInterval(m_help ? kShowDelayMs : kShowDelayPlainMs);
     m_showTimer->start();
 }
 
@@ -310,11 +345,10 @@ static QFont hintFont(const QWidget* context)
 
 QSize Tooltip::measure(const TipContent& content, bool withDetail) const
 {
-    const int maxWidth = content.compact ? kCompactMaxWidth : kMaxWidth;
-    const int textWidth = maxWidth - 2 * kPaddingH;
+    const int textWidth = kMaxWidth - 2 * kPaddingH;
     // Reserved whenever the hint will be drawn - that is, there is a detail
     // and it has not arrived yet.
-    const bool withHint = !withDetail && !content.detail.isEmpty() && !content.compact;
+    const bool withHint = !withDetail && !content.detail.isEmpty();
 
     const QFontMetrics titleMetrics(titleFont(this, content));
     const QFontMetrics chipMetrics(chipFont(this, content));
@@ -514,7 +548,7 @@ void Tooltip::paintEvent(QPaintEvent*)
         y += fm.height();
     }
 
-    if (!m_detail && !m_content.detail.isEmpty() && !m_content.compact) {
+    if (!m_detail && !m_content.detail.isEmpty()) {
         // There is more, and the only way anyone finds that out is being
         // told. One muted line, the same place the detail will appear.
         const QFont font = hintFont(context);
@@ -524,7 +558,7 @@ void Tooltip::paintEvent(QPaintEvent*)
         painter.setPen(profile.colors.textTertiary);
         painter.drawText(QRect(left, y, textWidth, fm.height()),
                          Qt::AlignLeft | Qt::AlignVCenter,
-                         QObject::tr("keep hovering for more"));
+                         QObject::tr("Keep hovering for more"));
         y += fm.height();
     }
 

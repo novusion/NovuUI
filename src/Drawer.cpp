@@ -1,5 +1,7 @@
 #include "novu/ui/Drawer.h"
 
+#include "novu/ui/Tooltip.h"
+
 #include "novu/ui/IconButton.h"
 #include "novu/ui/TabBar.h"
 #include "novu/ui/Text.h"
@@ -126,7 +128,8 @@ Drawer::Drawer(QWidget* host)
     // `<button class="winbtn" data-drawer-close>` - the way out, drawn where
     // the reader looks for it.
     m_close = new IconButton(Glyph::Close, IconButton::Variant::Chrome, this);
-    m_close->setToolTip(tr("Close"));
+    Tooltip::install(m_close, TipContent::action(
+        tr("Close"), tr("Closes the drawer and returns to the page behind it.")));
     connect(m_close, &QAbstractButton::clicked, this, &Drawer::close);
 
     // The body scrolls; the head and the actions are pinned. A drawer whose

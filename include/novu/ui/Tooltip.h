@@ -32,10 +32,35 @@ struct TipContent
     QString status;     // what it is doing right now, in the accent
     QString detail;     // the long form, shown only in help mode
 
-    // A tip about a *row* rather than about a control: the same card in a
-    // smaller hand. A list of full-size tips under the pointer covers the list
-    // they are about, which is the defect this flag exists to avoid.
-    bool compact = false;
+    // The three content levels, as named constructors.
+    //
+    // They are field subsets of this one struct - not variants, not sizes.
+    // Nothing about the card changes between them; what changes is how much it
+    // has to say. Named because "which level is this" should be readable at
+    // the call site, and because a tip assembled field by field is a tip that
+    // quietly ends up at the wrong level.
+    //
+    // See docs/VOCABULARY.md.
+
+    // Identification only: a tab, a path, a row. No promise about what
+    // activating it does, because these are not activated.
+    static TipContent label(const QString& title, const QString& status = {});
+
+    // The default for anything actionable - buttons, toolbar and title-bar
+    // actions, session and console controls.
+    //
+    // `brief` says *what happens when it is activated*, not what the control
+    // is called again: "Create a workspace for organizing chats, tasks and
+    // context", never "New workspace". A brief that repeats the title is the
+    // one failure this level has.
+    static TipContent action(const QString& title, const QString& brief,
+                             const QString& shortcut = {}, const QString& status = {});
+
+    // Exceptional. Only where the extra paragraph earns its place - the
+    // consequence of a destructive action, the thing a person cannot guess.
+    static TipContent extended(const QString& title, const QString& brief,
+                               const QString& detail, const QString& shortcut = {},
+                               const QString& status = {});
 
     bool isEmpty() const
     {
@@ -43,7 +68,30 @@ struct TipContent
     }
 };
 
-// Tooltips, in two modes.
+// The only tooltip in the system. Two states, and no third.
+//
+// ── the rule ──────────────────────────────────────────────────────────────
+//
+// A hover explanation in a Novusion application is this class, in one of two
+// states - the approved design's own two, and its words for them:
+//
+//     compact  `.tip-t` `.tip-s` `.tip-st`, and `.tip-more` saying there is
+//              more. What a hover gives straight away.
+//     full     the same card with `.tip-d` added under its rule, once the
+//              pointer has stayed.
+//
+// *Compact is a state of this card, not a smaller card.* Both are the one
+// `.tip` the design defines, at its one max-width of 274px. There was briefly
+// a `TipContent::compact` flag here that drew the tip a step down the type
+// scale for tips about rows - a third size the mockup has no trace of. It is
+// gone, and a row that needs a smaller explanation needs a shorter `brief`.
+//
+// Nothing else explains a control on hover. Not QToolTip, whose surface, delay
+// and type belong to the OS and cannot be themed. Not an application's own tip
+// widget. Three hover treatments across four applications is how the ecosystem
+// got here.
+//
+// ── in two modes ──────────────────────────────────────────────────────────
 //
 // Off: hovering gives the name and the key, and nothing else. On: the same
 // hover also explains the control and says what it is currently doing, and the
@@ -86,8 +134,15 @@ class Tooltip : public QWidget
 public:
     static Tooltip& instance();
 
-    // The short form. Installing an empty string removes the tip.
-    static void install(QWidget* target, const QString& brief);
+    // A LABEL: the string is the control's *name*, not a sentence about it.
+    //
+    // It used to fill `brief`, which produced a card with no title and matched
+    // none of the three levels. Most callers were already passing a name - a
+    // tab's label, a path, "Close" - so the string means what those callers
+    // meant. A sentence belongs in TipContent::action().
+    //
+    // Installing an empty string removes the tip.
+    static void install(QWidget* target, const QString& title);
     // The full form.
     static void install(QWidget* target, const TipContent& content);
     static void remove(QWidget* target);
@@ -140,7 +195,11 @@ private:
     QTimer* m_detailTimer = nullptr;
     TipContent m_content;
     bool m_detail = false;
-    bool m_help = false;
+    // On, matching the design's own default (`prefs.tooltipHelp: true` in the
+    // approved mockup). Off, a tip is the name and the key and nothing else -
+    // which is the OS tooltip this class replaced, and is not what anyone
+    // expects to see on a first hover.
+    bool m_help = true;
 };
 
 } // namespace novu::ui

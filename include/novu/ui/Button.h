@@ -1,6 +1,7 @@
 #pragma once
 
 #include "novu/ui/Icon.h"
+#include "novu/ui/StatusDot.h"
 #include "novu/ui/StyleSpec.h"
 #include "novu/ui/ThemeProfile.h"
 
@@ -73,6 +74,24 @@ public:
     Glyph glyph() const { return m_glyph; }
     void setGlyph(Glyph glyph);
 
+    // A state the action itself carries, as a dot before the caption: a
+    // session that is signed in, a service that is running. SelectButton has
+    // had this since the designs asked for `.select .dot`, and a button that
+    // performs the same kind of action needs the same mark - NovuSpace's
+    // account control is "Logout" with the session's own light on it.
+    //
+    // It is a tone and not a colour, so it keeps its meaning across themes,
+    // and it is NOT the variant's ink: a Secondary button saying Logout with
+    // a green dot is one neutral action reporting a live session. Tone::None
+    // - the default - draws nothing and reserves nothing, so every button
+    // that never asks for one is unchanged.
+    //
+    // It takes the leading slot, so a button cannot carry both a dot and a
+    // glyph; the dot wins, because a state is why the mark is there.
+    void setStatusDot(StatusDot::Tone tone);
+    void clearStatusDot();
+    bool hasStatusDot() const { return m_statusDot; }
+
     // A glyph after the caption, at the trailing edge.
     //
     // Almost always the chevron on a button that opens a menu rather than
@@ -123,6 +142,10 @@ private:
     Variant m_variant = Variant::Secondary;
     ControlSize m_size = ControlSize::Medium;
     Glyph m_glyph = Glyph::None;
+    QPixmap statusDotPixmap() const;
+
+    bool m_statusDot = false;
+    StatusDot::Tone m_statusDotTone = StatusDot::Tone::Neutral;
     Glyph m_trailingGlyph = Glyph::None;
     bool m_busy = false;
     bool m_animating = false;

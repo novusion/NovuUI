@@ -17,6 +17,18 @@ class SampleData;
 // Where a component sits in the gallery's navigation. Categories are the
 // design system's own vocabulary, not a folder listing: `Text` and `Layout`
 // are Foundation even though they live beside `Button` in src/.
+// A component is filed by what it is *for*, not by how it behaves.
+//
+// The two that are easiest to confuse, so they are written down:
+//
+//   Feedback  tells the person about the application - its state, or the
+//             result or progress of something they did. Toast, Spinner,
+//             ProgressBar, StatusLine, EmptyState, InfoBanner.
+//   Help      explains the interface itself. Contextual guidance, offered
+//             rather than reported. Tooltip, HelpOverlay.
+//
+// A tooltip appearing on hover is not feedback about anything: nothing
+// happened, and the application has not changed. See docs/VOCABULARY.md.
 enum class Category {
     Foundation,
     TitleBar,
@@ -25,6 +37,7 @@ enum class Category {
     Input,
     DataDisplay,
     Feedback,
+    Help,
 };
 
 QString categoryLabel(Category category);

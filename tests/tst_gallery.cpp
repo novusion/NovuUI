@@ -5630,7 +5630,11 @@ void GalleryTest::anAddressBarWeightsTheHostOverThePath()
     // registry, not QWidget::toolTip() - Tooltip::install() never calls
     // setToolTip(), so that native property is deliberately not what this
     // checks.
-    QCOMPARE(Tooltip::contentFor(bar).brief, QStringLiteral("novuai.app/console"));
+    //
+    // In `title`, because an address bar's tip is a LABEL: the URL identifies
+    // where you are, it does not explain what activating something would do.
+    // The one-string install() fills the title for exactly this reason.
+    QCOMPARE(Tooltip::contentFor(bar).title, QStringLiteral("novuai.app/console"));
 
     bar->setSecurity(AddressBar::Security::Secure);
     QCOMPARE(bar->security(), AddressBar::Security::Secure);

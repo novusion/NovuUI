@@ -194,7 +194,7 @@ ComponentSpec helpOverlayComponent()
     ComponentSpec spec;
     spec.id = QStringLiteral("help-overlay");
     spec.name = QStringLiteral("HelpOverlay");
-    spec.category = Category::Feedback;
+    spec.category = Category::Help;
     spec.description = QStringLiteral(
         "An explanatory layer over a live window: coloured bubbles joined to what they explain "
         "by dashed leaders. The application underneath keeps working.");

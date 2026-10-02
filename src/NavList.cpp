@@ -107,15 +107,7 @@ QFont rowFont(const QWidget* context, bool child)
     return font;
 }
 
-QFont sectionFont(const QWidget* context)
-{
-    const ThemeProfile& profile = themeFor(context);
-    QFont font = roleMonoFont(context, TypeRole::Eyebrow);
-    font.setPixelSize(qMax(8, profile.type.xxs - 1));
-    // `.sb-bhead{letter-spacing:.14em}` - 14% of the size, so 114.
-    font.setLetterSpacing(QFont::PercentageSpacing, 114);
-    return font;
-}
+QFont sectionFont(const QWidget* context) { return navSectionFont(context); }
 
 QFont countFont(const QWidget* context)
 {
@@ -151,6 +143,16 @@ SemanticRole roleFor(StatusDot::Tone tone)
 }
 
 } // namespace
+
+QFont navSectionFont(const QWidget* context)
+{
+    const ThemeProfile& profile = themeFor(context);
+    QFont font = roleMonoFont(context, TypeRole::Eyebrow);
+    font.setPixelSize(qMax(8, profile.type.xxs - 1));
+    // `.sb-bhead{letter-spacing:.14em}` - 14% of the size, so 114.
+    font.setLetterSpacing(QFont::PercentageSpacing, 114);
+    return font;
+}
 
 NavList::NavList(QWidget* parent)
     : QWidget(parent)
@@ -576,19 +578,42 @@ void NavList::rememberFold(const Row& row)
 void NavList::applyDisclosure()
 {
     bool sectionShut = false;
-    bool parentShut = false;
+    // The depth of the shallowest shut row we are still underneath, or -1 when
+    // every row above this one is open.
+    //
+    // This used to be a bool, and a bool can only answer "is the row above me
+    // shut". That is enough for a list two levels deep and wrong for a tree:
+    // it was set by the last *top-level* row and then applied to every child
+    // after it, whatever its depth and whatever its own parent said. So
+    // opening one top-level row revealed its grandchildren too - expanding
+    // Apps unfolded every application underneath it at once - because nothing
+    // in the loop consulted the depth-1 rows' own expanded flags.
+    //
+    // An integer answers the question a tree actually asks, which is whether
+    // ANY ancestor is shut, and it does it without a stack: the rows arrive in
+    // document order, so the first row at a depth no greater than the shut
+    // row's is the one that ends its subtree.
+    int shutDepth = -1;
     for (Row& row : m_rows) {
         if (row.section) {
             sectionShut = row.expandable && !row.expanded;
-            parentShut = false;
+            shutDepth = -1;
             continue;
         }
-        if (!row.child) {
-            parentShut = row.expandable && !row.expanded;
-            row.visible = !row.hiddenByFilter && !sectionShut;
+        if (shutDepth >= 0 && row.depth > shutDepth) {
+            // Inside a shut branch. Its own expanded flag is deliberately not
+            // consulted: a folded branch shows nothing, however its children
+            // were left when it was folded, and reopening it must restore
+            // exactly that state rather than a flattened one.
+            row.visible = false;
             continue;
         }
-        row.visible = !row.hiddenByFilter && !sectionShut && !parentShut;
+        // At or above the shut row's level, so its subtree is behind us.
+        shutDepth = -1;
+        row.visible = !row.hiddenByFilter && !sectionShut;
+        if (row.expandable && !row.expanded) {
+            shutDepth = row.depth;
+        }
     }
     updateGeometry();
 }

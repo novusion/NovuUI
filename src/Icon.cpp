@@ -586,20 +586,46 @@ bool glyphFillsCleanly(Glyph glyph)
     }
 }
 
+bool glyphFillsAsSilhouette(Glyph glyph)
+{
+    switch (glyph) {
+    case Glyph::Workspace:
+        return true;
+    default:
+        return false;
+    }
+}
+
 void paintGlyphFilled(QPainter* painter, Glyph glyph, const QRectF& box,
                       const QColor& color, const QWidget* context)
 {
     if (!painter || box.isEmpty()) {
         return;
     }
-    if (!glyphFillsCleanly(glyph)) {
+    const bool silhouette = glyphFillsAsSilhouette(glyph);
+    if (!silhouette && !glyphFillsCleanly(glyph)) {
         paintGlyph(painter, glyph, box, color, 0.0, 0.0, context);
         return;
     }
 
-    const QPainterPath& path = glyphPath(glyph, context);
-    if (path.isEmpty()) {
+    const QPainterPath& stored = glyphPath(glyph, context);
+    if (stored.isEmpty()) {
         return;
+    }
+    QPainterPath path = stored;
+    if (silhouette) {
+        // The first subpath is the shape; the rest is interior detail. Taken
+        // as a polygon so the stroke below follows the outline and nothing
+        // else, which is also what keeps the solid icon the same size as the
+        // stroked ones beside it.
+        const QList<QPolygonF> parts = stored.toSubpathPolygons();
+        if (parts.isEmpty()) {
+            return;
+        }
+        QPainterPath outline;
+        outline.addPolygon(parts.first());
+        outline.closeSubpath();
+        path = outline;
     }
 
     const double side = qMin(box.width(), box.height());

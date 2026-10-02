@@ -83,6 +83,9 @@ protected:
 
 private:
     void relayout();
+    // Gives every row in this section the same control column, measured from
+    // the widest control it holds.
+    void alignControls();
     int headingHeight() const;
 
     QString m_title;

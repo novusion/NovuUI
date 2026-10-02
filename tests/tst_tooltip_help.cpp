@@ -39,6 +39,69 @@ private slots:
 
     // The content model is five fields, so a caller never has to build a tip
     // out of newlines.
+    // LABEL / ACTION / EXTENDED are subsets of one struct, not variants. If a
+    // level ever starts carrying something of its own, it has become a second
+    // tooltip with a shorter name.
+    void theThreeLevelsAreFieldSubsets()
+    {
+        const TipContent label = TipContent::label(QStringLiteral("General"),
+                                                   QStringLiteral("2 categories"));
+        QCOMPARE(label.title, QStringLiteral("General"));
+        QCOMPARE(label.status, QStringLiteral("2 categories"));
+        QVERIFY(label.brief.isEmpty());
+        QVERIFY(label.detail.isEmpty());
+        QVERIFY(label.shortcut.isEmpty());
+
+        const TipContent action = TipContent::action(
+            QStringLiteral("New workspace"),
+            QStringLiteral("Create a workspace for organizing chats, tasks and context."),
+            QStringLiteral("Ctrl N"));
+        QCOMPARE(action.title, QStringLiteral("New workspace"));
+        QCOMPARE(action.shortcut, QStringLiteral("Ctrl N"));
+        QVERIFY(!action.brief.isEmpty());
+        // The level that is not the default carries the only field it adds.
+        QVERIFY(action.detail.isEmpty());
+
+        const TipContent extended = TipContent::extended(
+            QStringLiteral("Transfers"), QStringLiteral("Files on their way in or out."),
+            QStringLiteral("Copies, moves and shares are queued here."),
+            QStringLiteral("F9"), QStringLiteral("2 active"));
+        QCOMPARE(extended.title, QStringLiteral("Transfers"));
+        QCOMPARE(extended.shortcut, QStringLiteral("F9"));
+        QCOMPARE(extended.status, QStringLiteral("2 active"));
+        QVERIFY(!extended.brief.isEmpty());
+        QVERIFY(!extended.detail.isEmpty());
+    }
+
+    // The one-string overload is a LABEL: the string names the control. It used
+    // to fill the description, which produced a card with no title at all.
+    void aPlainStringIsALabel()
+    {
+        QWidget host;
+        auto* target = new QLabel(QStringLiteral("x"), &host);
+        Tooltip::install(target, QStringLiteral("Archive 2024"));
+
+        const TipContent content = Tooltip::contentFor(target);
+        QCOMPARE(content.title, QStringLiteral("Archive 2024"));
+        QVERIFY(content.brief.isEmpty());
+    }
+
+    // The one way ACTION fails is a sentence that restates the label, which no
+    // test can catch for real wording - but it can catch the shape that makes
+    // it likely: an action whose brief *is* its title.
+    void anActionNeverRepeatsItsTitle()
+    {
+        const TipContent bad = TipContent::action(QStringLiteral("Console"),
+                                                  QStringLiteral("Console"));
+        QCOMPARE(bad.title, bad.brief);   // documented as the failure, not the norm
+
+        const TipContent good = TipContent::action(
+            QStringLiteral("Console"),
+            QStringLiteral("Open the runtime console and inspect current activity."));
+        QVERIFY(good.brief != good.title);
+        QVERIFY(good.brief.size() > good.title.size());
+    }
+
     void aTipKeepsEveryFieldItWasGiven()
     {
         QWidget host;

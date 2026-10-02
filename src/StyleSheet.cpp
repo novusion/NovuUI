@@ -241,7 +241,16 @@ QString styleSheetFor(const ThemeProfile& p)
                           " border: 1px solid %3; border-radius: %4px;"
                           " padding: 6px 8px; }"
                           "QPlainTextEdit:focus { border-color: %5; }"
-                          "QPlainTextEdit:disabled { color: %6; }")
+                          "QPlainTextEdit:disabled { color: %6; }"
+                          // Renaming a row in place is not filling in a form.
+                          // The editor stands exactly where the label stood,
+                          // in the same ink, on the row's own background - so
+                          // what changes when an edit begins is that the text
+                          // is selected, not that a box appeared around it.
+                          "QLineEdit#novuTreeRename { background: transparent;"
+                          " border: none; border-radius: 0; padding: 0;"
+                          " color: %2; }"
+                          "QLineEdit#novuTreeRename:focus { border: none; }")
                .arg(css(c.panelBg), css(c.textPrimary), css(c.border))
                .arg(radiusInput)
                .arg(css(c.accent), css(c.textDisabled));

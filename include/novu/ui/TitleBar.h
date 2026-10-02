@@ -176,12 +176,17 @@ private:
     void applyTheme();
     void layoutCentre();
     void updateIconPixmap();
+    void updateBrandVisibility();
     // The caption is elided by the bar, not by the label: a window title is
     // whatever the application named the document, and a path that does not
     // fit must shorten rather than push the controls off the frame.
     void updateElidedTitle();
 
     QHBoxLayout* m_row = nullptr;
+    // The mark and the leading widget, in a row of their own so the gap
+    // between them can differ from the bar's. See WindowTokens::brandGap.
+    QWidget* m_brand = nullptr;
+    QHBoxLayout* m_brandRow = nullptr;
     QLabel* m_iconLabel = nullptr;
     QLabel* m_titleLabel = nullptr;
     QWidget* m_leading = nullptr;

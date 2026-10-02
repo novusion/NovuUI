@@ -172,6 +172,13 @@ public:
     QString currentId() const;
     void setCurrentId(const QString& id);
 
+    // Selects a row AND says it was chosen, exactly as a click on it does.
+    //
+    // setCurrentId() only moves the highlight: it announces currentChanged,
+    // never activated. A caller that had just created a row and wanted it
+    // opened got a highlighted row and whatever was on screen before.
+    void activate(const QString& id);
+
     // ── geometry ─────────────────────────────────────────────────────────
     QRect rowRect(int row) const;
     QRect chevronRect(int row) const;

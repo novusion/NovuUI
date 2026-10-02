@@ -6,6 +6,7 @@
 
 #include <QEvent>
 #include <QFontMetrics>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPen>
 #include <QResizeEvent>
@@ -329,6 +330,54 @@ bool SettingRow::event(QEvent* event)
     return QWidget::event(event);
 }
 
+void SettingRow::setSelectable(bool selectable)
+{
+    if (m_selectable == selectable) {
+        return;
+    }
+    m_selectable = selectable;
+    setCursor(selectable ? Qt::PointingHandCursor : Qt::ArrowCursor);
+    setAttribute(Qt::WA_Hover, selectable);
+    update();
+}
+
+void SettingRow::setSelected(bool selected)
+{
+    if (m_selected == selected) {
+        return;
+    }
+    m_selected = selected;
+    update();
+}
+
+void SettingRow::mousePressEvent(QMouseEvent* event)
+{
+    if (!m_selectable || event->button() != Qt::LeftButton) {
+        QWidget::mousePressEvent(event);
+        return;
+    }
+    m_pressed = true;
+    // Handled here and nowhere else. Passing a press we have acted on to the
+    // base class leaves it ignored, and Qt walks an ignored mouse event up
+    // the parents until something else answers it.
+    event->accept();
+}
+
+void SettingRow::mouseReleaseEvent(QMouseEvent* event)
+{
+    if (!m_selectable || event->button() != Qt::LeftButton) {
+        QWidget::mouseReleaseEvent(event);
+        return;
+    }
+    const bool inside = rect().contains(event->position().toPoint());
+    const bool was = m_pressed;
+    m_pressed = false;
+    event->accept();
+    if (was && inside) {
+        emit clicked();
+    }
+}
+
 StyleSpec SettingRow::styleSpec() const
 {
     StyleSpec spec;
@@ -338,6 +387,16 @@ StyleSpec SettingRow::styleSpec() const
     spec.radius = SurfaceRole::Card;
     spec.borderWidth = BorderRole::Divider;
     spec.type = TypeRole::Body;
+    // The selection surface, when the row is one that can be picked.
+    //
+    // The same `.trow.sel { background: rgba(--acc,.14) }` TreeView paints a
+    // current row with - one selection colour in the library, not a second
+    // one invented for settings. Without these the selected row resolved to
+    // an unset colour and painted nothing, so picking a row changed only
+    // which detail was below it.
+    spec.hoverBackground = token(ColorRole::PanelBg);
+    spec.checkedBackground = token(ColorRole::Accent, 0.14);
+    spec.checkedForeground = token(ColorRole::TextPrimary);
     if (hasError()) {
         // The row's own contract changes when it is in error, which is what a
         // test asserting "an invalid setting is marked" should be able to read
@@ -360,6 +419,18 @@ void SettingRow::paintEvent(QPaintEvent*)
 
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
+
+    // The selection, under everything else the row draws.
+    if (m_selectable && (m_selected || underMouse())) {
+        const ResolvedStyle style = resolvedStyle();
+        const QColor fill = m_selected ? style.checkedBackground : style.hoverBackground;
+        if (fill.isValid() && fill.alpha() > 0) {
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(fill);
+            painter.drawRoundedRect(QRectF(rect()), profile.radii.small + 1,
+                                    profile.radii.small + 1);
+        }
+    }
 
     if (m_divider) {
         // `.kv{border-bottom:1px solid var(--hair)}` - the rule between two

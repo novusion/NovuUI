@@ -1,5 +1,7 @@
 #include "novu/ui/Button.h"
 
+#include "novu/ui/Tooltip.h"
+
 #include "novu/ui/Motion.h"
 #include "novu/ui/StyleSheet.h"
 #include "novu/ui/StyleSpec.h"
@@ -154,7 +156,7 @@ QSize Button::sizeHint() const
     // of the measurement. Left to Qt's own icon handling the caption would be
     // measured and the icon would not, and a captioned icon button would come
     // out one glyph too narrow.
-    const int lead = m_glyph == Glyph::None
+    const int lead = (m_glyph == Glyph::None && !m_statusDot)
         ? 0
         : glyphSizeFor(this, m_size) + kIconGap;
     // The trailing glyph is measured the same way. QPushButton knows about
@@ -347,8 +349,73 @@ void Button::applyVariant()
     updateGeometry();
 }
 
+void Button::setStatusDot(StatusDot::Tone tone)
+{
+    if (m_statusDot && m_statusDotTone == tone) {
+        return;
+    }
+    m_statusDot = true;
+    m_statusDotTone = tone;
+    applyGlyph();
+    updateGeometry();
+    update();
+}
+
+void Button::clearStatusDot()
+{
+    if (!m_statusDot) {
+        return;
+    }
+    m_statusDot = false;
+    applyGlyph();
+    updateGeometry();
+    update();
+}
+
+// The dot as the button's icon rather than as a child widget or a hand-placed
+// circle in paintEvent().
+//
+// The caption's position is QPushButton's to decide - it centres the icon and
+// the text as one group, and the padding that feeds that comes from a style
+// sheet. Painting a dot at a computed x would be guessing at that arithmetic
+// and would drift the first time the padding changed. Handing it over as the
+// icon means the layout is the one Qt already does for a leading glyph, and
+// the dot is re-rendered from the tone on every theme change for the same
+// reason the glyph is.
+QPixmap Button::statusDotPixmap() const
+{
+    const int size = glyphSizeFor(this, m_size);
+    const qreal ratio = devicePixelRatioF();
+    QPixmap pixmap(QSize(size, size) * ratio);
+    pixmap.setDevicePixelRatio(ratio);
+    pixmap.fill(Qt::transparent);
+
+    // The same token StatusDot resolves, so the dot on a button and the dot in
+    // a list are one colour with one meaning.
+    const QColor ink = statusDotToken(m_statusDotTone).resolve(themeFor(this));
+    // The design's dot is smaller than a glyph's box; the rest of the box is
+    // the breathing room StatusDot gives its own halo.
+    const double diameter = size * 0.5;
+    const double inset = (size - diameter) / 2.0;
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(ink);
+    painter.drawEllipse(QRectF(inset, inset, diameter, diameter));
+    return pixmap;
+}
+
 void Button::applyGlyph()
 {
+    // A state outranks a decoration: see setStatusDot(). The spinner still
+    // outranks both, because a button that is working is not reporting.
+    if (m_statusDot && !m_busy) {
+        const int size = glyphSizeFor(this, m_size);
+        setIcon(QIcon(statusDotPixmap()));
+        setIconSize(QSize(size, size));
+        return;
+    }
     const Glyph shown = m_busy ? Glyph::Refresh : m_glyph;
     if (shown == Glyph::None) {
         setIcon(QIcon());
@@ -466,7 +533,10 @@ Button* detachButton(QWidget* parent)
     // control is a row action, not furniture.
     auto* button = new Button(QObject::tr("Detach"), Button::Variant::Outlined, parent);
     button->setGlyph(Glyph::External);
-    button->setToolTip(QObject::tr("Detach this panel into its own window"));
+    Tooltip::install(button, TipContent::action(
+        QObject::tr("Detach"),
+        QObject::tr("Opens this panel in a window of its own, so it stays "
+                    "readable while you work elsewhere.")));
     return button;
 }
 

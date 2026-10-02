@@ -12,6 +12,7 @@ QString categoryLabel(Category category)
     case Category::Input:       return QStringLiteral("Input");
     case Category::DataDisplay: return QStringLiteral("Data display");
     case Category::Feedback:    return QStringLiteral("Feedback");
+    case Category::Help:        return QStringLiteral("Help");
     }
     return QStringLiteral("Foundation");
 }
@@ -26,6 +27,7 @@ QString categoryKey(Category category)
     case Category::Input:       return QStringLiteral("input");
     case Category::DataDisplay: return QStringLiteral("data-display");
     case Category::Feedback:    return QStringLiteral("feedback");
+    case Category::Help:        return QStringLiteral("help");
     }
     return QStringLiteral("foundation");
 }
@@ -40,7 +42,7 @@ QVector<Category> allCategories()
     // rather than scattered among Input and DataDisplay.
     return {Category::Foundation, Category::TitleBar, Category::Navigation,
             Category::Footer, Category::Input, Category::DataDisplay,
-            Category::Feedback};
+            Category::Feedback, Category::Help};
 }
 
 bool ComponentSpec::isValid() const
