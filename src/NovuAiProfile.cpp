@@ -217,6 +217,15 @@ ThemeProfile novuAiProfile()
     p.controls.buttonPaddingIncludesBorder = false;
     p.controls.buttonDisabledOpacity = .42;
     p.controls.scrollThumbOnAreaHover = true;
+    // The workspace tree is read by its names, not by its glyphs.
+    //
+    // Icon and label shared one ink, so a sidebar of workspaces, folders
+    // and chats presented a column of equally bright marks with nothing to
+    // settle on. Dropping the glyphs below the names leaves the hierarchy
+    // to indentation, chevrons and type - and leaves the one accent-drawn
+    // icon, the active workspace, as the only colour in the column and the
+    // thing the eye finds first.
+    p.controls.treeIconOpacity = .55;
     p.controls.scrollThumbInset = 3;
     p.controls.selectHeight = 26;
     p.controls.selectSmallHeight = 23;
@@ -286,6 +295,25 @@ ThemeProfile novuAiProfile()
     // title bar uses between unrelated controls. 12 read as a gap between an
     // icon and a caption instead of as a logo with its name beside it.
     p.window.titleBarGap = 9;
+    // The mark sits against the name, not a control's distance from it. 9 is
+    // the bar's gap between unrelated things - a toolbar button and the next
+    // one, a window control and its neighbour - and the mark is not one of
+    // those: it is the first glyph of the word beside it.
+    p.window.brandGap = 4;
+    // The window mark, four pixels under the library's default.
+    //
+    // 18 is what TitleBar gives every application, and against this bar's
+    // 13px name it read heavy; 14 is the size that was settled on by looking
+    // at it, two pixels at a time. Matching the name's cap height exactly -
+    // 9.4px, which would mean a 10px box - was tried and is too small: the
+    // gem has three faces and needs the room to still read as one.
+    //
+    // Only TitleBar reads this token, and only to size the window mark: the
+    // label keeps the bar's full height and centres the pixmap in it, so
+    // nothing about the bar's own geometry moves. The icon the OS shows -
+    // taskbar, Alt+Tab, the executable's own resource - is a different asset
+    // and is not touched by this.
+    p.window.iconSize = 14;
     p.window.titleBarHeight   = 44;   // --titlebar-h
     p.window.statusBarHeight  = 26;   // --statusbar-h
     p.window.titleBarBg       = c(kTitlebarTop);

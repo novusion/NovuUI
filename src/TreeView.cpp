@@ -539,6 +539,15 @@ void TreeView::setCurrentId(const QString& id)
     emit currentChanged(m_current);
 }
 
+void TreeView::activate(const QString& id)
+{
+    if (id.isEmpty() || !m_nodes.contains(id)) {
+        return;
+    }
+    setCurrentId(id);
+    emit activated(id);
+}
+
 // == geometry ===============================================================
 
 void TreeView::setRowHeight(int height){m_rowHeight=qMax(0,height);updateScrollRange();updateGeometry();viewport()->update();}
@@ -709,7 +718,9 @@ void TreeView::beginRename(const QString& id)
 
     m_editing = id;
     m_editor = new QLineEdit(viewport());
-    m_editor->setObjectName(QStringLiteral("tree.rename"));
+    // Named so the stylesheet can take the field shape off it. A dot in an
+    // object name reads as a class separator in QSS, so this one has none.
+    m_editor->setObjectName(QStringLiteral("novuTreeRename"));
     m_editor->setFrame(false);
     m_editor->setText(label(id));
     m_editor->selectAll();
@@ -1160,7 +1171,10 @@ void TreeView::paintEvent(QPaintEvent*)
             painter.drawText(typeBox, Qt::AlignCenter, fileType);
             x += typeWidth + kRowGap;
         } else if (entry->glyph != Glyph::None) {
-            QColor iconInk = ink;
+            // Quieter than the name it labels, where the profile says so.
+            QColor iconInk = profile.controls.treeIconOpacity < 1.0
+                                 ? withAlpha(ink, profile.controls.treeIconOpacity)
+                                 : ink;
             if (entry->mark == Mark::Active) {
                 iconInk = profile.colors.accent;
             } else if (entry->mark == Mark::Detached) {

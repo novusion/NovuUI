@@ -340,6 +340,21 @@ struct ControlMetrics
     //
     // 17 is the only value any authority states.
     int treeStep = 17;
+    // How present a tree row's icon is against its label.
+    //
+    // A row's icon took the row's text ink exactly, so in a dense sidebar
+    // every folder and chat glyph carried the same weight as the name beside
+    // it and the column read as noise - the eye had nothing to settle on.
+    // Muting the icon leaves the names as the thing being read and the one
+    // ACTIVE icon, which is drawn in the accent, as the thing being found.
+    //
+    // 1.0 is "no opinion": the icon is the text ink, which is what every
+    // profile did before this existed, so a product that has not set it is
+    // unchanged. A profile opts into a quieter column by lowering it.
+    //
+    // Does not apply to a marked row: an active workspace is an accent and a
+    // detached one already has its own fade.
+    double treeIconOpacity = 1.0;
     // Compact buttons may keep the product pill or use a smaller corner.
     RadiusStep smallButtonRadius = RadiusStep::Small;
     int segmentedPadding=3;
