@@ -35,9 +35,10 @@ const QVector<FeedbackType>& typeOrder()
 QString feedbackTypeKey(FeedbackType type)
 {
     switch (type) {
-    case FeedbackType::Suggestion: return QStringLiteral("suggestion");
-    case FeedbackType::General:    return QStringLiteral("general");
-    case FeedbackType::Bug:        break;
+    case FeedbackType::Suggestion:  return QStringLiteral("suggestion");
+    case FeedbackType::General:     return QStringLiteral("general");
+    case FeedbackType::Improvement: return QStringLiteral("improvement");
+    case FeedbackType::Bug:         break;
     }
     return QStringLiteral("bug");
 }
@@ -45,15 +46,17 @@ QString feedbackTypeKey(FeedbackType type)
 QString feedbackTypeLabel(FeedbackType type)
 {
     switch (type) {
-    case FeedbackType::Suggestion: return QObject::tr("Suggestion");
-    case FeedbackType::General:    return QObject::tr("General");
-    case FeedbackType::Bug:        break;
+    case FeedbackType::Suggestion:  return QObject::tr("Suggestion");
+    case FeedbackType::General:     return QObject::tr("General");
+    case FeedbackType::Improvement: return QObject::tr("Improvement");
+    case FeedbackType::Bug:         break;
     }
     return QObject::tr("Bug");
 }
 
-FeedbackForm::FeedbackForm(QWidget* parent)
+FeedbackForm::FeedbackForm(QWidget* parent, const QVector<FeedbackType>& types)
     : QWidget(parent)
+    , m_typeOrder(types.isEmpty() ? typeOrder() : types)
 {
     const ThemeProfile& profile = themeFor(this);
 
@@ -62,7 +65,7 @@ FeedbackForm::FeedbackForm(QWidget* parent)
     column->setSpacing(profile.space(SpacingRole::SectionGap));
 
     QStringList typeLabels;
-    for (FeedbackType type : typeOrder()) {
+    for (FeedbackType type : m_typeOrder) {
         typeLabels.append(feedbackTypeLabel(type));
     }
     m_type = new TabStrip(typeLabels, this, 0, TabStrip::Variant::Segment);
@@ -255,7 +258,7 @@ FeedbackRequest FeedbackForm::request() const
 {
     FeedbackRequest request;
     const int index = m_type->current();
-    request.type = typeOrder().value(index, FeedbackType::Bug);
+    request.type = m_typeOrder.value(index, FeedbackType::Bug);
     request.title = m_title->text().trimmed();
     request.description = m_description->toPlainText().trimmed();
 
@@ -422,9 +425,10 @@ void FeedbackForm::setScreenshotAvailable(bool available)
     }
 }
 
-FeedbackDialog::FeedbackDialog(const FeedbackContext& context, QWidget* parent)
+FeedbackDialog::FeedbackDialog(const FeedbackContext& context, QWidget* parent,
+                               const QVector<FeedbackType>& types)
     : Dialog(tr("Send feedback"), parent)
-    , m_form(new FeedbackForm)
+    , m_form(new FeedbackForm(nullptr, types))
 {
     const ThemeProfile& profile = themeFor(this);
     const int padding = profile.space(SpacingRole::CardPadding);

@@ -21,7 +21,13 @@ class InfoBanner;
 class TabStrip;
 
 // What the user is telling us.
-enum class FeedbackType { Bug, Suggestion, General };
+//
+// Appended to rather than reordered: the first three are what NovuSpace and
+// NovuExplorer have shown since they shipped, and a form whose tabs move is a
+// form whose muscle memory is wrong. Improvement is offered only to a consumer
+// that asks for it - see FeedbackForm's constructor - so adding it changed
+// nothing for the applications already drawing this.
+enum class FeedbackType { Bug, Suggestion, General, Improvement };
 
 QString feedbackTypeKey(FeedbackType type);      // "bug" | "suggestion" | "general"
 QString feedbackTypeLabel(FeedbackType type);
@@ -136,7 +142,13 @@ public:
     };
     Q_ENUM(State)
 
-    explicit FeedbackForm(QWidget* parent = nullptr);
+    // `types` is which tabs this consumer offers, in order. Empty means the
+    // three every Novu application has had: Bug, Suggestion, General. A
+    // product whose backend sorts a fourth kind of report - NovuSource files
+    // Improvement separately from Feature request - passes its own list
+    // rather than growing a tab into everyone else's form.
+    explicit FeedbackForm(QWidget* parent = nullptr,
+                          const QVector<FeedbackType>& types = {});
 
     void setContext(const FeedbackContext& context);
     FeedbackContext context() const { return m_context; }
@@ -184,6 +196,10 @@ private:
     QString validationProblem() const;
 
     FeedbackContext m_context;
+    //! The tabs this form offers, in the order they are drawn. What the index
+    //! coming out of the strip is looked up in, so the tab a person picked
+    //! and the type that reaches the consumer cannot drift apart.
+    QVector<FeedbackType> m_typeOrder;
     State m_state = State::Empty;
 
     TabStrip* m_type = nullptr;
@@ -226,7 +242,8 @@ class FeedbackDialog : public Dialog
     Q_OBJECT
 
 public:
-    explicit FeedbackDialog(const FeedbackContext& context, QWidget* parent = nullptr);
+    explicit FeedbackDialog(const FeedbackContext& context, QWidget* parent = nullptr,
+                            const QVector<FeedbackType>& types = {});
 
     FeedbackForm* form() const { return m_form; }
 
