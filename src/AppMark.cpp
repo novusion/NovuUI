@@ -429,6 +429,31 @@ void paintBrandMark(QPainter* painter, const QRectF& box, const QWidget* context
     painter->restore();
 }
 
+QPixmap brandMarkTightPixmap(int size, const QWidget* context, qreal devicePixelRatio)
+{
+    if (size <= 0) {
+        return {};
+    }
+    // The window onto the 48-unit grid: a 29-unit square around the mark's own
+    // centre (24, 24.125). The gem then fills 80.7% of what it is given, which
+    // is what makes a 14px box draw a 12.9px mark.
+    constexpr qreal kWindow = 29.0;
+    constexpr qreal kWindowX = 9.5;
+    constexpr qreal kWindowY = 9.625;
+
+    const qreal ratio = devicePixelRatio > 0.0 ? devicePixelRatio
+                                               : (qApp ? qApp->devicePixelRatio() : 1.0);
+    QPixmap pixmap(QSize(size, size) * ratio);
+    pixmap.setDevicePixelRatio(ratio);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    const qreal unit = size / kWindow;
+    painter.translate(-kWindowX * unit, -kWindowY * unit);
+    paintBrandMark(&painter, QRectF(0, 0, kViewBox * unit, kViewBox * unit), context);
+    return pixmap;
+}
+
 QPixmap brandMarkPixmap(int size, const QWidget* context, qreal devicePixelRatio)
 {
     if (size <= 0) {

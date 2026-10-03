@@ -183,4 +183,20 @@ void paintBrandMark(QPainter* painter, const QRectF& box, const QWidget* context
 QPixmap brandMarkPixmap(int size, const QWidget* context, qreal devicePixelRatio = 0);
 QIcon brandMarkIcon(int size, const QWidget* context);
 
+// The same mark, drawn to fill the box instead of floating in it.
+//
+// The three faces occupy 23.40 x 26.77 of the 48-unit grid they are drawn on -
+// 49% of its width and 56% of its height - so asking brandMarkPixmap() for a
+// 14px icon yields an 8px gem adrift in a 14px box, with air on every side.
+// In a title bar that air is what makes the mark read as both too small and
+// too far from the name.
+//
+// This tightens the window to a square around the mark's own centre and
+// nothing else: same polygons, same colours, same grid. NovuSpace worked the
+// window out in its own shell and said at the time that it belonged here
+// rather than in one product; this is that, moved. Its own function rather
+// than a change to brandMarkPixmap(), so every existing caller keeps the
+// framing it already draws.
+QPixmap brandMarkTightPixmap(int size, const QWidget* context, qreal devicePixelRatio = 0);
+
 } // namespace novu::ui
