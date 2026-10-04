@@ -29,7 +29,7 @@ class QVBoxLayout;
 namespace novu::ui {
 
 class Button;
-class ComboBox;
+class SelectButton;
 class EmptyState;
 class IconButton;
 
@@ -152,7 +152,7 @@ private:
     QWidget* m_detailPage = nullptr;
     QVBoxLayout* m_detailLayout = nullptr;
     EmptyState* m_empty = nullptr;
-    ComboBox* m_filter = nullptr;
+    SelectButton* m_filter = nullptr;
     QWidget* m_filterRow = nullptr;
     Button* m_send = nullptr;
     QVector<QPair<QString, QString>> m_filterOptions;

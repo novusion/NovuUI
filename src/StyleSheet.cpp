@@ -91,7 +91,10 @@ QString buttonVariant(const QString& kind, const QString& background,
 QString styleSheetFor(const ThemeProfile& p)
 {
     const ThemeColors& c = p.colors;
-    const int radiusButton = p.radius(SurfaceRole::Button);
+    const int radiusButton = qMin(p.radius(SurfaceRole::Button),
+                                  p.controls.height / 2);
+    const int radiusSegment = qMin(p.radius(SurfaceRole::Segment),
+                                   p.controls.heightSmall / 2);
     const int radiusInput = p.radius(SurfaceRole::Input);
     // A sheet states one number and cannot ask the widget how tall it is, so a
     // pill radius has to be capped here or Qt draws a rounded rectangle whose
@@ -155,7 +158,7 @@ QString styleSheetFor(const ThemeProfile& p)
     qss += QStringLiteral("QPushButton[%1=\"tab\"] { background: transparent; color: %2;"
                           " border: 1px solid %3; border-radius: %4px; }")
                .arg(QLatin1String(prop::kind), css(c.textSecondary), css(c.border))
-               .arg(radiusButton);
+               .arg(radiusSegment);
 
     // Active tab, per tone. Two tones exist because a preset switcher sitting
     // above a row of accent-coloured chips must not read as one of the chips.

@@ -27,6 +27,28 @@ namespace novu::ui {
 
 namespace {
 
+// QLayout owns nested layout items, but it does not own the widgets inside
+// those nested layouts.  Help article bullet lists are built from a VBox of
+// HBoxes whose labels are parented to the reader host, so deleting only the
+// top-level QLayoutItem leaves those labels alive and visible at their old
+// geometry on the next render.
+void deleteLayoutItem(QLayoutItem* item)
+{
+    if (!item) {
+        return;
+    }
+    if (QLayout* layout = item->layout()) {
+        while (QLayoutItem* child = layout->takeAt(0)) {
+            deleteLayoutItem(child);
+        }
+        delete layout;
+        return;
+    } else if (QWidget* widget = item->widget()) {
+        delete widget;
+    }
+    delete item;
+}
+
 // The three columns, as the design fixes them. The reader takes whatever is
 // left, which is the only one of the three whose width is a question.
 constexpr int kListWidth = 300;
@@ -436,8 +458,7 @@ void HelpCenterView::rebuildList()
 void HelpCenterView::rebuildReader()
 {
     while (QLayoutItem* item = m_readerBody->takeAt(0)) {
-        delete item->widget();
-        delete item;
+        deleteLayoutItem(item);
     }
     delete m_readerFoot;
     m_readerFoot = nullptr;

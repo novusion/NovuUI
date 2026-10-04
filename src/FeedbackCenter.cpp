@@ -4,6 +4,7 @@
 #include "novu/ui/Feedback.h"
 #include "novu/ui/Fields.h"
 #include "novu/ui/IconButton.h"
+#include "novu/ui/Popover.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/Theme.h"
 #include "novu/ui/Tooltip.h"
@@ -363,15 +364,17 @@ FeedbackCenterView::FeedbackCenterView(QWidget* parent)
     m_filterRow = new QWidget(m_listPage);
     auto* filterLayout = new QVBoxLayout(m_filterRow);
     filterLayout->setContentsMargins(0, 0, 0, 0);
-    m_filter = new ComboBox(m_filterRow);
+    // Match Help Center's category selector exactly: SelectButton owns the
+    // canonical NovuUI Popover, checked option, geometry and open state.
+    m_filter = new SelectButton(m_filterRow);
+    m_filter->setControlSize(ControlSize::Small);
+    m_filter->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     filterLayout->addWidget(m_filter);
     m_filterRow->setVisible(false);
     listLayout->addWidget(m_filterRow);
-    connect(m_filter, &QComboBox::currentIndexChanged, this, [this](int index) {
-        if (index >= 0 && index < m_filterOptions.size()) {
-            applyFilter();
-            emit filterChanged(m_filterOptions.at(index).first);
-        }
+    connect(m_filter, &SelectButton::currentChanged, this, [this](const QString& key) {
+        applyFilter();
+        emit filterChanged(key);
     });
 
     listLayout->addSpacing(profile.space(SpacingRole::CardGap));
@@ -495,9 +498,9 @@ void FeedbackCenterView::applyFilter()
 void FeedbackCenterView::setFilterOptions(const QVector<QPair<QString, QString>>& options)
 {
     m_filterOptions = options;
-    m_filter->clear();
+    m_filter->clearOptions();
     for (const auto& option : options) {
-        m_filter->addItem(option.second);
+        m_filter->addOption(option.first, option.second);
     }
     // One option is not a choice; an application without modules shows no
     // filter rather than a filter that cannot filter.
@@ -506,11 +509,7 @@ void FeedbackCenterView::setFilterOptions(const QVector<QPair<QString, QString>>
 
 QString FeedbackCenterView::activeFilterId() const
 {
-    const int index = m_filter->currentIndex();
-    if (index < 0 || index >= m_filterOptions.size()) {
-        return {};
-    }
-    return m_filterOptions.at(index).first;
+    return m_filter->currentKey();
 }
 
 void FeedbackCenterView::showList()

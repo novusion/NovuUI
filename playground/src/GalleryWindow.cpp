@@ -140,6 +140,20 @@ void GalleryWindow::buildChrome()
     connect(m_search, &QLineEdit::textChanged, this, &GalleryWindow::onSearchChanged);
     railColumn->addWidget(m_search);
 
+    // Under the search box because it does the same job by other means:
+    // search when you know the name, category when you do not. "All" first,
+    // so the gallery still opens on everything.
+    QStringList categories{QStringLiteral("All categories")};
+    for (Category c : {Category::Foundation, Category::TitleBar, Category::Navigation,
+                       Category::Footer, Category::Input, Category::DataDisplay,
+                       Category::Feedback, Category::Help}) {
+        categories << categoryLabel(c);
+    }
+    m_categoryBox = comboBox(categories, rail);
+    connect(m_categoryBox, &QComboBox::currentIndexChanged, this,
+            &GalleryWindow::onCategoryChanged);
+    railColumn->addWidget(m_categoryBox);
+
     m_navScroll = new QScrollArea(rail);
     m_navScroll->setObjectName(QLatin1String(name::scrollArea));
     m_navScroll->setWidgetResizable(true);
@@ -289,7 +303,22 @@ void GalleryWindow::rebuildNavigation()
     // The registry does the filtering; the gallery only says which application
     // is in view. No membership rule lives in this file.
     const QString application = filterApplicationId();
-    const QVector<ComponentSpec> specs = m_registry.search(query, application);
+    QVector<ComponentSpec> specs = m_registry.search(query, application);
+
+    // Index 0 is "All categories", so the enum starts one along.
+    const int pick = m_categoryBox ? m_categoryBox->currentIndex() : 0;
+    const bool oneCategory = pick > 0;
+    if (oneCategory) {
+        const auto wanted = static_cast<Category>(pick - 1);
+        QVector<ComponentSpec> kept;
+        kept.reserve(specs.size());
+        for (const ComponentSpec& spec : specs) {
+            if (spec.category == wanted) {
+                kept.append(spec);
+            }
+        }
+        specs = kept;
+    }
 
     if (specs.isEmpty()) {
         const QString message =
@@ -307,7 +336,7 @@ void GalleryWindow::rebuildNavigation()
     Category current = specs.first().category;
     bool first = true;
     for (const ComponentSpec& spec : specs) {
-        if (first || spec.category != current) {
+        if (!oneCategory && (first || spec.category != current)) {
             m_navLayout->addWidget(caption(categoryLabel(spec.category), m_navHost));
             current = spec.category;
             first = false;
@@ -449,6 +478,11 @@ void GalleryWindow::repopulatePreview()
 // ── slots ─────────────────────────────────────────────────────────────────
 
 void GalleryWindow::onSearchChanged(const QString&)
+{
+    rebuildNavigation();
+}
+
+void GalleryWindow::onCategoryChanged(int)
 {
     rebuildNavigation();
 }

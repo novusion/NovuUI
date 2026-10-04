@@ -72,6 +72,7 @@ public:
 
 private slots:
     void onSearchChanged(const QString& query);
+    void onCategoryChanged(int index);
     void onScenarioChanged(int index);
     void onApplicationFilterToggled(bool on);
     void onProfileChanged(int index);
@@ -107,6 +108,11 @@ private:
     QWidget* m_navHost = nullptr;
     QVBoxLayout* m_navLayout = nullptr;
     QScrollArea* m_navScroll = nullptr;
+    // Narrowing the rail to one category. Seventy components in one scroll
+    // is a list you read rather than a list you navigate, and the captions
+    // that separate them only help once you already know which caption you
+    // are looking for.
+    QComboBox* m_categoryBox = nullptr;
     QComboBox* m_scenarioBox = nullptr;
     QComboBox* m_profileBox = nullptr;
     // One control, not a second application dropdown: the selected Theme

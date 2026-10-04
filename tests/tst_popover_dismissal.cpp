@@ -8,6 +8,7 @@
 // fault: it is a surface the user cannot dismiss.
 
 #include "novu/ui/Popover.h"
+#include "novu/ui/PopupSurface.h"
 
 #include <QApplication>
 #include <QMouseEvent>
@@ -18,6 +19,8 @@
 #include <QWidget>
 
 using novu::ui::Popover;
+using novu::ui::PopupSurface;
+using novu::ui::SelectButton;
 
 namespace {
 
@@ -118,6 +121,60 @@ private slots:
         QVERIFY(second->isVisible());
 
         second->hide();
+        delete host;
+    }
+
+    // A selector inside a content popup opens a nested popup. The menu takes
+    // the active popup grab, but its owning surface must stay behind it.
+    void nestedSelectKeepsOwningPopupOpen()
+    {
+        QWidget* host = makeHost();
+        host->show();
+        QVERIFY(QTest::qWaitForWindowExposed(host));
+
+        auto* surface = new PopupSurface(host);
+        auto* content = new QWidget;
+        auto* layout = new QVBoxLayout(content);
+        auto* select = new SelectButton(content);
+        select->addOption(QStringLiteral("all"), QStringLiteral("All areas"));
+        select->addOption(QStringLiteral("docs"), QStringLiteral("Documents"));
+        layout->addWidget(select);
+        surface->setContent(content);
+        surface->popupAt(host->mapToGlobal(QPoint(20, 20)));
+
+        QVERIFY(surface->isVisible());
+        QCOMPARE(QApplication::activePopupWidget(), surface);
+
+        select->click();
+        QVERIFY(select->menu()->isVisible());
+        QVERIFY(surface->isVisible());
+        QCOMPARE(QApplication::activePopupWidget(), select->menu());
+
+        QTest::keyClick(select->menu(), Qt::Key_Escape);
+        QVERIFY(!select->menu()->isVisible());
+        QVERIFY(surface->isVisible());
+
+        select->click();
+        const int documents = select->menu()->indexOfKey(QStringLiteral("docs"));
+        QVERIFY(documents >= 0);
+        QTest::mouseClick(select->menu(), Qt::LeftButton, Qt::NoModifier,
+                          select->menu()->itemRect(documents).center());
+        QCOMPARE(select->currentKey(), QStringLiteral("docs"));
+        QVERIFY(!select->menu()->isVisible());
+        QVERIFY(surface->isVisible());
+
+        QTest::keyClick(surface, Qt::Key_Escape);
+        QVERIFY(!surface->isVisible());
+
+        surface->popupAt(host->mapToGlobal(QPoint(20, 20)));
+        const QPoint outside(surface->width() + 40, surface->height() + 40);
+        QMouseEvent press(QEvent::MouseButtonPress, QPointF(outside),
+                          surface->mapToGlobal(outside), Qt::LeftButton,
+                          Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(surface, &press);
+        QVERIFY(!surface->isVisible());
+        QVERIFY(!press.isAccepted());
+
         delete host;
     }
 

@@ -69,6 +69,7 @@ ComponentSpec selectionBarComponent();
 ComponentSpec avatarComponent();
 ComponentSpec badgeComponent();
 ComponentSpec cardComponent();
+ComponentSpec chatCardComponent();
 ComponentSpec statCardComponent();
 ComponentSpec statusDotComponent();
 ComponentSpec propertyRowComponent();

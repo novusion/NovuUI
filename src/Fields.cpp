@@ -136,6 +136,28 @@ void ComboBox::setOpen(bool open)
 void ComboBox::showPopup()
 {
     setOpen(true);
+    // A list of options is not a page.
+    //
+    // The popup is given an explicit QListView above so it honours the
+    // scope stylesheet's ::item rules. The cost of that is that Qt sizes
+    // the popup container from the view's own content rather than from
+    // maxVisibleItems, so the height became a function of how many options
+    // the application happened to register: five options opened a short
+    // list, fifteen covered the window behind it.
+    //
+    // Capped in ROWS rather than pixels, so it follows whatever row height
+    // the profile gives the list, and the view scrolls past the cap the way
+    // any list does.
+    if (QAbstractItemView* list = view()) {
+        constexpr int kMaxVisibleRows = 8;
+        const int rowHeight = count() > 0 && list->sizeHintForRow(0) > 0
+                                  ? list->sizeHintForRow(0)
+                                  : themeFor(this).controlHeight(ControlSize::Small);
+        const int rows = qBound(1, count(), kMaxVisibleRows);
+        // The two pixels are the view's own frame, which is inside the
+        // height Qt gives the container.
+        list->setMaximumHeight(rows * rowHeight + 2);
+    }
     QComboBox::showPopup();
 }
 

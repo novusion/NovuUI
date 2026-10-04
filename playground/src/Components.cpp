@@ -66,6 +66,7 @@ void registerBuiltinComponents(ComponentRegistry& registry)
         &pages::avatarComponent,
         &pages::badgeComponent,
         &pages::cardComponent,
+        &pages::chatCardComponent,
         &pages::statCardComponent,
         &pages::statusDotComponent,
         &pages::propertyRowComponent,

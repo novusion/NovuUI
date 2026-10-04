@@ -627,10 +627,15 @@ void Popover::closeChain()
     }
 }
 
-void Popover::dismissForeignPopup()
+void Popover::dismissForeignPopup(QWidget* anchor)
 {
     QWidget* active = QApplication::activePopupWidget();
-    if (!active || active == this || chainContains(active)) {
+    // A popover opened by a control inside an existing PopupSurface is a
+    // child interaction, not a competing top-level popup. Keep the owning
+    // surface alive while this menu temporarily takes the popup grab.
+    const bool ownedByActivePopup = active && anchor
+        && (active == anchor || active->isAncestorOf(anchor));
+    if (!active || active == this || chainContains(active) || ownedByActivePopup) {
         return;
     }
     // Qt closes the previous popup through the platform grab. Where that grab
@@ -682,7 +687,7 @@ void Popover::popupUnder(QWidget* anchor, const QRect& anchorRect)
     if (!anchor) {
         return;
     }
-    dismissForeignPopup();
+    dismissForeignPopup(anchor);
     m_anchor = anchor;
     const QRect box(anchor->mapToGlobal(anchorRect.topLeft()), anchorRect.size());
 

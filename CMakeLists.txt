@@ -20,6 +20,7 @@ add_library(NovuUI STATIC
     include/novu/ui/ThemeManager.h
     include/novu/ui/ThemeScope.h
     include/novu/ui/Card.h
+    include/novu/ui/ChatCard.h
     include/novu/ui/CommandPalette.h
     include/novu/ui/Layout.h
     include/novu/ui/Avatar.h
@@ -72,6 +73,7 @@ add_library(NovuUI STATIC
     include/novu/ui/Keys.h
     include/novu/ui/LogView.h
     include/novu/ui/MonoLineView.h
+    include/novu/ui/MarkdownDocumentView.h
     include/novu/ui/ModuleBar.h
     include/novu/ui/NavList.h
     include/novu/ui/PageHeader.h
@@ -97,6 +99,7 @@ add_library(NovuUI STATIC
     src/ThemeManager.cpp
     src/ThemeScope.cpp
     src/Card.cpp
+    src/ChatCard.cpp
     src/CommandPalette.cpp
     src/Layout.cpp
     src/Avatar.cpp
@@ -136,6 +139,7 @@ add_library(NovuUI STATIC
     src/FeedbackForm.cpp
     src/GateCard.cpp
     src/HelpCenter.cpp
+    src/ReleaseNotes.cpp
     src/HelpOverlay.cpp
     src/AddressBar.cpp
     src/AppMark.cpp
@@ -148,6 +152,7 @@ add_library(NovuUI STATIC
     src/Keys.cpp
     src/LogView.cpp
     src/MonoLineView.cpp
+    src/MarkdownDocumentView.cpp
     src/ModuleBar.cpp
     src/NavList.cpp
     src/PageHeader.cpp

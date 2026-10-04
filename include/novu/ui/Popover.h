@@ -214,7 +214,7 @@ private:
     void closeChain();
     // Closes whatever unrelated popup is currently open, so opening a second
     // menu always leaves exactly one. Does not depend on the platform grab.
-    void dismissForeignPopup();
+    void dismissForeignPopup(QWidget* anchor = nullptr);
 
     QPointer<Popover> m_parentMenu;
     Entry* find(const QString& key);

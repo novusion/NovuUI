@@ -14,6 +14,8 @@ class QPlainTextEdit;
 
 namespace novu::ui {
 
+class SelectButton;
+
 class Button;
 class CheckBox;
 class ComboBox;
@@ -209,7 +211,7 @@ private:
     CheckBox* m_includeLogs = nullptr;
     CheckBox* m_includeScreenshot = nullptr;
     QWidget* m_moduleRow = nullptr;
-    ComboBox* m_module = nullptr;
+    SelectButton* m_module = nullptr;
     QLabel* m_contextLine = nullptr;
     QVector<FeedbackModuleOption> m_modules;
     bool m_screenshotAvailable = false;

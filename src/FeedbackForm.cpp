@@ -5,6 +5,7 @@
 #include "novu/ui/Fields.h"
 #include "novu/ui/Form.h"
 #include "novu/ui/Layout.h"
+#include "novu/ui/Popover.h"
 #include "novu/ui/TabStrip.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
@@ -85,7 +86,12 @@ FeedbackForm::FeedbackForm(QWidget* parent, const QVector<FeedbackType>& types)
     moduleLayout->setContentsMargins(0, 0, 0, 0);
     moduleLayout->setSpacing(4);
     moduleLayout->addWidget(caption(tr("Area"), m_moduleRow));
-    m_module = new ComboBox(m_moduleRow);
+    // The same canonical select and Popover construction used by Help Center.
+    // A native combo has a different closed shape and a platform-owned popup;
+    // an Area choice is the same interaction as Help Center's category choice.
+    m_module = new SelectButton(m_moduleRow);
+    m_module->setControlSize(ControlSize::Small);
+    m_module->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     moduleLayout->addWidget(m_module);
     m_moduleRow->setVisible(false);
     column->addWidget(m_moduleRow);
@@ -363,6 +369,7 @@ void FeedbackForm::applyState()
     m_type->setEnabled(!locked);
     m_title->setEnabled(!locked);
     m_description->setEnabled(!locked);
+    m_module->setEnabled(!locked);
     m_includeInfo->setEnabled(!locked);
 
     m_send->setEnabled(!locked);
@@ -388,9 +395,9 @@ void FeedbackForm::setModules(const QVector<FeedbackModuleOption>& modules,
                               const QString& preselectedId)
 {
     m_modules = modules;
-    m_module->clear();
+    m_module->clearOptions();
     for (const FeedbackModuleOption& option : m_modules) {
-        m_module->addItem(option.label);
+        m_module->addOption(option.id, option.label);
     }
 
     // One option is not a choice, and none is not a module model.
@@ -399,7 +406,7 @@ void FeedbackForm::setModules(const QVector<FeedbackModuleOption>& modules,
     if (!preselectedId.isEmpty()) {
         for (int i = 0; i < m_modules.size(); ++i) {
             if (m_modules.at(i).id == preselectedId) {
-                m_module->setCurrentIndex(i);
+                m_module->setCurrentKey(m_modules.at(i).id);
                 break;
             }
         }
@@ -408,11 +415,13 @@ void FeedbackForm::setModules(const QVector<FeedbackModuleOption>& modules,
 
 QString FeedbackForm::selectedModuleId() const
 {
-    const int index = m_module->currentIndex();
-    if (index < 0 || index >= m_modules.size()) {
-        return {};
+    const QString key = m_module->currentKey();
+    for (const FeedbackModuleOption& option : m_modules) {
+        if (option.id == key) {
+            return key;
+        }
     }
-    return m_modules.at(index).id;
+    return {};
 }
 
 void FeedbackForm::setScreenshotAvailable(bool available)

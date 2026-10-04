@@ -60,6 +60,7 @@ add_library(NovuUIPlaygroundLib STATIC
     src/pages/BottomPanelPage.cpp
     src/pages/ButtonPage.cpp
     src/pages/CardPage.cpp
+    src/pages/ChatCardPage.cpp
     src/pages/ChipPage.cpp
     src/pages/FeedbackFormPage.cpp
     src/pages/FeedbackPage.cpp

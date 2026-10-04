@@ -1295,6 +1295,21 @@ void TreeView::paintEvent(QPaintEvent*)
             rightEdge = static_cast<int>(pill.left()) - kRowGap;
         }
 
+        // The row being renamed draws no name.
+        //
+        // The inline editor is deliberately transparent so it sits in the
+        // row rather than on top of it - see `QLineEdit#novuTreeRename` in
+        // the sheet - which means anything this paints underneath shows
+        // through it. The old label did, so starting a rename on "New Chat"
+        // left "New Chat" behind the caret and whatever was typed landed on
+        // top of it.
+        //
+        // The editor already carries the text, selected, so there is nothing
+        // to draw here: the name is the editor's for as long as it is up.
+        if (entry->id == m_editing) {
+            continue;
+        }
+
         QFont font = nameFont(this, entry->kind);
         if (entry->mark == Mark::Detached) {
             // `.trow.detached .tname { font-style:italic }` — present, but not
