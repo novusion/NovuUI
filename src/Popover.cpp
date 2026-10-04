@@ -725,8 +725,13 @@ void Popover::trigger(int index)
     if(entry.submenu){openSubmenu(index,true);return;}
     // Closed before the signal, not after: a handler that opens a dialog would
     // otherwise do so with a menu still on screen above it.
+    //
+    // Unless this is a menu of choices rather than of commands, in which case
+    // it stays up and the caller keeps picking - see setClosesOnTrigger().
     const QString key = entry.key;
-    for(auto* menu=this;menu;menu=menu->m_parentMenu.data())menu->hide();
+    if (m_closesOnTrigger) {
+        for(auto* menu=this;menu;menu=menu->m_parentMenu.data())menu->hide();
+    }
     emit triggered(key);
 }
 

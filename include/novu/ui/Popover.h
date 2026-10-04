@@ -140,6 +140,21 @@ public:
     // `.pitem.on` — the accent, for the option currently in force. Several may
     // be marked; this is not a radio group.
     void setChecked(const QString& key, bool checked);
+
+    // Whether choosing an item closes the menu. It does, which is right for
+    // a menu of commands: the thing you picked is now happening.
+    //
+    // A menu of CHOICES is the other case, and it has one caller so far -
+    // which workspaces a chat draws context from. Picking three of them
+    // through a menu that shuts after each one is three trips, and the third
+    // is where a person gives up. With this off the item is toggled, the
+    // check moves, the menu stays, and it is dismissed the way any popup is:
+    // outside click, or Esc.
+    //
+    // The signal is emitted either way, so a handler does not have to know
+    // which kind of menu it is on.
+    bool closesOnTrigger() const { return m_closesOnTrigger; }
+    void setClosesOnTrigger(bool closes) { m_closesOnTrigger = closes; }
     bool isChecked(const QString& key) const;
     // `.pitem.danger` — the ink and the hover both go red. For the one entry a
     // user must not hit by accident.
@@ -217,6 +232,7 @@ private:
     void dismissForeignPopup(QWidget* anchor = nullptr);
 
     QPointer<Popover> m_parentMenu;
+    bool m_closesOnTrigger = true;
     Entry* find(const QString& key);
     const Entry* find(const QString& key) const;
 
