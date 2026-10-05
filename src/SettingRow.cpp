@@ -96,6 +96,29 @@ int wrappedHeight(const QFontMetrics& fm, const QString& text, int width, double
     return qRound(fm.height() * leading) * lines;
 }
 
+// The height a control will actually be, not the height it asks for.
+//
+// sizeHint() is a request, and a widget's own minimum and maximum overrule
+// it. QPlainTextEdit is the case that matters: it is a scroll area, so its
+// hint is Qt's default 256x192 however few lines it is meant to show, and a
+// caller that says setFixedHeight(64) does not change that hint - it sets
+// min and max on the widget.
+//
+// A row that measured itself from the hint was therefore 192 pixels tall
+// with a 64 pixel field pinned at the top of it, and the remaining 128 read
+// as a gap between that field and the next one.
+int effectiveControlHeight(const QWidget* control)
+{
+    if (!control) {
+        return 0;
+    }
+    int height = control->sizeHint().height();
+    if (control->maximumHeight() < QWIDGETSIZE_MAX) {
+        height = qMin(height, control->maximumHeight());
+    }
+    return qMax(height, control->minimumHeight());
+}
+
 } // namespace
 
 SettingRow::SettingRow(const QString& name, const QString& hint, QWidget* parent)
@@ -257,7 +280,7 @@ int SettingRow::textHeight(int width) const
 
 int SettingRow::heightForWidth(int width) const
 {
-    const int right = m_control ? m_control->sizeHint().height() : 0;
+    const int right = effectiveControlHeight(m_control);
     return qMax(textHeight(width), right) + 2 * paddingV(this);
 }
 
@@ -290,7 +313,7 @@ QSize SettingRow::minimumSizeHint() const
         floor += kHintGap + qRound(QFontMetrics(hintFont(this)).height() * kHintLeading);
     }
     if (m_control) {
-        floor = qMax(floor, m_control->sizeHint().height());
+        floor = qMax(floor, effectiveControlHeight(m_control));
     }
     return QSize(240, floor + 2 * paddingV(this));
 }
@@ -301,16 +324,37 @@ void SettingRow::relayout()
         return;
     }
     const QSize hint = m_control->sizeHint();
-    const int columnWidth = m_controlColumn > 0 ? m_controlColumn : hint.width();
+    int columnWidth = m_controlColumn > 0 ? m_controlColumn : hint.width();
     // Aligned to the name's line rather than to the middle of the row: with a
     // three-line hint a centred control floats beside the sentence instead of
     // beside the thing it changes.
     const int vpad = paddingV(this);
     const int top = vpad
-        + (QFontMetrics(nameFont(this)).height() - hint.height()) / 2;
-    const int x = settingsRow(this) ? paddingH(this) + kSettingsLabelWidth + kGap
-                                    : width() - paddingH(this) - columnWidth;
-    m_control->setGeometry(x, qMax(vpad, top), columnWidth, hint.height());
+        + (QFontMetrics(nameFont(this)).height() - effectiveControlHeight(m_control)) / 2;
+
+    // The control is placed, not laid out, so the width it is given is the
+    // width it gets - and nothing was stopping that running off the end of
+    // the row. A size hint is what a widget WANTS; a line edit asks for a
+    // couple of hundred pixels and a text area for several, and the section
+    // then gives every row the widest of them. In a narrow window the result
+    // was a field cut off at the frame.
+    //
+    // So the column is bounded by what is actually left, and a control that
+    // can grow takes all of it rather than its hint: a form's editor column
+    // follows the window, which is the whole reason the window resizes.
+    int x = 0;
+    if (settingsRow(this)) {
+        x = paddingH(this) + kSettingsLabelWidth + kGap;
+        const int available = qMax(0, width() - paddingH(this) - x);
+        const bool expands =
+            (m_control->sizePolicy().horizontalPolicy() & QSizePolicy::ExpandFlag) != 0;
+        columnWidth = expands ? available : qMin(columnWidth, available);
+    } else {
+        columnWidth = qMin(columnWidth, qMax(0, width() - 2 * paddingH(this)));
+        x = width() - paddingH(this) - columnWidth;
+    }
+    m_control->setGeometry(x, qMax(vpad, top), columnWidth,
+                           effectiveControlHeight(m_control));
 }
 
 void SettingRow::resizeEvent(QResizeEvent* event)

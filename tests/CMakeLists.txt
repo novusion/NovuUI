@@ -56,6 +56,14 @@ target_link_libraries(tst_widget_editor PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
 add_test(NAME widget_editor COMMAND tst_widget_editor)
 set_tests_properties(widget_editor PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
 
+# A row is as tall as its control, not as tall as its control's size hint.
+# QPlainTextEdit over-asks by design, so a Description field of 64 pixels was
+# sitting at the top of a row twice that height and the surplus read as a gap.
+add_executable(tst_setting_row_height tst_setting_row_height.cpp)
+target_link_libraries(tst_setting_row_height PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME setting_row_height COMMAND tst_setting_row_height)
+set_tests_properties(setting_row_height PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+
 if(NOT TARGET NovuUIPlaygroundLib)
     message(STATUS "NovuUI tests need the playground library; "
                    "enable NOVUUI_BUILD_PLAYGROUND. Skipping.")
