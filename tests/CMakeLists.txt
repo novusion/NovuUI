@@ -78,6 +78,13 @@ target_link_libraries(tst_segmented_fill PRIVATE Novu::UI Qt6::Test Qt6::Widgets
 add_test(NAME segmented_fill COMMAND tst_segmented_fill)
 set_tests_properties(segmented_fill PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
 
+# A select is as wide as its widest option; a menu that stays open marks what
+# is chosen. Both were composer bugs: "Sh..." and invisible multi-select.
+add_executable(tst_select_and_set_menu tst_select_and_set_menu.cpp)
+target_link_libraries(tst_select_and_set_menu PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME select_and_set_menu COMMAND tst_select_and_set_menu)
+set_tests_properties(select_and_set_menu PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+
 if(NOT TARGET NovuUIPlaygroundLib)
     message(STATUS "NovuUI tests need the playground library; "
                    "enable NOVUUI_BUILD_PLAYGROUND. Skipping.")

@@ -90,7 +90,10 @@ public:
     Popover* menu() const { return m_menu; }
 
     QSize sizeHint() const override;
-    QSize minimumSizeHint() const override { return sizeHint(); }
+    // Not sizeHint(): the preferred width is the widest option, and taking
+    // that as the minimum too would stop a narrow composer compressing the
+    // control at all. The minimum is what the CURRENT label needs.
+    QSize minimumSizeHint() const override;
 
 signals:
     void currentChanged(const QString& key);
@@ -103,11 +106,23 @@ protected:
 
 private:
     void openMenu();
+    // The size this control would need for one particular label.
+    QSize measure(const QString& text) const;
     void applyGeometry();
     QFont labelFont() const;
 
     Popover* m_menu = nullptr;
     QString m_currentKey;
+    // The longest option this select carries, measured as options are added.
+    //
+    // A select used to size itself to whatever it was CURRENTLY showing, so a
+    // list of "Minimal ... Maximum Detail" was as wide as "Short" and the long
+    // answers were elided to "Sh...". It also meant the control changed width
+    // every time the choice changed, which moves everything beside it.
+    //
+    // Its own width is therefore the width of its widest option: stable
+    // whatever is picked, and never eliding at a width that would have fitted.
+    QString m_widestLabel;
     QString m_metaText;
     Glyph m_glyph = Glyph::None;
     StatusDot* m_dot = nullptr;

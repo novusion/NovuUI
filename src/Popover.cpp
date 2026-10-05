@@ -125,9 +125,16 @@ void SelectButton::setOptions(const QStringList& options)
 int SelectButton::addOption(const QString& key, const QString& label, Glyph glyph)
 {
     const int index = m_menu->addItem(key, label, glyph);
+    // Measured in text, not pixels: the font can change under a theme switch,
+    // and the longest STRING stays the longest string.
+    if (QFontMetrics(labelFont()).horizontalAdvance(label)
+        > QFontMetrics(labelFont()).horizontalAdvance(m_widestLabel)) {
+        m_widestLabel = label;
+    }
     if (m_currentKey.isEmpty()) {
         setCurrentKey(key);
     }
+    updateGeometry();
     return index;
 }
 
@@ -135,7 +142,9 @@ void SelectButton::clearOptions()
 {
     m_menu->clear();
     m_currentKey.clear();
+    m_widestLabel.clear();
     applyGeometry();
+    updateGeometry();
     update();
 }
 
@@ -249,13 +258,18 @@ void SelectButton::setLabelRole(TypeRole role)
     update();
 }
 
-QSize SelectButton::sizeHint() const
+// What the control needs to show any of its options without eliding.
+//
+// `preferred` asks for the widest option; the minimum asks only for what is
+// on it now, so a genuinely narrow window can still compress the control and
+// elide rather than pushing everything else off the row.
+QSize SelectButton::measure(const QString& text) const
 {
     const ThemeProfile& profile = themeFor(this);
     const int pad = selectPadding(m_size);
     const int gap = selectGap(m_size);
     const QFont font = labelFont();
-    int width = pad + QFontMetrics(font).horizontalAdvance(currentText())
+    int width = pad + QFontMetrics(font).horizontalAdvance(text)
         + gap + kSelectChevron + pad;
     if(!m_metaText.isEmpty())width+=QFontMetrics(roleMonoFont(this,TypeRole::Caption)).horizontalAdvance(m_metaText)+gap;
     if (m_dot) {
@@ -265,6 +279,16 @@ QSize SelectButton::sizeHint() const
         width += kSelectGlyph + gap;
     }
     return QSize(width, selectHeight(profile,m_size));
+}
+
+QSize SelectButton::sizeHint() const
+{
+    return measure(m_widestLabel.isEmpty() ? currentText() : m_widestLabel);
+}
+
+QSize SelectButton::minimumSizeHint() const
+{
+    return measure(currentText());
 }
 
 void SelectButton::openMenu()
@@ -563,6 +587,12 @@ QSize Popover::sizeHint() const
             break;
         case Kind::Item: {
             int own = 2 * kItemPaddingH + items.horizontalAdvance(entry.label);
+            // A menu of choices keeps a column for the mark, whether or not
+            // this particular row is ticked, so the labels stay on one axis
+            // and the list does not shift as things are picked.
+            if (!m_closesOnTrigger) {
+                own += kItemGlyph + kItemGap;
+            }
             if (entry.glyph != Glyph::None) {
                 own += kItemGlyph + kItemGap;
             }
@@ -957,6 +987,24 @@ void Popover::paintEvent(QPaintEvent*)
         }
 
         int left = box.left() + kItemPaddingH;
+        // The mark that says a row is IN THE SET.
+        //
+        // A checked item used to be told apart only by the colour of its
+        // text, which is enough for a menu where exactly one thing is in
+        // force and not enough for one where any number are: tinted text
+        // among tinted text does not read as "these five are on". A menu
+        // that stays open when a row is picked is a set by definition -
+        // closesOnTrigger() is already how that is said - so that is what
+        // decides whether the column is there.
+        if (!m_closesOnTrigger) {
+            if (entry.checked) {
+                paintGlyph(&painter, Glyph::Check,
+                           QRectF(left, box.center().y() - kItemGlyph / 2.0,
+                                  kItemGlyph, kItemGlyph),
+                           style.checkedForeground);
+            }
+            left += kItemGlyph + kItemGap;
+        }
         if (entry.glyph != Glyph::None) {
             paintGlyph(&painter, entry.glyph,
                        QRectF(left, box.center().y() - kItemGlyph / 2.0,
