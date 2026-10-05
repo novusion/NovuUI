@@ -830,10 +830,31 @@ void ToolWindow::keyPressEvent(QKeyEvent* event)
 
 // -- Dialog ------------------------------------------------------------------
 
+// `.modal-body{padding:16px 18px;gap:14px}` - the modal's own metrics, and the
+// one place they are stated.
+//
+// They used to be stated inside confirm()/inform()/reportError() and nowhere
+// else, so those three had the design's padding and every hand-built Dialog had
+// none: its content ran to the window frame and its buttons sat on the bottom
+// edge. The shell's own content layout cannot carry this, because AppWindow
+// shares it and a main window's content is not inset - so it belongs here, on
+// the dialog.
+//
+// A caller that wants something else still calls setContentsMargins() after
+// construction, as the helpers below do; this is a default, not a lock.
+namespace {
+constexpr int kDialogPaddingH = 18;
+constexpr int kDialogPaddingV = 16;
+constexpr int kDialogGap = 14;
+}
+
 Dialog::Dialog(QWidget* parent)
     : QDialog(parent)
     , m_shell(new WindowShell(this, WindowKind::Dialog))
 {
+    contentLayout()->setContentsMargins(kDialogPaddingH, kDialogPaddingV,
+                                        kDialogPaddingH, kDialogPaddingV);
+    contentLayout()->setSpacing(kDialogGap);
 }
 
 Dialog::Dialog(const QString& title, QWidget* parent)
@@ -1198,12 +1219,9 @@ Dialog* buildMessageDialog(QWidget* parent, const QString& title, const QString&
     const ThemeProfile& profile = themeFor(dialog);
     // `.modal-body{padding:16px 18px;gap:14px}` - the modal's own metrics.
     // The gap was SectionGap, which NovuSpace states as the *rail's* 18.
-    constexpr int kModalPaddingH = 18;
-    constexpr int kModalPaddingV = 16;
-    constexpr int kModalGap = 14;
-    dialog->contentLayout()->setContentsMargins(kModalPaddingH, kModalPaddingV,
-                                                kModalPaddingH, kModalPaddingV);
-    dialog->contentLayout()->setSpacing(kModalGap);
+    // The padding and the gap come from the constructor now. Left here as a
+    // comment rather than repeated: two copies of one measurement is how the
+    // three helpers ended up being the only dialogs that had it.
 
     QLabel* body = label(message, dialog->content(), TypeRole::Body, tone);
     body->setWordWrap(true);

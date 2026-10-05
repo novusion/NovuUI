@@ -68,6 +68,7 @@ add_library(NovuUI STATIC
     include/novu/ui/Disclosure.h
     include/novu/ui/Drawer.h
     include/novu/ui/FilePicker.h
+    include/novu/ui/FilePickerDialog.h
     include/novu/ui/ItemList.h
     include/novu/ui/ItemStrip.h
     include/novu/ui/Keys.h
@@ -147,6 +148,7 @@ add_library(NovuUI STATIC
     src/Disclosure.cpp
     src/Drawer.cpp
     src/FilePicker.cpp
+    src/FilePickerDialog.cpp
     src/ItemList.cpp
     src/ItemStrip.cpp
     src/Keys.cpp
