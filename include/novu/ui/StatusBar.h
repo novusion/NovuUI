@@ -75,6 +75,16 @@ public:
     void clear();
 
     int itemCount() const { return m_items.size(); }
+
+    // Where a reading was last painted, or a null rect when there was no room
+    // for it. Exposed for the same reason ProgressBar::effectiveRole() is: a
+    // test asserting that two readings do not overlap should not have to
+    // sample pixels. Valid after a paint.
+    QRect itemGeometry(int handle) const
+    {
+        return handle >= 0 && handle < m_items.size() ? m_items.at(handle).placed
+                                                      : QRect();
+    }
     // Where an item ended up, for a test that wants to assert on the order
     // without measuring text.
     QRect itemRect(int handle) const;

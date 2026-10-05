@@ -64,6 +64,13 @@ target_link_libraries(tst_setting_row_height PRIVATE Novu::UI Qt6::Test Qt6::Wid
 add_test(NAME setting_row_height COMMAND tst_setting_row_height)
 set_tests_properties(setting_row_height PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
 
+# The strip's leading and trailing readings grow towards each other and are
+# painted, so when they met they were drawn on top of one another.
+add_executable(tst_status_bar_crowding tst_status_bar_crowding.cpp)
+target_link_libraries(tst_status_bar_crowding PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME status_bar_crowding COMMAND tst_status_bar_crowding)
+set_tests_properties(status_bar_crowding PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+
 if(NOT TARGET NovuUIPlaygroundLib)
     message(STATUS "NovuUI tests need the playground library; "
                    "enable NOVUUI_BUILD_PLAYGROUND. Skipping.")

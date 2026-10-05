@@ -240,6 +240,9 @@ void StatusBar::setTrailingWidget(QWidget* widget)
         m_trailing->show();
     }
     layoutTrailing();
+    // The leading host is bounded by what the trailing one leaves, so it has
+    // to be measured again whenever that changes.
+    layoutLeading();
     update();
 }
 
@@ -274,8 +277,24 @@ void StatusBar::layoutLeading()
     // height when needed; each compact control keeps its own stated height and
     // is centred by the host layout.
     const int widgetHeight = qMin(hint.height(), height());
+    // The width it asks for, bounded by the width there is.
+    //
+    // A size hint is a request, and this one was granted whatever it said: a
+    // leading host that grew - a model picker, then Load and Unload, then a
+    // progress bar beside them - pushed the strip's own readings right until
+    // they ran into the trailing ones, and two sets of text were drawn over
+    // each other. The strip's items are painted, so neither could clip the
+    // other and the collision was simply visible.
+    //
+    // Room for the trailing widget is reserved here; the entries themselves
+    // then take what is left, and the ones that do not fit are dropped rather
+    // than overprinted (see paintEvent).
+    int available = width() - 2 * kPaddingH;
+    if (m_trailing) {
+        available -= m_trailing->sizeHint().width() + kGap;
+    }
     m_leading->setGeometry(kPaddingH, (height() - widgetHeight) / 2,
-                           hint.width(), widgetHeight);
+                           qMax(0, qMin(hint.width(), available)), widgetHeight);
 }
 
 // The mark in front of a reading, and the box the text then gets. Returns the
@@ -449,6 +468,17 @@ void StatusBar::paintEvent(QPaintEvent*)
             continue;
         }
         const int own = entryWidth(entry);
+        // A reading that does not fit is not drawn. The two sets grow towards
+        // each other - leading from the left, trailing from the right - and
+        // nothing used to stop them meeting, so in a narrow strip the branch
+        // and the bridge state were painted on top of one another. Dropping
+        // the ones with no room left is the honest answer: a strip that shows
+        // four of its six readings is readable, and one that shows all six
+        // overlapping is not.
+        if (left + own > right) {
+            entry.placed = QRect();
+            continue;
+        }
         entry.placed = QRect(left, 0, own, height());
         left += own + kGap;
     }
