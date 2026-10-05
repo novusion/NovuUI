@@ -135,13 +135,34 @@ int Segmented::stripItemWidth(int index) const
         return 0;
     }
     if (m_fill) {
-        // Divided evenly, with the remainder spread over the first few so the
-        // segments still add up to the tray exactly -- a rounded share left a
-        // one-pixel gap at the trailing edge that read as a misdrawn border.
+        // Fill distributes the SURPLUS, never the content.
+        //
+        // An even division of the tray is right only while every segment is
+        // wider than its own text. Four segments in a 340px rail - Work,
+        // Project, Code, Assets - are not: an even share handed each of them
+        // less than its label needed, and because a segment's text is painted
+        // rather than laid out, the labels ran into each other instead of
+        // being clipped. A control that reads "ProjeCodAssets" is worse than
+        // one that is too wide.
+        //
+        // So: natural widths first. What is left over after all of them is
+        // divided evenly, and when there is nothing left over each segment
+        // keeps its own width - the strip is then wider than its tray, which
+        // sizeHint() already reports so a parent can give it the room or
+        // scroll it.
         const int count = m_segments.size();
         const int gaps = (count - 1) * stripGap();
         const int usable = qMax(0, width() - 2 * themeFor(this).controls.segmentedPadding - gaps);
-        return usable / count + (index < usable % count ? 1 : 0);
+        int natural = 0;
+        for (const Segment& segment : m_segments) {
+            natural += segmentWidth(segment);
+        }
+        if (natural >= usable) {
+            return segmentWidth(m_segments.at(index));
+        }
+        const int surplus = usable - natural;
+        return segmentWidth(m_segments.at(index)) + surplus / count
+            + (index < surplus % count ? 1 : 0);
     }
     return segmentWidth(m_segments.at(index));
 }

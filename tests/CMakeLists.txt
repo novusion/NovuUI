@@ -71,6 +71,13 @@ target_link_libraries(tst_status_bar_crowding PRIVATE Novu::UI Qt6::Test Qt6::Wi
 add_test(NAME status_bar_crowding COMMAND tst_status_bar_crowding)
 set_tests_properties(status_bar_crowding PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
 
+# Fill divides the surplus, never the content: four segments in a narrow rail
+# were each given less than their label needed and the labels overlapped.
+add_executable(tst_segmented_fill tst_segmented_fill.cpp)
+target_link_libraries(tst_segmented_fill PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME segmented_fill COMMAND tst_segmented_fill)
+set_tests_properties(segmented_fill PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+
 if(NOT TARGET NovuUIPlaygroundLib)
     message(STATUS "NovuUI tests need the playground library; "
                    "enable NOVUUI_BUILD_PLAYGROUND. Skipping.")
