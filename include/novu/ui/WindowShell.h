@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include "novu/ui/ThemeProfile.h"
 #include "novu/ui/TitleBar.h"
@@ -57,7 +59,7 @@ enum class WindowKind {
 // label in the window. Elsewhere the frame falls back to Qt's own
 // startSystemResize(); the appearance is identical, and the grab band sits
 // inside the frame instead of outside it.
-class WindowShell : public QObject
+class NOVUUI_API WindowShell : public QObject
 {
     Q_OBJECT
 
@@ -150,7 +152,7 @@ private:
 // puts it in the title bar's leading slot rather than under it:
 //
 //     window.titleBar()->setLeading(menuBar);
-class AppWindow : public QWidget
+class NOVUUI_API AppWindow : public QWidget
 {
     Q_OBJECT
 
@@ -178,7 +180,7 @@ private:
 
 // A detached panel or utility window: resizable, but neither minimized nor
 // maximized on its own. Same bar height, same control size as the main window.
-class ToolWindow : public AppWindow
+class NOVUUI_API ToolWindow : public AppWindow
 {
     Q_OBJECT
 
@@ -203,7 +205,7 @@ private:
 // Minimize and Maximize are hidden by default while the bar keeps the same
 // height and the same Close box, so a dialog and the window behind it read as
 // the same product.
-class Dialog : public QDialog
+class NOVUUI_API Dialog : public QDialog
 {
     Q_OBJECT
 

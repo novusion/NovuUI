@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/AppMark.h"
 #include "novu/ui/Icon.h"
 #include "novu/ui/NavList.h"
@@ -25,7 +27,7 @@ class Splitter;
 //
 // A light, a host, a latency figure, and one optional action — the design's
 // `.lockb`, which locks the credential the connection belongs to.
-class ConnectionStrip : public QWidget
+class NOVUUI_API ConnectionStrip : public QWidget
 {
     Q_OBJECT
 
@@ -130,7 +132,7 @@ private:
 // the navigation region is told to collapse too. A caller that put its own
 // widgets in there is responsible for those, which is why `collapsed()` is
 // readable and the signal exists.
-class Sidebar : public QWidget
+class NOVUUI_API Sidebar : public QWidget
 {
     Q_OBJECT
 

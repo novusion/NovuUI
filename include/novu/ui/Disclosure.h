@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
 
@@ -39,7 +41,7 @@ namespace novu::ui {
 // Collapsing is *not* the same state as whatever is expanded inside the body.
 // The design says so outright: collapsing WORKSPACES does not forget which
 // workspaces were open inside it. Hiding the body leaves it intact.
-class Disclosure : public QWidget
+class NOVUUI_API Disclosure : public QWidget
 {
     Q_OBJECT
 

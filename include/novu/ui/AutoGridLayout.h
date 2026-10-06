@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include <QLayout>
 #include <QList>
 
@@ -19,7 +21,7 @@ namespace novu::ui {
 // Items are laid out in order, left to right, and every cell is the same
 // width. Row height is the tallest item in that row, so a tile that wraps to
 // two lines does not leave its neighbours short.
-class AutoGridLayout : public QLayout
+class NOVUUI_API AutoGridLayout : public QLayout
 {
     Q_OBJECT
 

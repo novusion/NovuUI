@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include <QCheckBox>
 #include <QComboBox>
 #include <QPlainTextEdit>
@@ -19,7 +21,7 @@ namespace novu::ui {
 // filled rectangle that reads as a dash, and the control then looks exactly
 // like a line edit. Supplying an image would tie the arrow colour to a file
 // instead of the profile. So the arrow is painted, from the theme.
-class ComboBox : public QComboBox
+class NOVUUI_API ComboBox : public QComboBox
 {
     Q_OBJECT
 
@@ -60,7 +62,7 @@ private:
 //
 // A plain QCheckBox is therefore already correct inside a Novu application;
 // this exists for the choice of mark and for the profile's font.
-class CheckBox : public QCheckBox
+class NOVUUI_API CheckBox : public QCheckBox
 {
     Q_OBJECT
 
@@ -105,7 +107,7 @@ QPlainTextEdit* textArea(const QString& placeholder, QWidget* parent, int rows =
 // sub-controls but cannot supply a shape to replace them, so a styled QDateEdit
 // ends up with an invisible strip at its right edge that opens the popup when
 // clicked and gives no sign it is there.
-class DateEdit : public QDateEdit
+class NOVUUI_API DateEdit : public QDateEdit
 {
     Q_OBJECT
 

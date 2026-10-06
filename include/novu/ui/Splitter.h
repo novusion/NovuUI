@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/StyleSpec.h"
 
 #include <QSplitter>
@@ -35,7 +37,7 @@ namespace novu::ui {
 // That split is why press and release both have to land in the same zone: a
 // press that begins in the arrow and ends in the middle is a drag the user
 // thought better of, not a collapse.
-class SplitterHandle : public QSplitterHandle
+class NOVUUI_API SplitterHandle : public QSplitterHandle
 {
     Q_OBJECT
 
@@ -103,7 +105,7 @@ private:
 // and comes back at whatever the layout decides. Restoring puts back the size
 // the panel had when it was collapsed, which is the behaviour a user expects
 // and the one a naive implementation gets wrong.
-class Splitter : public QSplitter
+class NOVUUI_API Splitter : public QSplitter
 {
     Q_OBJECT
 
@@ -141,7 +143,7 @@ private:
 // this is purely a collapse toggle styled to match.* A workspace tab row above
 // a category tab row wants to be put away, not resized, and a QSplitter that
 // offers a drag the layout will immediately undo is a control that lies.
-class CollapseDivider : public QWidget
+class NOVUUI_API CollapseDivider : public QWidget
 {
     Q_OBJECT
 

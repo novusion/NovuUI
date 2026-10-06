@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/StyleSpec.h"
 
 #include <QString>
@@ -28,7 +30,7 @@ namespace novu::ui {
 // So it hides itself. `setCount(0)` is not a state a caller has to handle.
 //
 // The count is painted; the actions are real buttons, because they are buttons.
-class SelectionBar : public QWidget
+class NOVUUI_API SelectionBar : public QWidget
 {
     Q_OBJECT
 

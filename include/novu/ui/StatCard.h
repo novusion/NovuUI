@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Card.h"
 #include "novu/ui/Icon.h"
 #include "novu/ui/Text.h"
@@ -16,7 +18,7 @@ namespace novu::ui {
 // setValue() updates in place. A metric card is never rebuilt because its
 // number changed — rebuilding a widget to change its text is what makes a
 // dashboard flicker and lose focus on every refresh.
-class StatCard : public Card
+class NOVUUI_API StatCard : public Card
 {
     Q_OBJECT
 
@@ -52,7 +54,7 @@ private:
 
 // One cell of a metric grid inside a card. Same contract as StatCard, smaller,
 // and with no surface of its own because the card already is one.
-class MiniStat : public QWidget
+class NOVUUI_API MiniStat : public QWidget
 {
     Q_OBJECT
 

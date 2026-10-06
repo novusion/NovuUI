@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include "novu/ui/StatusDot.h"
 #include "novu/ui/StyleSpec.h"
@@ -22,7 +24,7 @@ namespace novu::ui {
 // that timing means a caption can be painted clipped.
 //
 // Pages never call setMinimumWidth()/setFixedWidth() on a button.
-class Button : public QPushButton
+class NOVUUI_API Button : public QPushButton
 {
     Q_OBJECT
 

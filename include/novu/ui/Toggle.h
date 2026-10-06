@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/StyleSpec.h"
 
 #include <QAbstractButton>
@@ -26,7 +28,7 @@ namespace novu::ui {
 // movement is what says the change was accepted, on a control that has no other
 // feedback. It runs on QVariantAnimation, whose driver Qt already shares across
 // every animation in the process, so this adds no timer of its own.
-class Toggle : public QAbstractButton
+class NOVUUI_API Toggle : public QAbstractButton
 {
     Q_OBJECT
 

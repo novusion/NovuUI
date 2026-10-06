@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
 
@@ -26,7 +28,7 @@ class FloatingPanel;
 // It also owns stacking. A panel that is clicked comes to the front, and the
 // front panel is the focused one. Left to each panel that logic is written
 // three times and disagrees about what "front" means.
-class FloatingLayer : public QWidget
+class NOVUUI_API FloatingLayer : public QWidget
 {
     Q_OBJECT
 
@@ -85,7 +87,7 @@ private:
 // cannot be dragged somewhere it cannot be dragged back from, rolling up, and
 // coming to the front when touched. A caller fills `body()` and says what the
 // bar reads.
-class FloatingPanel : public QWidget
+class NOVUUI_API FloatingPanel : public QWidget
 {
     Q_OBJECT
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/StyleSpec.h"
 
 #include <QWidget>
@@ -22,7 +24,7 @@ namespace novu::ui {
 // that behaviour is the reason the original is better than a repaint: a
 // connection dropping should be something the eye catches, and a dot that
 // snaps from green to red between two frames is something the eye misses.
-class StatusDot : public QWidget
+class NOVUUI_API StatusDot : public QWidget
 {
     Q_OBJECT
 

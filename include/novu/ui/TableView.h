@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Badge.h"
 #include "novu/ui/StatusDot.h"
 
@@ -40,7 +42,7 @@ namespace novu::ui {
 //      columns give up width (down to a floor, eliding what no longer fits)
 //      and only if that is still not enough does the view scroll — a Text or
 //      Content column is never compressed and never elided.
-class TableView : public QTableWidget
+class NOVUUI_API TableView : public QTableWidget
 {
     Q_OBJECT
 

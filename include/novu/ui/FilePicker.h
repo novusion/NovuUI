@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 
 #include <QString>
@@ -29,7 +31,7 @@ class TreeView;
 //
 // Built from three existing components rather than three new ones: TreeView
 // for the tree, TableView for the listing, Splitter between them.
-class FilePicker : public QWidget
+class NOVUUI_API FilePicker : public QWidget
 {
     Q_OBJECT
 

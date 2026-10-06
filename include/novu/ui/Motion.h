@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include <QObject>
 
 class QColor;
@@ -27,7 +29,7 @@ namespace novu::ui {
 // same phase arithmetic. It is here rather than there because the motion
 // belongs to the components, and a second copy of it is a second thing to keep
 // in step.
-class Pulse : public QObject
+class NOVUUI_API Pulse : public QObject
 {
     Q_OBJECT
 

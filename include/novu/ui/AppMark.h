@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 
 #include <QColor>
@@ -38,7 +40,7 @@ namespace novu::ui {
 // message from a person and a message from an agent are told apart by the
 // colour of the circle, which is why Tone exists and why it is not the semantic
 // palette — an agent is not a status.
-class AppMark : public QWidget
+class NOVUUI_API AppMark : public QWidget
 {
     Q_OBJECT
 

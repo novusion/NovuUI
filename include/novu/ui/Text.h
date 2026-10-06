@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/ThemeProfile.h"
 
 #include <QColor>
@@ -71,7 +73,7 @@ QLabel* label(const QString& text, QWidget* parent,
 
 // A single line that keeps its full text for accessibility and auditing while
 // painting an ellipsis when its allotted width is smaller than the content.
-class ElidedLabel : public QLabel
+class NOVUUI_API ElidedLabel : public QLabel
 {
 public:
     explicit ElidedLabel(const QString& text, QWidget* parent = nullptr);
@@ -104,7 +106,7 @@ QLabel* elidedLabel(const QString& text, QWidget* parent,
 // Every application has paragraphs in columns, so every application meets
 // this. A Paragraph answers both questions with heightForWidth at the width
 // it has, and is otherwise a QLabel -- rich text, selection, links included.
-class Paragraph : public QLabel
+class NOVUUI_API Paragraph : public QLabel
 {
     Q_OBJECT
 

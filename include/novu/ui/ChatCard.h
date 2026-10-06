@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include <QWidget>
 
 class QLabel;
@@ -24,7 +26,7 @@ class Badge;
 // they differ between products. What repeats is the shell around a turn — the
 // surface, the author line, the model badge, the timestamp — and that is this.
 // Put the said content in body().
-class ChatCard : public QWidget
+class NOVUUI_API ChatCard : public QWidget
 {
     Q_OBJECT
 

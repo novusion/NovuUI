@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include "novu/ui/StatusDot.h"
 #include "novu/ui/StyleSpec.h"
@@ -32,7 +34,7 @@ namespace novu::ui {
 // `setTrailingWidget()` is the one seam for something genuinely interactive - a
 // progress strip, a sync button. It is a single slot on purpose: a status bar
 // that accepts arbitrary widgets in arbitrary places is a toolbar.
-class StatusBar : public QWidget
+class NOVUUI_API StatusBar : public QWidget
 {
     Q_OBJECT
 

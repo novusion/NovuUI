@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/ThemeProfile.h"
 
 #include <QHash>
@@ -127,7 +129,7 @@ struct TipContent
 //
 // One reused popup follows the pointer and the focus ring, and tears the tip
 // down when the widget goes. Install and forget.
-class Tooltip : public QWidget
+class NOVUUI_API Tooltip : public QWidget
 {
     Q_OBJECT
 

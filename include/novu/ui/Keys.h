@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/ThemeProfile.h"
 
 #include <QKeySequence>
@@ -21,7 +23,7 @@ namespace novu::ui {
 // because that is what the design does and because a single chip containing
 // three key names is unreadable at 10px. Splitting happens here so no caller
 // has to know that a chord uses `+` and a *sequence* uses a space.
-class KeyCap : public QWidget
+class NOVUUI_API KeyCap : public QWidget
 {
     Q_OBJECT
 
@@ -68,7 +70,7 @@ private:
 // groups and rows and the component decides what a row looks like. That is what
 // stops the NovuAdmin keyboard window and the NovuSpace one from being two
 // different drawings of the same table, which is what they were.
-class ShortcutList : public QWidget
+class NOVUUI_API ShortcutList : public QWidget
 {
     Q_OBJECT
 

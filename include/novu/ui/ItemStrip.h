@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/StyleSpec.h"
 
 #include <QString>
@@ -36,7 +38,7 @@ namespace novu::ui {
 // A subclass therefore implements the pure virtuals below and paints. It gets
 // hit testing, press ownership, hover, keyboard and tooltips for nothing, and
 // cannot disagree with the other strips about what a click is.
-class ItemStrip : public QWidget
+class NOVUUI_API ItemStrip : public QWidget
 {
     Q_OBJECT
 

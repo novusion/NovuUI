@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/StyleSpec.h"
 
 #include <QString>
@@ -34,7 +36,7 @@ namespace novu::ui {
 // lines of text nobody selects, and a QLabel for each would treble the widget
 // count of every form in the product. The control is a real widget, because a
 // control is the half that is interacted with.
-class Field : public QWidget
+class NOVUUI_API Field : public QWidget
 {
     Q_OBJECT
 

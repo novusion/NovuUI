@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include <QAbstractButton>
 #include "novu/ui/StatusDot.h"
@@ -46,7 +48,7 @@ class Popover;
 // no amount of stylesheet makes into a pill, and its list cannot carry the
 // groups, separators, meta column and checked accent a Popover already draws.
 // Every shell had one of these and each was reaching for QComboBox.
-class SelectButton : public QAbstractButton
+class NOVUUI_API SelectButton : public QAbstractButton
 {
     Q_OBJECT
 
@@ -131,7 +133,7 @@ private:
     bool m_open = false;
 };
 
-class Popover : public QWidget
+class NOVUUI_API Popover : public QWidget
 {
     Q_OBJECT
 

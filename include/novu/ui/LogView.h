@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/MonoLineView.h"
 
 #include <QDateTime>
@@ -31,7 +33,7 @@ namespace novu::ui {
 // A log view must have one. A process that logs steadily for a day fills
 // memory otherwise, and the oldest lines are the ones nobody will read. The
 // default is generous and the oldest go first.
-class LogView : public MonoLineView
+class NOVUUI_API LogView : public MonoLineView
 {
     Q_OBJECT
 

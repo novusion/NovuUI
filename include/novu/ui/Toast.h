@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Badge.h"
 #include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
@@ -37,7 +39,7 @@ namespace novu::ui {
 // three messages in sequence, not three pills on top of each other — and a
 // fourth replaces the oldest rather than growing the stack, because a column of
 // six toasts is a notification centre nobody asked for.
-class Toast : public QWidget
+class NOVUUI_API Toast : public QWidget
 {
     Q_OBJECT
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
 #include "novu/ui/Theme.h"
@@ -26,7 +28,7 @@ namespace novu::ui {
 // which stays on, such as a detached panel or a visible side rail. It goes to
 // the product accent, the same signal an active module or a selected row uses,
 // because it is the same statement.
-class IconButton : public QAbstractButton
+class NOVUUI_API IconButton : public QAbstractButton
 {
     Q_OBJECT
 

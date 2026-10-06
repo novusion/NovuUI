@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
 
@@ -27,7 +29,7 @@ namespace novu::ui {
 // caption, and a card that elides its own explanation is choosing between two
 // options the user can no longer tell apart. That is why this has
 // heightForWidth() — put these in a grid and let the grid ask.
-class Tile : public QPushButton
+class NOVUUI_API Tile : public QPushButton
 {
     Q_OBJECT
 

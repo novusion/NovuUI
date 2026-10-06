@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include <QList>
 #include <QString>
 #include <QStringList>
@@ -18,7 +20,7 @@ namespace novu::ui {
 // therefore twenty widgets; Segmented and ModuleBar paint their items instead.
 // Left alone during the extraction freeze because NovuSpace consumes this
 // header today — see docs/EXTRACTION_STATUS.md §6.
-class Chip : public QPushButton
+class NOVUUI_API Chip : public QPushButton
 {
     Q_OBJECT
 
@@ -111,7 +113,7 @@ private:
 // reason: it carries no background and no border. An earlier version gave it a
 // tinted band with rules above and below, which fought with the card it sits
 // in.
-class ChipBar : public QWidget
+class NOVUUI_API ChipBar : public QWidget
 {
     Q_OBJECT
 

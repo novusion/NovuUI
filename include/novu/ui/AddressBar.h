@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
 
@@ -30,7 +32,7 @@ namespace novu::ui {
 // there — which identity this page is loaded under — and that is a button
 // because it opens a panel. Anything a caller hands over is laid out inside
 // the field's own padding and never overlaps the address.
-class AddressBar : public QWidget
+class NOVUUI_API AddressBar : public QWidget
 {
     Q_OBJECT
 

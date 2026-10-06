@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/StyleSpec.h"
 
 #include <QAbstractScrollArea>
@@ -33,7 +35,7 @@ namespace novu::ui {
 // diff line share nothing but their height — merging them would be a base
 // class holding a level, a timestamp, a hunk header and two line numbers, of
 // which any given subclass uses half.
-class MonoLineView : public QAbstractScrollArea
+class NOVUUI_API MonoLineView : public QAbstractScrollArea
 {
     Q_OBJECT
 

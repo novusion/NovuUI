@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/ThemeProfile.h"
 
 #include <QAbstractButton>
@@ -30,7 +32,7 @@ namespace novu::ui {
 // Self-painted rather than styled: the glyphs are straight-line drawings that
 // must stay crisp at 125% and 150% scaling, and a font glyph ("✕", "□") is at
 // the mercy of whatever font the system substitutes.
-class WindowControlButton : public QAbstractButton
+class NOVUUI_API WindowControlButton : public QAbstractButton
 {
     Q_OBJECT
 
@@ -84,7 +86,7 @@ private:
 // showMinimized() on its window: WindowShell connects the signals, because the
 // shell is what knows whether this window may maximize and what "close" means
 // for a modal dialog.
-class TitleBar : public QWidget
+class NOVUUI_API TitleBar : public QWidget
 {
     Q_OBJECT
 

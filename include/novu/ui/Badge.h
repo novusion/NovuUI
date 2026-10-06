@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include <QColor>
 #include <QWidget>
 
@@ -16,7 +18,7 @@ namespace novu::ui {
 // depends on.
 //
 // Pages never set a width on a badge.
-class Badge : public QWidget
+class NOVUUI_API Badge : public QWidget
 {
     Q_OBJECT
 

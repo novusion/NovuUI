@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include <QWidget>
 #include <QStringList>
 
@@ -15,7 +17,7 @@ namespace novu::ui {
 // author-owned HTML keeps its own CSS, while Markdown needs product typography,
 // spacing and code treatment.  The component owns those decisions so previews,
 // help surfaces and future document readers cannot grow separate themes.
-class MarkdownDocumentView : public QWidget
+class NOVUUI_API MarkdownDocumentView : public QWidget
 {
 public:
     explicit MarkdownDocumentView(QWidget* parent = nullptr);

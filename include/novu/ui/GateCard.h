@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/AppMark.h"
 #include "novu/ui/Icon.h"
 #include "novu/ui/Layout.h"
@@ -40,7 +42,7 @@ namespace novu::ui {
 // a credential is where it is going. So `setHost()` exists and the footer is
 // drawn whenever it is set, rather than being an optional slot a page may
 // forget.
-class GateCard : public QWidget
+class NOVUUI_API GateCard : public QWidget
 {
     Q_OBJECT
 

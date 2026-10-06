@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/StyleSpec.h"
 
 #include <QSlider>
@@ -25,7 +27,7 @@ namespace novu::ui {
 //
 // Still a QSlider underneath, so value(), setRange(), valueChanged(), the arrow
 // keys, Page Up/Down and the wheel all behave exactly as every caller expects.
-class Slider : public QSlider
+class NOVUUI_API Slider : public QSlider
 {
     Q_OBJECT
 

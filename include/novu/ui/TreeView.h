@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Badge.h"
 #include "novu/ui/StatusDot.h"
 #include "novu/ui/Icon.h"
@@ -51,7 +53,7 @@ namespace novu::ui {
 // A shared base would need a font flag, a hit-testing hook and a selection
 // model none of its other subclasses want, which is a base class shaped by its
 // most demanding user rather than by what its users have in common.
-class TreeView : public QAbstractScrollArea
+class NOVUUI_API TreeView : public QAbstractScrollArea
 {
     Q_OBJECT
 

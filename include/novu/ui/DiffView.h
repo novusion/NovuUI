@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/MonoLineView.h"
 
 #include <QString>
@@ -26,7 +28,7 @@ namespace novu::ui {
 // Line numbers are the diff's own, on both sides. A viewer that renumbers what
 // it is shown is a viewer whose numbers cannot be quoted in a review comment,
 // which is most of what the column is for.
-class DiffView : public MonoLineView
+class NOVUUI_API DiffView : public MonoLineView
 {
     Q_OBJECT
 

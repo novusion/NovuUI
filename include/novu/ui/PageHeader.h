@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/StyleSpec.h"
 
 #include <QString>
@@ -23,7 +25,7 @@ struct ThemeProfile;
 //
 // So this takes the full path and draws all but the last of it. Callers pass
 // what they have; the component decides what is redundant.
-class Breadcrumb : public QWidget
+class NOVUUI_API Breadcrumb : public QWidget
 {
     Q_OBJECT
 
@@ -66,7 +68,7 @@ private:
 // The description wraps, and the header grows to fit it. A page heading that
 // elides its own explanation is a heading that explains nothing, which is what
 // a fixed-height header forces.
-class PageHeader : public QWidget
+class NOVUUI_API PageHeader : public QWidget
 {
     Q_OBJECT
 

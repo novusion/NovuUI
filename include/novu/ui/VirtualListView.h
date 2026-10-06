@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include <QListView>
 
 namespace novu::ui {
@@ -9,7 +11,7 @@ namespace novu::ui {
 // The view never installs index widgets. Rows are represented exclusively by
 // the caller's QAbstractItemModel and QAbstractItemDelegate, so the QWidget
 // count stays constant as the model grows.
-class VirtualListView : public QListView
+class NOVUUI_API VirtualListView : public QListView
 {
     Q_OBJECT
 

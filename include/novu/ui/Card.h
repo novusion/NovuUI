@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/ThemeProfile.h"
 #include "novu/ui/StyleSpec.h"
 
@@ -24,7 +26,7 @@ namespace novu::ui {
 // It paints itself instead of carrying a stylesheet so that its radius comes
 // from the theme role and changes live when the profile does. A stylesheet
 // would also make the page able to override it, which the contract forbids.
-class Card : public QFrame
+class NOVUUI_API Card : public QFrame
 {
     Q_OBJECT
 

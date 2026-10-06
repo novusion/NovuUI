@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include <QList>
 #include <QString>
 #include <QStringList>
@@ -31,7 +33,7 @@ namespace novu::ui {
 // `Variant::Pill`, which is a section switcher and a different thing.
 //
 // See docs/EXTRACTION_STATUS.md §6.
-class TabStrip : public QWidget
+class NOVUUI_API TabStrip : public QWidget
 {
     Q_OBJECT
 

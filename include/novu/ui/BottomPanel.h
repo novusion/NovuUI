@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
 
@@ -40,7 +42,7 @@ class TabBar;
 // **Not what is written to disk.** Nothing here is persisted. A host that
 // restores a panel's height and open tab does so from its own settings and
 // calls the setters.
-class BottomPanel : public QWidget
+class NOVUUI_API BottomPanel : public QWidget
 {
     Q_OBJECT
 

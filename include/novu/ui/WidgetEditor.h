@@ -1,4 +1,6 @@
 #pragma once
+
+#include "novu/ui/Export.h"
 #include <QObject>
 #include <QPointer>
 #include <QHash>
@@ -9,7 +11,7 @@ class QWidget;
 namespace novu::ui {
 // Edits constraints and selection around real widgets without wrapping them
 // or changing their layouts. The owning document decides where a drop belongs.
-class WidgetEditor : public QObject {
+class NOVUUI_API WidgetEditor : public QObject {
     Q_OBJECT
 public:
     explicit WidgetEditor(QWidget* stage);

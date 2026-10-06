@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include "novu/ui/Keys.h"
 #include "novu/ui/StyleSpec.h"
@@ -65,7 +67,7 @@ struct Command
 // which is what the shells were reaching for -- gives a caret, a focus ring
 // and a selection on a control that accepts no text, and leaves nowhere to put
 // the KeyCap, since a line edit's actions are icons only.
-class CommandField : public QAbstractButton
+class NOVUUI_API CommandField : public QAbstractButton
 {
     Q_OBJECT
 
@@ -104,7 +106,7 @@ private:
     KeyCap* m_cap = nullptr;
 };
 
-class CommandPalette : public QWidget
+class NOVUUI_API CommandPalette : public QWidget
 {
     Q_OBJECT
 

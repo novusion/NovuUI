@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include <QString>
 #include <QWidget>
 
@@ -21,7 +23,7 @@ class ProgressBar;
 // colour named here. Startup drives setStatusText()/setPercent() as it
 // actually progresses - the mockup's own five-stage timer is a preview
 // convenience, not something this component runs itself.
-class SplashScreen : public QWidget
+class NOVUUI_API SplashScreen : public QWidget
 {
     Q_OBJECT
 

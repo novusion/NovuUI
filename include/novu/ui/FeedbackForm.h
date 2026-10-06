@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/WindowShell.h"
 
 #include <QString>
@@ -126,7 +128,7 @@ struct FeedbackRequest
 // reportFailure() when its network call returns. NovuUI does not know that
 // NovuServer exists, and an application that changes where feedback goes
 // changes nothing here.
-class FeedbackForm : public QWidget
+class NOVUUI_API FeedbackForm : public QWidget
 {
     Q_OBJECT
 
@@ -239,7 +241,7 @@ private:
 //                 });
 //             });
 //     dialog->exec();
-class FeedbackDialog : public Dialog
+class NOVUUI_API FeedbackDialog : public Dialog
 {
     Q_OBJECT
 

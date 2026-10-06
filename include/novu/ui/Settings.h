@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
 
@@ -46,7 +48,7 @@ class SettingRow;
 // The unit every settings page is built from. It is a plain surface, not a
 // Card: the approved designs put settings on the page itself, and a column of
 // cards inside a scrolling pane reads as a list of unrelated boxes.
-class SettingsSection : public QWidget
+class NOVUUI_API SettingsSection : public QWidget
 {
     Q_OBJECT
 
@@ -95,7 +97,7 @@ private:
 };
 
 // One page: a header, and a column of sections that scrolls.
-class SettingsPage : public QWidget
+class NOVUUI_API SettingsPage : public QWidget
 {
     Q_OBJECT
 
@@ -120,7 +122,7 @@ private:
 };
 
 // Navigation on the left, one page on the right.
-class SettingsShell : public QWidget
+class NOVUUI_API SettingsShell : public QWidget
 {
     Q_OBJECT
 

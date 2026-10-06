@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/StyleSpec.h"
 
 #include <QString>
@@ -35,7 +37,7 @@ namespace novu::ui {
 // row is the single most common sizing bug in this codebase's history.
 //
 // The control is a real widget, because it is a control.
-class SettingRow : public QWidget
+class NOVUUI_API SettingRow : public QWidget
 {
     Q_OBJECT
 

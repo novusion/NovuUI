@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
 
@@ -26,7 +28,7 @@ namespace novu::ui {
 // Painted here instead: a list of twenty avatars is twenty labels each with its
 // own composed sheet, and the derived plate colour cannot be written as a
 // static rule anyway.
-class Avatar : public QWidget
+class NOVUUI_API Avatar : public QWidget
 {
     Q_OBJECT
 

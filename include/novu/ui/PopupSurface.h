@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 // A transient surface that holds a widget.
 //
 // Popover is a menu - items, separators, submenus - and FloatingPanel is
@@ -18,7 +20,7 @@
 
 namespace novu::ui {
 
-class PopupSurface : public QWidget
+class NOVUUI_API PopupSurface : public QWidget
 {
     Q_OBJECT
 

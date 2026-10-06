@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/ThemeProfile.h"
 
 #include <QList>
@@ -47,7 +49,7 @@ enum class HelpPlacement { Auto, Left, Right, Above, Below };
 // without the caller re-registering anything. A target that is hidden or
 // destroyed takes its note with it rather than leaving a leader pointing at
 // nothing.
-class HelpOverlay : public QWidget
+class NOVUUI_API HelpOverlay : public QWidget
 {
     Q_OBJECT
 

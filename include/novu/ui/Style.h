@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include <QProxyStyle>
 
 class QApplication;
@@ -29,7 +31,7 @@ namespace novu::ui {
 // themeFor(widget) like every other component, so a host process running
 // several products draws each product's checkboxes in that product's palette
 // from this one style object.
-class NovuStyle : public QProxyStyle
+class NOVUUI_API NovuStyle : public QProxyStyle
 {
     Q_OBJECT
 

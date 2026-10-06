@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 
 #include <QFont>
@@ -58,7 +60,7 @@ QFont navSectionFont(const QWidget* context);
 // The design collapses the whole rail to icons by hiding the label, the count
 // and the twisty and centring what is left. That is a property of the list, not
 // of each row, so it is one call here rather than a flag on every entry.
-class NavList : public QWidget
+class NOVUUI_API NavList : public QWidget
 {
     Q_OBJECT
 

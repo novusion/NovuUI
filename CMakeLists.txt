@@ -14,7 +14,34 @@ set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
-add_library(NovuUI STATIC
+# ── STATIC by default, SHARED when a host asks for it ──────────────────────
+#
+# Every application that consumes this library links it statically, and that is
+# fine for an application: one binary, one copy of the state below.
+#
+# It stops being fine the moment a process loads a plugin that also draws with
+# NovuUI. ThemeManager::instance() is a function-local static, so a statically
+# linked copy inside a plugin is a SECOND ThemeManager: the host registers its
+# profiles - the accent, the spacing roles, the semantic colours - into its own,
+# the plugin's widgets resolve themeFor() against the plugin's, and the plugin
+# draws with this library's built-in defaults instead of the application's
+# configured theme. ThemeScope's resolution is the same story.
+#
+# So a host that loads UI plugins asks for SHARED and gets one runtime for the
+# whole process. The default stays STATIC, deliberately: NovuHub, NovuExplorer,
+# NovuSource and NovuAdmin consume this library today and must keep building and
+# deploying exactly as they do, without a DLL beside them.
+option(NOVUUI_BUILD_SHARED
+    "Build NovuUI as a shared library, so a process that loads UI plugins has one NovuUI runtime"
+    OFF)
+
+if(NOVUUI_BUILD_SHARED)
+    set(_novuui_link_kind SHARED)
+else()
+    set(_novuui_link_kind STATIC)
+endif()
+
+add_library(NovuUI ${_novuui_link_kind}
     include/novu/ui/Theme.h
     include/novu/ui/ThemeProfile.h
     include/novu/ui/ThemeManager.h
@@ -173,6 +200,45 @@ add_library(NovuUI STATIC
     src/TitleBar.cpp
     src/WindowShell.cpp
 )
+
+if(NOVUUI_BUILD_SHARED AND WIN32)
+    # Every symbol, rather than ninety headers annotated with an export macro.
+    #
+    # This is the mechanism CMake provides for exactly this conversion, and it
+    # is sufficient here because nothing in the public API is an exported DATA
+    # symbol: the only static members in the headers are `static constexpr int`,
+    # which are compile-time, and the process-wide state is in function-local
+    # statics inside the .cpp files - which is what has to live in the DLL and
+    # now does. Annotating the headers instead would churn every public class in
+    # a library four other applications are building against.
+    set_target_properties(NovuUI PROPERTIES
+        WINDOWS_EXPORT_ALL_SYMBOLS ON
+        # A consumer links the import library and loads the DLL beside its own
+        # executable; the host's deploy step is what puts it there.
+        RUNTIME_OUTPUT_NAME NovuUI)
+    # WINDOWS_EXPORT_ALL_SYMBOLS carries functions and not data, and every
+    # Q_OBJECT class has a data symbol: moc's `staticMetaObject`. So the classes
+    # are annotated with NOVUUI_API as well - see include/novu/ui/Export.h - and
+    # these two definitions are what switch that macro between exporting here and
+    # importing in a consumer.
+    target_compile_definitions(NovuUI
+        PUBLIC NOVUUI_SHARED
+        PRIVATE NOVUUI_BUILDING)
+    # LNK4197, silenced for a structural reason and nothing else.
+    #
+    # The two export mechanisms above overlap on purpose: WINDOWS_EXPORT_ALL_SYMBOLS
+    # writes every symbol into a generated .def file, and the annotated classes
+    # are ALSO marked dllexport so their moc data symbol comes out. A class
+    # member therefore appears twice - once from the .def, once from the
+    # declspec - and the linker says so, 255 times.
+    #
+    # It is the same symbol at the same address either way; the warning means
+    # "exported more than once", not "exported wrongly". The alternative is
+    # annotating a hundred free functions by hand to drop the .def, which is a
+    # far larger and more fragile change to a library four other applications
+    # build against. Only this one warning number is suppressed.
+    target_link_options(NovuUI PRIVATE /IGNORE:4197)
+endif()
 
 add_library(Novu::UI ALIAS NovuUI)
 

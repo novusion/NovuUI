@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/StyleSpec.h"
 
 #include <QColor>
@@ -24,7 +26,7 @@ namespace novu::ui {
 // Painted, with hit testing. Eleven colours is eleven paint calls; as eleven
 // checkable buttons it is eleven widgets, eleven polish passes and eleven
 // stylesheets for something with no text in it.
-class Swatch : public QWidget
+class NOVUUI_API Swatch : public QWidget
 {
     Q_OBJECT
 

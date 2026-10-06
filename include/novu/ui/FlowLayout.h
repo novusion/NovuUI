@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include <QLayout>
 #include <QList>
 
@@ -11,7 +13,7 @@ namespace novu::ui {
 // QHBoxLayout overflows off the edge, and a QGridLayout stretches every cell to
 // the widest one, so a "Side" chip ends up as wide as "Current Price". Neither
 // is acceptable for a control where the label length is the content.
-class FlowLayout : public QLayout
+class NOVUUI_API FlowLayout : public QLayout
 {
 public:
     explicit FlowLayout(QWidget* parent = nullptr, int spacing = -1);

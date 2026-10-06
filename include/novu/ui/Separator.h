@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include <QWidget>
 
 class QBoxLayout;
@@ -20,7 +22,7 @@ namespace novu::ui {
 // decoration is exactly what must not cost a styled widget: a card header with
 // a rule under it should be one more paint call, not one more QFrame with its
 // own polish pass and its own place for a stray sheet to land.
-class Separator : public QWidget
+class NOVUUI_API Separator : public QWidget
 {
     Q_OBJECT
 

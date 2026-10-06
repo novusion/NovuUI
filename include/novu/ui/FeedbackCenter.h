@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 // Showing a person what happened to the reports they filed.
 //
 // These components know nothing about where feedback comes from. They are
@@ -81,7 +83,7 @@ FeedbackStatusDisplay feedbackStatusDisplay(const FeedbackPresentationItem& item
 //
 // The count is updates the person has not seen, not how many reports they
 // have filed - a number that only ever grows is not news.
-class FeedbackButton : public QWidget
+class NOVUUI_API FeedbackButton : public QWidget
 {
     Q_OBJECT
 
@@ -112,7 +114,7 @@ private:
 // A model/view rather than a widget per report: a person who files feedback
 // often has hundreds of them, and a stack of cards that deep is slow to build
 // and slower to update. A single status change repaints one row.
-class FeedbackCenterView : public QWidget
+class NOVUUI_API FeedbackCenterView : public QWidget
 {
     Q_OBJECT
 
@@ -170,7 +172,7 @@ private:
 // Stable says nothing: every user is on stable, and a badge that is always
 // there stops being read. The value is the host's - this draws it and does
 // not decide what channel anything is on.
-class ReleaseChannelBadge : public QWidget
+class NOVUUI_API ReleaseChannelBadge : public QWidget
 {
     Q_OBJECT
 

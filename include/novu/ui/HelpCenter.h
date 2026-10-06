@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 
 #include <QList>
@@ -44,7 +46,7 @@ class Splitter;
 // an empty Notes panel - a control that only ever says "not implemented" is
 // worse than its absence. Tags and contents are different: they come from the
 // article itself, so they appear exactly when an article has them.
-class HelpCenterView : public QWidget
+class NOVUUI_API HelpCenterView : public QWidget
 {
     Q_OBJECT
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include "novu/ui/StatusDot.h"
 #include "novu/ui/StyleSpec.h"
@@ -46,7 +48,7 @@ namespace novu::ui {
 // hundred and twenty widgets for a strip 32 pixels tall. Tabs are painted and
 // hit-tested per zone: the close box is a separate target from the tab, because
 // closing a document and switching to it are very different mistakes to make.
-class TabBar : public QWidget
+class NOVUUI_API TabBar : public QWidget
 {
     Q_OBJECT
 

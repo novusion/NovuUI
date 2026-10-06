@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include "novu/ui/ItemStrip.h"
 #include "novu/ui/StyleSpec.h"
@@ -36,7 +38,7 @@ namespace novu::ui {
 // A tray here would draw a box round the middle of the title bar; an accent
 // tint in a settings row would read as a status. Merging them into one class
 // with a `flat` flag would be one class with two designs in it.
-class ModuleBar : public ItemStrip
+class NOVUUI_API ModuleBar : public ItemStrip
 {
     Q_OBJECT
 

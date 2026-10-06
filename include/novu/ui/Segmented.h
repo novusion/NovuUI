@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Icon.h"
 #include "novu/ui/ItemStrip.h"
 #include "novu/ui/StyleSpec.h"
@@ -35,7 +37,7 @@ namespace novu::ui {
 // that a release elsewhere cancels, and the arrow keys. What is left here is
 // the tray, the sliding plate and the type — which is all this class was ever
 // about.
-class Segmented : public ItemStrip
+class NOVUUI_API Segmented : public ItemStrip
 {
     Q_OBJECT
 

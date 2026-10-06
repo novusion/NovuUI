@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/ThemeProfile.h"
 
 #include <QEvent>
@@ -18,7 +20,7 @@ namespace novu::ui {
 // A custom event rather than a signal because there is no registry of live
 // components to connect to — and there must not be one, or every component
 // would have to remember to unregister.
-class ThemeChangeEvent : public QEvent
+class NOVUUI_API ThemeChangeEvent : public QEvent
 {
 public:
     static QEvent::Type type();
@@ -31,7 +33,7 @@ public:
 // process hosts several products at once — NovuSpace loads NovuTrade, NovuMail
 // and NovuVault as modules into its own process, so setTheme() would repaint
 // all of them together.
-class ThemeManager : public QObject
+class NOVUUI_API ThemeManager : public QObject
 {
     Q_OBJECT
 

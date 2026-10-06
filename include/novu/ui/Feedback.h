@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Badge.h"
 #include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
@@ -28,7 +30,7 @@ namespace novu::ui {
 // A glyph, a statement of what is missing, and a line saying what would make it
 // appear. The third line matters: "No open trades" alone reads as a fault, and
 // users report it as one.
-class EmptyState : public QWidget
+class NOVUUI_API EmptyState : public QWidget
 {
     Q_OBJECT
 
@@ -109,7 +111,7 @@ private:
 // Painted rather than styled: a tint per tone would otherwise need one
 // stylesheet rule for each, and a QFrame rule cascades into every QLabel inside
 // it — the defect this codebase has hit most often.
-class InfoBanner : public QFrame
+class NOVUUI_API InfoBanner : public QFrame
 {
     Q_OBJECT
 
@@ -189,7 +191,7 @@ private:
 // The second is `setUnknown()`. An unmeasured reading draws an empty track
 // rather than a zero-length fill, because "not measured" and "idle" must not
 // look the same — and a value of 0 cannot say which one it is.
-class ProgressBar : public QWidget
+class NOVUUI_API ProgressBar : public QWidget
 {
     Q_OBJECT
 
@@ -278,7 +280,7 @@ QString formatBytes(qint64 bytes);
 //
 // Sized from the profile's icon metrics rather than from a pixel count, so it
 // matches the glyphs beside it at every control size.
-class Spinner : public QWidget
+class NOVUUI_API Spinner : public QWidget
 {
     Q_OBJECT
 
@@ -325,7 +327,7 @@ private:
 // A plate, not a widget per line: `SkeletonList` below draws a whole table of
 // them in a single widget, because forty placeholder rows that are each three
 // QWidgets is a hundred and twenty widgets built to be thrown away.
-class Skeleton : public QWidget
+class NOVUUI_API Skeleton : public QWidget
 {
     Q_OBJECT
 
@@ -369,7 +371,7 @@ private:
 // One widget for the whole list. The row height and the separators are the
 // profile's table tokens, so the placeholder and the table that replaces it are
 // the same shape and the panel does not jump when the data lands.
-class SkeletonList : public QWidget
+class NOVUUI_API SkeletonList : public QWidget
 {
     Q_OBJECT
 
@@ -408,7 +410,7 @@ private:
 // A line that says "Checking credentials" with a turning mark and then says
 // "Connected" with a tick is one row that reported on itself. Two labels swapped
 // by a page is two rows that happened to occupy the same place.
-class StatusLine : public QWidget
+class NOVUUI_API StatusLine : public QWidget
 {
     Q_OBJECT
 
@@ -454,7 +456,7 @@ private:
 //
 // Painted, one widget. Six pills that never change after construction have no
 // business being six QLabels with three stylesheets between them.
-class Steps : public QWidget
+class NOVUUI_API Steps : public QWidget
 {
     Q_OBJECT
 

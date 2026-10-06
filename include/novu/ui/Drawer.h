@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/AppMark.h"
 #include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
@@ -47,7 +49,7 @@ class TabBar;
 //
 // The scrim, the edge, the width, closing on Escape and on a click outside, and
 // the head. A caller fills `body()` and, optionally, a footer.
-class Drawer : public QWidget
+class NOVUUI_API Drawer : public QWidget
 {
     Q_OBJECT
 

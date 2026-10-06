@@ -1,5 +1,7 @@
 #pragma once
 
+#include "novu/ui/Export.h"
+
 #include "novu/ui/Text.h"
 
 #include <QString>
@@ -34,7 +36,7 @@ class Separator;
 // carry badges, buttons, status lights and two-line cells, and the variety is
 // the point. What this owns is the *list* — the hairlines, the metrics, the
 // hover, and that the last row has no rule under it.
-class ItemList : public QWidget
+class NOVUUI_API ItemList : public QWidget
 {
     Q_OBJECT
 
