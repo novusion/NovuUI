@@ -107,4 +107,45 @@ private:
 // so twenty panels do not each decide what size an inline action is.
 IconButton* rowAction(Glyph glyph, QWidget* parent, const QString& tooltip = {});
 
+// A chrome icon with a count over it: "there are three of these waiting".
+//
+// The second of its kind in the library, which is why it is here rather than
+// in the module that needed it. FeedbackButton is exactly this widget with the
+// chat glyph and feedback's wording baked in; the next surface that wants an
+// unread count - invitations, in NovuAI - would otherwise have copied the
+// badge positioning, the 9+ cap and the transparent-to-mouse attribute into a
+// third place. FeedbackButton is left alone: it carries its own progressive
+// tooltip and is in use.
+//
+// The badge is drawn over the button and takes no mouse events, so clicking
+// the number is still clicking the button rather than a dead spot.
+class NOVUUI_API CountIconButton : public QWidget
+{
+    Q_OBJECT
+
+public:
+    CountIconButton(Glyph glyph, QWidget* parent = nullptr);
+
+    // Zero hides the badge rather than drawing a "0", which reads as a fault
+    // rather than as nothing waiting.
+    void setCount(int count);
+    int count() const { return m_count; }
+
+    // The button underneath, for a tooltip the host wants to word itself.
+    IconButton* button() const { return m_button; }
+
+signals:
+    void clicked();
+
+protected:
+    void resizeEvent(QResizeEvent* event) override;
+
+private:
+    void positionBadge();
+
+    IconButton* m_button = nullptr;
+    class Badge* m_badge = nullptr;
+    int m_count = 0;
+};
+
 } // namespace novu::ui

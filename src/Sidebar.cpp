@@ -202,6 +202,7 @@ void ConnectionStrip::setHost(const QString& host)
         return;
     }
     m_host = host;
+    refreshElisionTooltip();
     updateGeometry();
     update();
 }
@@ -212,8 +213,68 @@ void ConnectionStrip::setDetail(const QString& detail)
         return;
     }
     m_detail = detail;
+    refreshElisionTooltip();
     updateGeometry();
     update();
+}
+
+int ConnectionStrip::textBandWidth() const
+{
+    if (m_compact) {
+        return 0;   // icon only; there is no text to elide
+    }
+    // paintEvent's own arithmetic: the band starts after the status dot and
+    // ends at the action, or at the padding when there is no action.
+    const int contentLeft = static_cast<int>(kConnPaddingH + kConnDot) + kConnGap;
+    int rightEdge = width() - kConnPaddingH;
+    if (m_action != Glyph::None) {
+        rightEdge = actionRect().left() - kConnGap;
+    }
+    return qMax(0, rightEdge - contentLeft);
+}
+
+void ConnectionStrip::refreshElisionTooltip()
+{
+    const int band = textBandWidth();
+    if (band <= 0) {
+        // Compact, or not laid out yet. A compact strip is an icon with no text
+        // on it, and its tooltip belongs to the action rather than to a line
+        // nobody can see.
+        if (!m_compact) {
+            setToolTip(QString());
+        }
+        return;
+    }
+
+    const QFontMetrics hostMetrics(hostFont(this));
+    const QFontMetrics detailMetrics(detailFont(this));
+    const bool hostElided =
+        !m_host.isEmpty() && hostMetrics.horizontalAdvance(m_host) > band;
+    const bool detailElided =
+        !m_detail.isEmpty() && detailMetrics.horizontalAdvance(m_detail) > band;
+
+    if (!hostElided && !detailElided) {
+        setToolTip(QString());
+        return;
+    }
+
+    // Both lines, always, once either is cut. Showing only the elided one would
+    // make the tooltip a different shape depending on the rail's width, and the
+    // host is the context the detail is about.
+    QStringList lines;
+    if (!m_host.isEmpty()) {
+        lines << m_host;
+    }
+    if (!m_detail.isEmpty()) {
+        lines << m_detail;
+    }
+    setToolTip(lines.join(QLatin1Char('\n')));
+}
+
+void ConnectionStrip::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    refreshElisionTooltip();
 }
 
 void ConnectionStrip::setState(State state)
@@ -232,6 +293,7 @@ void ConnectionStrip::setState(State state)
 void ConnectionStrip::setAction(Glyph glyph, const QString& tooltip)
 {
     m_action = glyph;
+    refreshElisionTooltip();
     m_actionTip = tooltip;
     updateGeometry();
     update();
@@ -240,6 +302,7 @@ void ConnectionStrip::setAction(Glyph glyph, const QString& tooltip)
 void ConnectionStrip::clearAction()
 {
     m_action = Glyph::None;
+    refreshElisionTooltip();
     m_actionTip.clear();
     updateGeometry();
     update();
@@ -251,6 +314,7 @@ void ConnectionStrip::setCompact(bool compact)
         return;
     }
     m_compact = compact;
+    refreshElisionTooltip();
     updateGeometry();
     update();
 }
@@ -334,6 +398,9 @@ void ConnectionStrip::mouseMoveEvent(QMouseEvent* event)
                 Tooltip::install(this, m_actionTip);
             } else {
                 Tooltip::remove(this);
+                // install() cleared the plain tooltip so the two never show
+                // together; the elided host and detail get theirs back.
+                refreshElisionTooltip();
             }
         }
         update();
@@ -346,6 +413,12 @@ void ConnectionStrip::leaveEvent(QEvent* event)
     if (m_actionHovered) {
         m_actionHovered = false;
         setCursor(Qt::ArrowCursor);
+        if (!m_actionTip.isEmpty()) {
+            // Leaving straight off the action: the branded tip goes and the
+            // elided text's own tooltip comes back for the next hover.
+            Tooltip::remove(this);
+            refreshElisionTooltip();
+        }
         update();
     }
     QWidget::leaveEvent(event);

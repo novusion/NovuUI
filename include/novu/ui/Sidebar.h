@@ -88,10 +88,28 @@ protected:
     void leaveEvent(QEvent* event) override;
     void showEvent(QShowEvent* event) override;
     void hideEvent(QHideEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
     bool event(QEvent* event) override;
 
 private:
     void updateMotion();
+
+    //! Width available to the host and detail lines, in pixels.
+    //!
+    //! The same band paintEvent() lays them out in. Shared so that "does this
+    //! text fit" is answered by the measurement that actually draws it rather
+    //! than by a second guess that can disagree with it.
+    int textBandWidth() const;
+
+    //! Puts the complete host and detail in the tooltip when either is elided,
+    //! and takes the tooltip away when both fit.
+    //!
+    //! A status line is where a diagnostic appears, and a rail is narrow: a
+    //! transport error elided to "NovuTrade private transport is unav..." is a
+    //! message nobody can act on, and the shell offers no other place to read
+    //! it. Generic on purpose - every module's strip gets this, because every
+    //! module can produce a sentence longer than 238 pixels.
+    void refreshElisionTooltip();
 
     QString m_host;
     QString m_detail;

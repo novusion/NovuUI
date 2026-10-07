@@ -235,8 +235,14 @@ void TreeView::removeNode(const QString& id)
         parent->children.removeAll(id);
     }
     removeSubtree(id);
+    m_selected.intersect(QSet<QString>(m_nodes.keyBegin(), m_nodes.keyEnd()));
+    if (!m_nodes.contains(m_selectionAnchor)) {
+        m_selectionAnchor.clear();
+    }
     if (!m_nodes.contains(m_current)) {
-        m_current.clear();
+    m_current.clear();
+    m_selected.clear();
+    m_selectionAnchor.clear();
     }
     rebuildRows();
 }
@@ -524,6 +530,133 @@ void TreeView::revealNode(const QString& id)
     }
 }
 
+
+void TreeView::setSelectionMode(SelectionMode mode)
+{
+    if (m_selectionMode == mode) {
+        return;
+    }
+    m_selectionMode = mode;
+    if (mode == SelectionMode::Single) {
+        // Dropping back to one row keeps the current one and discards the
+        // rest, rather than clearing everything: the person is left marking
+        // what they were already on.
+        const bool had = m_selected.size() > 1;
+        m_selected.clear();
+        if (!m_current.isEmpty()) {
+            m_selected.insert(m_current);
+        }
+        if (had) {
+            viewport()->update();
+            emit selectionChanged(selectedIds());
+        }
+    }
+}
+
+QStringList TreeView::selectedIds() const
+{
+    // Row order, not set order. A caller listing what it is about to delete
+    // shows them the way the rail does; a hash's order would be arbitrary and
+    // would change between runs.
+    QStringList ids;
+    ids.reserve(m_selected.size());
+    for (const QString& id : m_rows) {
+        if (m_selected.contains(id)) {
+            ids << id;
+        }
+    }
+    // A selected row inside a collapsed parent is not in m_rows and would be
+    // lost here. It is still selected, so it goes on the end rather than
+    // silently out of the answer.
+    for (const QString& id : m_selected) {
+        if (!ids.contains(id)) {
+            ids << id;
+        }
+    }
+    return ids;
+}
+
+void TreeView::setSelectedIds(const QStringList& ids)
+{
+    QSet<QString> next;
+    for (const QString& id : ids) {
+        if (m_nodes.contains(id)) {
+            next.insert(id);
+        }
+    }
+    if (next == m_selected) {
+        return;
+    }
+    m_selected = next;
+    viewport()->update();
+    emit selectionChanged(selectedIds());
+}
+
+void TreeView::clearSelection()
+{
+    if (m_selected.isEmpty()) {
+        return;
+    }
+    m_selected.clear();
+    viewport()->update();
+    emit selectionChanged(selectedIds());
+}
+
+// Applies one click's worth of selection. Returns true when the row should
+// also be ACTIVATED - opened - which a plain click does and a modified one
+// deliberately does not: adding a fourth chat to a selection must not open
+// the fourth chat and throw away the view the person was building the
+// selection for.
+bool TreeView::applySelectionForClick(const QString& id, Qt::KeyboardModifiers modifiers)
+{
+    const QSet<QString> before = m_selected;
+
+    if (m_selectionMode == SelectionMode::Single
+        || !(modifiers & (Qt::ControlModifier | Qt::ShiftModifier))) {
+        m_selected.clear();
+        m_selected.insert(id);
+        m_selectionAnchor = id;
+        if (m_selected != before) {
+            emit selectionChanged(selectedIds());
+        }
+        return true;
+    }
+
+    if (modifiers & Qt::ShiftModifier) {
+        // A range over what is ON SCREEN. Rows hidden inside a collapsed
+        // parent are not between two visible rows in any sense a person can
+        // see, and taking them would select things the gesture never crossed.
+        const int anchorRow = m_selectionAnchor.isEmpty() ? -1 : rowOf(m_selectionAnchor);
+        const int targetRow = rowOf(id);
+        if (anchorRow >= 0 && targetRow >= 0) {
+            m_selected.clear();
+            const int from = qMin(anchorRow, targetRow);
+            const int to = qMax(anchorRow, targetRow);
+            for (int row = from; row <= to; ++row) {
+                m_selected.insert(m_rows.at(row));
+            }
+        } else {
+            m_selected.insert(id);
+            m_selectionAnchor = id;
+        }
+    } else {
+        // Ctrl: add, or take away. Taking away is the half that makes a
+        // selection correctable without starting over.
+        if (m_selected.contains(id)) {
+            m_selected.remove(id);
+        } else {
+            m_selected.insert(id);
+        }
+        m_selectionAnchor = id;
+    }
+
+    if (m_selected != before) {
+        viewport()->update();
+        emit selectionChanged(selectedIds());
+    }
+    return false;
+}
+
 QString TreeView::currentId() const
 {
     return m_current;
@@ -535,6 +668,16 @@ void TreeView::setCurrentId(const QString& id)
         return;
     }
     m_current = id;
+    // In Single mode the selection IS the current row, so a caller that sets
+    // the current row programmatically - creating a workspace and selecting
+    // it, say - gets a selection that agrees with it rather than an empty one.
+    if (m_selectionMode == SelectionMode::Single) {
+        m_selected.clear();
+        if (!id.isEmpty()) {
+            m_selected.insert(id);
+        }
+        m_selectionAnchor = id;
+    }
     viewport()->update();
     emit currentChanged(m_current);
 }
@@ -544,7 +687,17 @@ void TreeView::activate(const QString& id)
     if (id.isEmpty() || !m_nodes.contains(id)) {
         return;
     }
+    // Opening a row programmatically is a plain click: it becomes the whole
+    // selection. A caller that wanted to add to one would set the selection
+    // itself; this is the "go here" call.
+    const QSet<QString> before = m_selected;
+    m_selected.clear();
+    m_selected.insert(id);
+    m_selectionAnchor = id;
     setCurrentId(id);
+    if (m_selected != before) {
+        emit selectionChanged(selectedIds());
+    }
     emit activated(id);
 }
 
@@ -907,8 +1060,15 @@ void TreeView::mouseReleaseEvent(QMouseEvent* event)
         return;
     }
 
+    // Selection first, because what the click MEANS depends on the modifier:
+    // a plain click opens the row, a modified one only marks it.
+    const bool shouldActivate = applySelectionForClick(id, event->modifiers());
     setCurrentId(id);
-    emit activated(id);
+    if (shouldActivate) {
+        emit activated(id);
+    } else {
+        viewport()->update();
+    }
 }
 
 void TreeView::mouseMoveEvent(QMouseEvent* event)
@@ -1078,7 +1238,12 @@ void TreeView::paintEvent(QPaintEvent*)
         const QRect box = rowRect(row);
         const ResolvedStyle style = resolve(rowStyleSpec(row), this, height);
         const bool current = m_rows.at(row) == m_current;
-        const bool hot = row == m_hovered && !current && entry->enabled;
+        // Marked but not current. Drawn like the current row and a shade
+        // lighter, so a run of four selected rows reads as one block with the
+        // keyboard sitting on one of them - rather than as four current rows,
+        // which would say the keyboard is in four places.
+        const bool selected = !current && m_selected.contains(m_rows.at(row));
+        const bool hot = row == m_hovered && !current && !selected && entry->enabled;
 
         // `.tkids` — one guide per level the row is under, drawn before the
         // plate so a selected row's tint sits over it rather than under it.
@@ -1105,6 +1270,12 @@ void TreeView::paintEvent(QPaintEvent*)
             painter.setBrush(withAlpha(style.checkedBackground,
                                        style.checkedBackground.alphaF()
                                            * selectionStrength));
+            painter.drawRoundedRect(QRectF(box), radius, radius);
+        } else if (selected) {
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(withAlpha(style.checkedBackground,
+                                       style.checkedBackground.alphaF()
+                                           * selectionStrength * 0.55));
             painter.drawRoundedRect(QRectF(box), radius, radius);
         } else if (hot) {
             painter.setPen(Qt::NoPen);

@@ -13,6 +13,15 @@
 #include <QString>
 #include <QVector>
 #include <QWidget>
+#include <QPointer>
+
+class QLineEdit;
+class QMimeData;
+class QDragEnterEvent;
+class QDragMoveEvent;
+class QDragLeaveEvent;
+class QDropEvent;
+class QResizeEvent;
 
 namespace novu::ui {
 
@@ -137,6 +146,37 @@ public:
     void setIndentOffset(const QString& key, int pixels);
     void setTreeGuides(bool enabled);
 
+    // ── renaming a row in place ───────────────────────────────────────────
+    //
+    // Opens an editor over the row's label, focused and with its text
+    // selected - "New collection" typed over in one gesture. Enter or leaving
+    // the field submits; Escape abandons. The list decides nothing about the
+    // text: inlineEditCommitted() hands it to the caller, which either lets the
+    // editor close or calls rejectInlineEdit() from inside that handler to keep
+    // it open with a reason.
+    //
+    // Survives clear() and a rebuild, because a rail is rebuilt from data on
+    // every chrome change: the editor follows its key, and goes away only when
+    // the key does. Returns false when no such row exists.
+    bool beginInlineEdit(const QString& key, const QString& text = QString());
+    // From inside an inlineEditCommitted() handler: the text was not accepted.
+    // Enter keeps the editor open with `message` beside it; focus leaving
+    // abandons instead, so a rejection never holds focus hostage.
+    void rejectInlineEdit(const QString& message);
+    void cancelInlineEdit();
+    bool isInlineEditing() const;
+    QString inlineEditKey() const { return m_editKey; }
+
+    // ── dropping onto rows ────────────────────────────────────────────────
+    //
+    // Which rows accept a drop, and of what. Only a drag carrying `mimeType`
+    // is accepted, and only over one of `keys`: every other row, a caption and
+    // empty space refuse it. The hovered target is highlighted, and a drop
+    // reports the payload with rowDropped(); the list moves nothing itself.
+    // Kept apart from the rows, so a rebuild of the rail keeps its targets. An
+    // empty `keys` turns drops off.
+    void setDropTargets(const QString& mimeType, const QStringList& keys);
+
     // What a row says, for a caller filtering the list by it.
     QString label(const QString& key) const;
 
@@ -233,6 +273,12 @@ signals:
     // row can do is the caller's, and a sidebar that grew its own menu would
     // be four different menus in four products.
     void contextMenuRequested(const QString& key, const QPoint& globalPosition);
+    // The inline editor was submitted (Enter, or focus leaving it) or
+    // abandoned (Escape, or the row disappearing).
+    void inlineEditCommitted(const QString& key, const QString& text);
+    void inlineEditCancelled(const QString& key);
+    // Something carrying the drop-target MIME type was dropped on `key`.
+    void rowDropped(const QString& key, const QByteArray& payload);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -244,6 +290,12 @@ protected:
     void focusInEvent(QFocusEvent* event) override;
     void contextMenuEvent(QContextMenuEvent* event) override;
     bool event(QEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dragMoveEvent(QDragMoveEvent* event) override;
+    void dragLeaveEvent(QDragLeaveEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
 
 private:
     struct Row
@@ -285,6 +337,21 @@ private:
         Glyph action = Glyph::None;
         QString actionTip;
     };
+
+    // Inline editing. One editor for the whole list - only one row is ever
+    // being renamed - positioned over the row's label band.
+    void scheduleInlineEditorPlacement();
+    void placeInlineEditor();
+    void finishInlineEdit(bool submit, bool fromFocusOut);
+    int dropTargetAt(const QPoint& position, const QMimeData* mime) const;
+    QString m_dropMime;
+    QSet<QString> m_dropKeys;
+    int m_dropHover = -1;
+    QPointer<QLineEdit> m_editor;
+    QString m_editKey;
+    bool m_editRejected = false;
+    bool m_editFinishing = false;
+    bool m_editPlacementQueued = false;
 
     int rowHeight(const Row& row) const;
     int sectionHeight(int index) const;

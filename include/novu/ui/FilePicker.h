@@ -4,6 +4,7 @@
 
 #include "novu/ui/Icon.h"
 
+#include <QPoint>
 #include <QString>
 #include <QVector>
 #include <QWidget>
@@ -73,6 +74,13 @@ public:
                      bool expandable = true);
     void setLocationExpanded(const QString& id, bool expanded);
     void clearLocations();
+    // What a location is called, changed in place - a favourite the person
+    // renamed. The id, and so everything under it, stays where it is.
+    void setLocationLabel(const QString& id, const QString& label);
+    // Starts the tree's own in-row rename on `id`. What the new name MEANS is
+    // the caller's: it arrives as locationRenamed(), and the row keeps its old
+    // label until the caller answers with setLocationLabel().
+    void renameLocation(const QString& id);
 
     QString currentLocation() const { return m_currentLocation; }
     // Silent - does not itself ask for the folder's contents. A caller
@@ -112,6 +120,16 @@ signals:
     void selectionChanged(const QString& name);
     void confirmed(const QString& name);
     void cancelled();
+    // A right-click on a location in the tree, with that location already
+    // made current. Empty `id` when the click landed on no row.
+    void locationMenuRequested(const QString& id, const QPoint& globalPosition);
+    // A right-click on a row of the listing. -1 when it landed below the last
+    // row. Which rows a menu applies to is the caller's call, the same way
+    // entryActivated() leaves folder-or-file to it.
+    void entryMenuRequested(int row, const QPoint& globalPosition);
+    // The in-row rename finished with a new, non-empty name. Not emitted for
+    // an abandoned rename or an unchanged one.
+    void locationRenamed(const QString& id, const QString& label);
 
 private:
     void handleLocationActivated(const QString& id);

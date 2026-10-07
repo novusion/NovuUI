@@ -1,6 +1,8 @@
 #include "novu/ui/FilePickerDialog.h"
 
 #include "novu/ui/FilePicker.h"
+#include "novu/ui/FilePickerPlaces.h"
+#include "novu/ui/Popover.h"
 #include "novu/ui/Theme.h"
 #include "novu/ui/ThemeManager.h"
 #include "novu/ui/WindowShell.h"
@@ -45,7 +47,7 @@ struct Listing
 // Hidden entries are left out. A picker is for choosing a file to work with,
 // and a listing that leads with forty dotfiles buries the one thing the person
 // came for; anyone who needs one can type its name.
-Listing listDirectory(const QDir& dir, const QStringList& patterns)
+Listing listDirectory(const QDir& dir, const QStringList& patterns, bool foldersOnly = false)
 {
     Listing listing;
 
@@ -71,6 +73,11 @@ Listing listDirectory(const QDir& dir, const QStringList& patterns)
         listing.folderPaths.append(info.absoluteFilePath());
     }
 
+    // Choosing a folder: a file is not an answer, so it is not offered.
+    if (foldersOnly) {
+        return listing;
+    }
+
     // No patterns means everything: "show me all files" is a real answer and
     // not a missing filter.
     const QFileInfoList files = patterns.isEmpty()
@@ -90,47 +97,31 @@ Listing listDirectory(const QDir& dir, const QStringList& patterns)
     return listing;
 }
 
-// Where the tree starts: the person's own places, then the volumes.
-//
-// Favourites first and marked as such, because that is where a file almost
-// always is, and a tree that opens on C:\ makes the common case the long way
-// round.
-QStringList fillRoots(FilePicker* picker)
+// The system's own places: always there, and not the person's to rename or
+// remove. The ones they pinned themselves come from FilePickerPlaces.
+QStringList systemPlaces()
 {
-    const QVector<QPair<QStandardPaths::StandardLocation, Glyph>> favourites = {
-        {QStandardPaths::DesktopLocation, Glyph::Star},
-        {QStandardPaths::DocumentsLocation, Glyph::Star},
-        {QStandardPaths::DownloadLocation, Glyph::Star},
-        {QStandardPaths::HomeLocation, Glyph::Star},
+    const QVector<QStandardPaths::StandardLocation> locations = {
+        QStandardPaths::DesktopLocation,
+        QStandardPaths::DocumentsLocation,
+        QStandardPaths::DownloadLocation,
+        QStandardPaths::HomeLocation,
     };
-    QStringList added;
-    for (const auto& favourite : favourites) {
-        const QString path = QStandardPaths::writableLocation(favourite.first);
-        if (path.isEmpty() || added.contains(path) || !QFileInfo(path).isDir()) {
-            continue;
+    QStringList places;
+    for (const auto location : locations) {
+        const QString path =
+            FilePickerPlaces::normalised(QStandardPaths::writableLocation(location));
+        if (!path.isEmpty() && !places.contains(path) && QFileInfo(path).isDir()) {
+            places << path;
         }
-        added << path;
-        picker->addLocation({}, path, QDir(path).dirName().isEmpty()
-                                          ? path : QDir(path).dirName(),
-                            favourite.second);
     }
+    return places;
+}
 
-    for (const QStorageInfo& volume : QStorageInfo::mountedVolumes()) {
-        if (!volume.isValid() || !volume.isReady()) {
-            continue;
-        }
-        const QString path = volume.rootPath();
-        if (path.isEmpty() || added.contains(path)) {
-            continue;
-        }
-        added << path;
-        // The volume's own name when it has one, and its path when it does not -
-        // an unnamed volume is still somewhere to go.
-        const QString name = volume.displayName().isEmpty()
-            ? path : QStringLiteral("%1 (%2)").arg(volume.displayName(), path);
-        picker->addLocation({}, path, name, Glyph::Folder);
-    }
-    return added;
+QString nameOf(const QString& path)
+{
+    const QString name = QDir(path).dirName();
+    return name.isEmpty() ? path : name;
 }
 
 // The window, and everything that drives it.
@@ -143,11 +134,12 @@ class Session : public QObject
 public:
     Session(QWidget* parent, const QString& title, const QString& note,
             const QString& startPath, const QStringList& patterns, bool saving,
-            QString defaultSuffix)
+            QString defaultSuffix, bool folders = false)
         : m_dialog(new Dialog(title, parent))
         , m_picker(new FilePicker(m_dialog))
         , m_patterns(patterns)
         , m_saving(saving)
+        , m_folders(folders)
         , m_defaultSuffix(std::move(defaultSuffix))
     {
         m_dialog->setHeading(title, note, Dialog::Tone::Neutral,
@@ -158,14 +150,15 @@ public:
         // FilePicker carries its own Cancel and confirm button, so the
         // dialog's footer is deliberately never created - two button rows in
         // one window would be the picker disagreeing with its own host.
-        m_picker->setConfirmLabel(saving ? tr("Save") : tr("Open"));
+        m_picker->setConfirmLabel(saving ? tr("Save")
+                                         : folders ? tr("Select folder") : tr("Open"));
 
-        const QStringList roots = fillRoots(m_picker);
-        for (const QString& root : roots) {
-            m_known.insert(root);
-        }
+        fillRoots();
 
         connect(m_picker, &FilePicker::locationActivated, this, &Session::navigate);
+        connect(m_picker, &FilePicker::locationMenuRequested, this, &Session::locationMenu);
+        connect(m_picker, &FilePicker::entryMenuRequested, this, &Session::entryMenu);
+        connect(m_picker, &FilePicker::locationRenamed, this, &Session::renameFavourite);
         connect(m_picker, &FilePicker::entryActivated, this, &Session::activateEntry);
         connect(m_picker, &FilePicker::selectionChanged, this, [this] { refreshConfirm(); });
         connect(m_picker, &FilePicker::cancelled, m_dialog, &QDialog::reject);
@@ -192,9 +185,34 @@ private:
     // "save as this particular path".
     void openStart(const QString& startPath)
     {
+        // No start given is the common case for opening - and it used to mean
+        // the process's working directory, which is wherever the application
+        // happened to be launched from. Where the person last chose a file is
+        // nearly always where the next one is.
+        if (startPath.trimmed().isEmpty()) {
+            const QString last = FilePickerPlaces::lastDirectory();
+            navigate(last.isEmpty()
+                         ? QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
+                         : last);
+            refreshConfirm();
+            return;
+        }
         QFileInfo info(startPath);
         QString directory;
         QString name;
+        // A name with no folder of its own - "trades.csv" - is a suggestion
+        // for what to call the file, not a path relative to wherever the
+        // process was started. It goes where the last one went.
+        const QString slashed = QDir::fromNativeSeparators(startPath.trimmed());
+        if (!QDir::isAbsolutePath(slashed) && !slashed.contains(QLatin1Char('/'))) {
+            const QString last = FilePickerPlaces::lastDirectory();
+            navigate(last.isEmpty()
+                         ? QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
+                         : last);
+            m_picker->setSelectedName(slashed);
+            refreshConfirm();
+            return;
+        }
         if (info.isDir()) {
             directory = info.absoluteFilePath();
         } else {
@@ -221,7 +239,7 @@ private:
             return;
         }
         m_current = dir.absolutePath();
-        const Listing listing = listDirectory(dir, m_patterns);
+        const Listing listing = listDirectory(dir, m_patterns, m_folders);
         m_folderPaths = listing.folderPaths;
         m_entries = listing.entries;
 
@@ -250,6 +268,149 @@ private:
         m_picker->setEntries(m_entries);
         m_picker->setLocationExpanded(m_current, true);
         refreshConfirm();
+    }
+
+    // Where the tree starts: the folders the person pinned, the system's own
+    // places, then the volumes.
+    //
+    // Pinned ones first. They are there because the person put them there,
+    // which makes them the likeliest place the file is - and a tree that opens
+    // on a drive root makes the common case the long way round.
+    //
+    // Order matters for more than reading: a tree id belongs to whichever node
+    // claimed it first (TreeView drops a duplicate), so a pinned folder has to
+    // be added before the drive it lives on is walked down to it.
+    void fillRoots()
+    {
+        m_favourites.clear();
+        m_fixed.clear();
+        QStringList added;
+
+        for (const FilePickerPlaces::Favourite& favourite : FilePickerPlaces::favourites()) {
+            // Kept, not shown, while its folder is missing - an unplugged
+            // drive's favourite comes back with the drive.
+            if (added.contains(favourite.path) || !QFileInfo(favourite.path).isDir()) {
+                continue;
+            }
+            added << favourite.path;
+            m_favourites.insert(favourite.path);
+            m_picker->addLocation({}, favourite.path, favourite.label, Glyph::Star);
+        }
+
+        for (const QString& path : systemPlaces()) {
+            if (added.contains(path)) {
+                continue;
+            }
+            added << path;
+            m_fixed.insert(path);
+            m_picker->addLocation({}, path, nameOf(path), Glyph::Star);
+        }
+
+        for (const QStorageInfo& volume : QStorageInfo::mountedVolumes()) {
+            if (!volume.isValid() || !volume.isReady()) {
+                continue;
+            }
+            const QString path = FilePickerPlaces::normalised(volume.rootPath());
+            if (path.isEmpty() || added.contains(path)) {
+                continue;
+            }
+            added << path;
+            // The volume's own name when it has one, and its path when it
+            // does not - an unnamed volume is still somewhere to go.
+            const QString name = volume.displayName().isEmpty()
+                ? path : QStringLiteral("%1 (%2)").arg(volume.displayName(), path);
+            m_picker->addLocation({}, path, name, Glyph::Folder);
+        }
+
+        for (const QString& root : added) {
+            m_known.insert(root);
+        }
+    }
+
+    // Pinning or unpinning changes which node owns a path, and the tree has no
+    // way to move a node - so it is rebuilt, and the listing re-opened where
+    // it was. What was typed in the name field survives it.
+    void rebuildTree()
+    {
+        const QString typed = m_picker->selectedName();
+        m_picker->clearLocations();
+        m_known.clear();
+        m_populated.clear();
+        fillRoots();
+        navigate(m_current);
+        m_picker->setSelectedName(typed);
+        refreshConfirm();
+    }
+
+    bool canPin(const QString& path) const
+    {
+        return !path.isEmpty() && !m_favourites.contains(path) && !m_fixed.contains(path)
+            && QFileInfo(path).isDir();
+    }
+
+    void locationMenu(const QString& id, const QPoint& globalPosition)
+    {
+        if (m_favourites.contains(id)) {
+            showMenu(id, globalPosition, /*pinned=*/true);
+        } else if (canPin(id)) {
+            showMenu(id, globalPosition, /*pinned=*/false);
+        }
+        // A system place, or a click on no row: nothing to offer, and an
+        // empty menu would be a menu that says so.
+    }
+
+    void entryMenu(int row, const QPoint& globalPosition)
+    {
+        if (row < 0 || row >= m_entries.size() || row >= m_folderPaths.size()) {
+            return;   // a file, or below the last row
+        }
+        const FilePicker::Entry& entry = m_entries.at(row);
+        if (entry.kind != FilePicker::EntryKind::Folder || entry.name == kParentEntry) {
+            return;
+        }
+        const QString path = FilePickerPlaces::normalised(m_folderPaths.at(row));
+        if (m_favourites.contains(path)) {
+            showMenu(path, globalPosition, /*pinned=*/true);
+        } else if (canPin(path)) {
+            showMenu(path, globalPosition, /*pinned=*/false);
+        }
+    }
+
+    void showMenu(const QString& path, const QPoint& globalPosition, bool pinned)
+    {
+        auto* menu = new Popover(m_dialog);
+        if (pinned) {
+            menu->addItem(QStringLiteral("rename"), tr("Rename"), Glyph::Edit);
+            menu->setMeta(QStringLiteral("rename"), QStringLiteral("F2"));
+            menu->addItem(QStringLiteral("unpin"), tr("Remove from favourites"), Glyph::Trash);
+        } else {
+            menu->addItem(QStringLiteral("pin"), tr("Add to favourites"), Glyph::Star);
+        }
+        connect(menu, &Popover::closed, menu, &QObject::deleteLater);
+        connect(menu, &Popover::triggered, this, [this, path](const QString& key) {
+            if (key == QLatin1String("pin")) {
+                if (FilePickerPlaces::addFavourite(path)) {
+                    rebuildTree();
+                }
+            } else if (key == QLatin1String("unpin")) {
+                if (FilePickerPlaces::removeFavourite(path)) {
+                    rebuildTree();
+                }
+            } else if (key == QLatin1String("rename")) {
+                m_picker->renameLocation(path);
+            }
+        });
+        menu->popupAt(globalPosition);
+    }
+
+    // Only a favourite has a name of its own to change. F2 still opens the
+    // editor on any row - that is the tree's gesture, not this dialog's - and
+    // on anything else the row simply keeps its name.
+    void renameFavourite(const QString& id, const QString& label)
+    {
+        if (m_favourites.contains(id) && FilePickerPlaces::renameFavourite(id, label)) {
+            m_picker->setLocationLabel(id, label.trimmed());
+        }
     }
 
     // Walks up until it reaches somewhere the tree already knows - a root, or a
@@ -301,6 +462,11 @@ private:
     // would report a read error for what was really a typo.
     void refreshConfirm()
     {
+        // Choosing a folder always has an answer: the one that is open.
+        if (m_folders) {
+            m_picker->setConfirmEnabled(QFileInfo(m_current).isDir());
+            return;
+        }
         const QString name = m_picker->selectedName().trimmed();
         if (name.isEmpty()) {
             m_picker->setConfirmEnabled(false);
@@ -313,6 +479,29 @@ private:
     void confirm(const QString& rawName)
     {
         QString name = rawName.trimmed();
+
+        if (m_folders) {
+            // The folder selected in the listing, a path typed in, or - with
+            // nothing selected - the folder that is open. ".." is a way out,
+            // not an answer, so it means the open folder too.
+            QString path = m_current;
+            if (!name.isEmpty() && name != kParentEntry) {
+                const QFileInfo info(name);
+                const QString candidate = info.isAbsolute()
+                    ? info.absoluteFilePath() : QDir(m_current).absoluteFilePath(name);
+                if (QFileInfo(candidate).isDir()) {
+                    path = candidate;
+                }
+            }
+            if (!QFileInfo(path).isDir()) {
+                return;
+            }
+            m_chosen = QDir::cleanPath(path);
+            FilePickerPlaces::setLastDirectory(m_chosen);
+            m_dialog->accept();
+            return;
+        }
+
         if (name.isEmpty()) {
             return;
         }
@@ -347,6 +536,7 @@ private:
         }
 
         m_chosen = path;
+        FilePickerPlaces::setLastDirectory(QFileInfo(path).absolutePath());
         m_dialog->accept();
     }
 
@@ -354,6 +544,7 @@ private:
     FilePicker* m_picker = nullptr;
     QStringList m_patterns;
     bool m_saving = false;
+    bool m_folders = false;
     QString m_defaultSuffix;
     QString m_current;
     QStringList m_folderPaths;
@@ -363,6 +554,10 @@ private:
     // opened.
     QSet<QString> m_known;
     QSet<QString> m_populated;
+    // Roots the person pinned, and roots the system provides. Kept apart
+    // because only the first may be renamed or removed.
+    QSet<QString> m_favourites;
+    QSet<QString> m_fixed;
     QString m_chosen;
 };
 
@@ -439,6 +634,14 @@ QString FilePickerDialog::save(QWidget* parent, const QString& title,
     const QStringList patterns = patternsOf(filters);
     Session session(parent, title, noteOf(filters, patterns), suggestedPath, patterns,
                     /*saving=*/true, suffixOf(filters));
+    return session.run();
+}
+
+QString FilePickerDialog::chooseFolder(QWidget* parent, const QString& title,
+                                       const QString& startPath)
+{
+    Session session(parent, title, QObject::tr("Folders only."), startPath, {},
+                    /*saving=*/false, QString(), /*folders=*/true);
     return session.run();
 }
 

@@ -110,6 +110,20 @@ FilePicker::FilePicker(QWidget* parent)
     connect(m_table, &QTableWidget::itemSelectionChanged, this,
             &FilePicker::handleSelectionChanged);
     connect(m_cancelButton, &Button::clicked, this, &FilePicker::cancelled);
+
+    // Right-clicks and renames are passed on rather than acted on: FilePicker
+    // does not know what a location is, so it cannot know what a menu on one
+    // should offer, or what renaming one means.
+    connect(m_tree, &TreeView::contextMenuRequested, this, &FilePicker::locationMenuRequested);
+    connect(m_tree, &TreeView::renameCommitted, this, &FilePicker::locationRenamed);
+    m_table->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_table, &QWidget::customContextMenuRequested, this, [this](const QPoint& position) {
+        // QAbstractScrollArea reports the position in its viewport's
+        // coordinates, which is also what rowAt() measures in.
+        const int row = m_table->rowAt(position.y());
+        emit entryMenuRequested(row < 0 || row >= m_entries.size() ? -1 : row,
+                                m_table->viewport()->mapToGlobal(position));
+    });
     connect(m_confirmButton, &Button::clicked, this, [this] {
         emit confirmed(m_nameField->text());
     });
@@ -133,6 +147,17 @@ void FilePicker::clearLocations()
 {
     m_tree->clear();
     m_currentLocation.clear();
+}
+
+void FilePicker::setLocationLabel(const QString& id, const QString& label)
+{
+    m_tree->setLabel(id, label);
+}
+
+void FilePicker::renameLocation(const QString& id)
+{
+    m_tree->revealNode(id);
+    m_tree->beginRename(id);
 }
 
 void FilePicker::setCurrentLocation(const QString& id)

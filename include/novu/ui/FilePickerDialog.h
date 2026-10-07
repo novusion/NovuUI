@@ -63,6 +63,20 @@ public:
     static QString save(QWidget* parent, const QString& title,
                         const QString& suggestedPath,
                         const QVector<Filter>& filters = {});
+
+    //! An existing FOLDER. Empty when cancelled, and never a path that does
+    //! not exist.
+    //!
+    //! The third question an application asks - "which folder is this
+    //! workspace?", "where do downloads go?" - and the one that had no Novu
+    //! window, so every caller fell back to the platform's own folder dialog:
+    //! a Windows Explorer window in the middle of a Novu application.
+    //!
+    //! Files are not listed, because they cannot be the answer. The confirm
+    //! button chooses the folder that is open, or the folder selected in the
+    //! listing; double-clicking a folder still goes into it.
+    static QString chooseFolder(QWidget* parent, const QString& title,
+                                const QString& startPath);
 };
 
 } // namespace novu::ui

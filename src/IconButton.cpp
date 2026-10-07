@@ -1,4 +1,6 @@
 #include "novu/ui/IconButton.h"
+#include <QVBoxLayout>
+#include "novu/ui/Badge.h"
 
 #include "novu/ui/Tooltip.h"
 
@@ -288,6 +290,59 @@ IconButton* rowAction(Glyph glyph, QWidget* parent, const QString& tooltip)
         Tooltip::install(button, tooltip);
     }
     return button;
+}
+
+
+// ── CountIconButton ────────────────────────────────────────────────────────
+
+CountIconButton::CountIconButton(Glyph glyph, QWidget* parent)
+    : QWidget(parent)
+{
+    auto* layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+
+    m_button = new IconButton(glyph, IconButton::Variant::Chrome, this);
+    layout->addWidget(m_button);
+    connect(m_button, &QAbstractButton::clicked, this, &CountIconButton::clicked);
+
+    m_badge = new Badge(QString(), Badge::Tone::Danger, this);
+    m_badge->setSize(Badge::Size::Compact);
+    m_badge->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    m_badge->hide();
+
+    setCount(0);
+}
+
+void CountIconButton::setCount(int count)
+{
+    m_count = qMax(0, count);
+    if (m_count == 0) {
+        m_badge->hide();
+        return;
+    }
+    // Past 9 the exact number stops mattering and the badge stops fitting.
+    m_badge->setText(m_count > 9 ? QStringLiteral("9+") : QString::number(m_count));
+    m_badge->adjustSize();
+    m_badge->show();
+    positionBadge();
+}
+
+void CountIconButton::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    positionBadge();
+}
+
+void CountIconButton::positionBadge()
+{
+    if (!m_badge->isVisible()) {
+        return;
+    }
+    const QSize size = m_badge->sizeHint();
+    m_badge->resize(size);
+    m_badge->move(qMax(0, width() - size.width() - 1), 1);
+    m_badge->raise();
 }
 
 } // namespace novu::ui

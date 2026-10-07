@@ -1,10 +1,21 @@
 #include "novu/ui/NavList.h"
+#include "novu/ui/Fields.h"
 
 #include "novu/ui/Text.h"
 #include "novu/ui/Theme.h"
 #include "novu/ui/ThemeManager.h"
 
 #include <QContextMenuEvent>
+#include <QMimeData>
+#include <QDropEvent>
+#include <QDragLeaveEvent>
+#include <QDragMoveEvent>
+#include <QDragEnterEvent>
+#include <QResizeEvent>
+#include <QToolTip>
+#include <QTimer>
+#include <QStyle>
+#include <QLineEdit>
 #include <QEvent>
 #include <QFontMetrics>
 #include <QFocusEvent>
@@ -264,6 +275,7 @@ void NavList::clear()
     m_pressed = -1;
     updateGeometry();
     update();
+    scheduleInlineEditorPlacement();
 }
 
 int NavList::indexOfKey(const QString& key) const
@@ -1285,6 +1297,15 @@ void NavList::paintEvent(QPaintEvent*)
             painter.setBrush(style.hoverBackground);
             painter.drawRoundedRect(QRectF(box), radius, radius);
         }
+        // A drag hovering a row that will accept it: the accent, tinted and
+        // outlined, so the target reads as "here" and not as the selection.
+        if (index == m_dropHover) {
+            const QColor accent = profile.colors.accent;
+            painter.setPen(QPen(accent, 1.0));
+            painter.setBrush(withAlpha(accent, 0.16));
+            painter.drawRoundedRect(QRectF(box).adjusted(0.5, 0.5, -0.5, -0.5),
+                                    radius, radius);
+        }
 
         // `.navbtn.on::before` — the marker against the rail's left edge. It
         // is what tells the current row from a merely hovered one when the two
@@ -1561,6 +1582,257 @@ void NavList::paintEvent(QPaintEvent*)
         const double radius = profile.radii.small + kRowRadiusBump;
         painter.drawRoundedRect(QRectF(box).adjusted(1.0, 1.0, -1.0, -1.0), radius, radius);
     }
+}
+
+
+// == Inline editing ==========================================================
+//
+// One QLineEdit for the list, laid over the label band of the row being
+// renamed. The rows themselves stay data - the list is one widget by design -
+// so the editor is the only child widget this list ever owns, and only while a
+// row is being edited.
+
+bool NavList::beginInlineEdit(const QString& key, const QString& text)
+{
+    const int index = indexOfKey(key);
+    if (index < 0) {
+        return false;
+    }
+    if (!m_editor) {
+        m_editor = lineEdit(QString(), this);
+        m_editor->setObjectName(QStringLiteral("novuNavInlineEditor"));
+        m_editor->installEventFilter(this);
+        connect(m_editor, &QLineEdit::returnPressed, this,
+                [this] { finishInlineEdit(true, false); });
+        connect(m_editor, &QLineEdit::textEdited, this, [this] {
+            // Typing again clears a previous rejection's mark.
+            m_editor->setProperty("invalid", false);
+            m_editor->style()->unpolish(m_editor);
+            m_editor->style()->polish(m_editor);
+            m_editor->setToolTip(QString());
+        });
+    }
+    m_editKey = key;
+    m_editRejected = false;
+    m_editor->setProperty("invalid", false);
+    m_editor->setToolTip(QString());
+    m_editor->setText(text.isNull() ? m_rows.at(index).label : text);
+    placeInlineEditor();
+    m_editor->show();
+    m_editor->raise();
+    m_editor->setFocus(Qt::OtherFocusReason);
+    m_editor->selectAll();
+    return true;
+}
+
+bool NavList::isInlineEditing() const
+{
+    return m_editor && m_editor->isVisible() && !m_editKey.isEmpty();
+}
+
+void NavList::rejectInlineEdit(const QString& message)
+{
+    if (!m_editor) {
+        return;
+    }
+    m_editRejected = true;
+    m_editor->setProperty("invalid", true);
+    m_editor->style()->unpolish(m_editor);
+    m_editor->style()->polish(m_editor);
+    m_editor->setToolTip(message);
+    if (!message.isEmpty() && m_editor->isVisible()) {
+        QToolTip::showText(m_editor->mapToGlobal(QPoint(0, m_editor->height())),
+                           message, m_editor);
+    }
+}
+
+void NavList::cancelInlineEdit()
+{
+    finishInlineEdit(false, false);
+}
+
+void NavList::finishInlineEdit(bool submit, bool fromFocusOut)
+{
+    if (m_editFinishing || m_editKey.isEmpty() || !m_editor) {
+        return;
+    }
+    m_editFinishing = true;
+    const QString key = m_editKey;
+    if (submit) {
+        m_editRejected = false;
+        emit inlineEditCommitted(key, m_editor->text());
+        if (m_editRejected && !fromFocusOut) {
+            // Kept open with the reason beside it; the person fixes the name.
+            m_editFinishing = false;
+            m_editor->setFocus(Qt::OtherFocusReason);
+            return;
+        }
+        if (m_editRejected) {
+            // Focus left with an unacceptable name. Abandon rather than steal
+            // focus back: a field that will not let go is worse than one that
+            // forgets.
+            m_editKey.clear();
+            m_editor->hide();
+            m_editFinishing = false;
+            emit inlineEditCancelled(key);
+            return;
+        }
+        m_editKey.clear();
+        m_editor->hide();
+        m_editFinishing = false;
+        return;
+    }
+    m_editKey.clear();
+    m_editor->hide();
+    m_editFinishing = false;
+    emit inlineEditCancelled(key);
+}
+
+void NavList::scheduleInlineEditorPlacement()
+{
+    if (m_editKey.isEmpty() || m_editPlacementQueued) {
+        return;
+    }
+    // Deferred: a rail is rebuilt with clear() and a run of addItem() calls,
+    // and the row only exists again at the end of that run.
+    m_editPlacementQueued = true;
+    QTimer::singleShot(0, this, [this] {
+        m_editPlacementQueued = false;
+        placeInlineEditor();
+    });
+}
+
+void NavList::placeInlineEditor()
+{
+    if (!m_editor || m_editKey.isEmpty()) {
+        return;
+    }
+    const int index = indexOfKey(m_editKey);
+    if (index < 0) {
+        // The row is gone - its owner rebuilt the rail without it. There is
+        // nothing left to rename.
+        finishInlineEdit(false, false);
+        return;
+    }
+    const Row& row = m_rows.at(index);
+    const QRect box = rowRect(index);
+    const int left = leadingZoneWidth(row) - 4;
+    const int right = width() - trailingZoneWidth(row) + 4;
+    const int height = qMin(box.height() - 2, m_editor->sizeHint().height());
+    m_editor->setGeometry(left, box.top() + (box.height() - height) / 2,
+                          qMax(40, right - left), height);
+}
+
+void NavList::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    if (isInlineEditing()) {
+        placeInlineEditor();
+    }
+}
+
+bool NavList::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == m_editor) {
+        if (event->type() == QEvent::KeyPress) {
+            auto* key = static_cast<QKeyEvent*>(event);
+            if (key->key() == Qt::Key_Escape) {
+                finishInlineEdit(false, false);
+                return true;
+            }
+        } else if (event->type() == QEvent::FocusOut && !m_editKey.isEmpty()) {
+            auto* focus = static_cast<QFocusEvent*>(event);
+            // A popup (the tooltip carrying a rejection, a context menu) taking
+            // focus is not the person leaving the field.
+            if (focus->reason() != Qt::PopupFocusReason) {
+                finishInlineEdit(true, true);
+            }
+        }
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
+
+// == Dropping onto rows ======================================================
+
+void NavList::setDropTargets(const QString& mimeType, const QStringList& keys)
+{
+    m_dropMime = mimeType;
+    m_dropKeys = QSet<QString>(keys.cbegin(), keys.cend());
+    setAcceptDrops(!m_dropMime.isEmpty() && !m_dropKeys.isEmpty());
+    if (m_dropHover >= 0) {
+        m_dropHover = -1;
+        update();
+    }
+}
+
+int NavList::dropTargetAt(const QPoint& position, const QMimeData* mime) const
+{
+    if (!mime || m_dropMime.isEmpty() || !mime->hasFormat(m_dropMime)) {
+        return -1;
+    }
+    const int index = indexAt(position);
+    if (index < 0) {
+        return -1;
+    }
+    const Row& row = m_rows.at(index);
+    // Captions, hidden and disabled rows are never targets, whatever their key.
+    if (row.section || !row.visible || !row.enabled || !m_dropKeys.contains(row.key)) {
+        return -1;
+    }
+    return index;
+}
+
+void NavList::dragEnterEvent(QDragEnterEvent* event)
+{
+    // Entering is accepted for the right kind of payload anywhere over the
+    // list, so the per-row answer below is asked on every move; the action is
+    // only granted over a target row.
+    if (event->mimeData() && !m_dropMime.isEmpty()
+        && event->mimeData()->hasFormat(m_dropMime)) {
+        event->accept();
+        dragMoveEvent(event); // QDragEnterEvent is a QDragMoveEvent
+        return;
+    }
+    event->ignore();
+}
+
+void NavList::dragMoveEvent(QDragMoveEvent* event)
+{
+    const int target = dropTargetAt(event->position().toPoint(), event->mimeData());
+    if (target != m_dropHover) {
+        m_dropHover = target;
+        update();
+    }
+    if (target >= 0) {
+        event->setDropAction(Qt::MoveAction);
+        event->accept(rowRect(target));
+    } else {
+        event->ignore();
+    }
+}
+
+void NavList::dragLeaveEvent(QDragLeaveEvent* event)
+{
+    if (m_dropHover >= 0) {
+        m_dropHover = -1;
+        update();
+    }
+    QWidget::dragLeaveEvent(event);
+}
+
+void NavList::dropEvent(QDropEvent* event)
+{
+    const int target = dropTargetAt(event->position().toPoint(), event->mimeData());
+    m_dropHover = -1;
+    update();
+    if (target < 0) {
+        event->ignore();
+        return;
+    }
+    event->setDropAction(Qt::MoveAction);
+    event->accept();
+    emit rowDropped(m_rows.at(target).key, event->mimeData()->data(m_dropMime));
 }
 
 } // namespace novu::ui

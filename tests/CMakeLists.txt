@@ -26,6 +26,29 @@ target_link_libraries(tst_connection_strip PRIVATE Novu::UI Qt6::Test Qt6::Widge
 add_test(NAME connection_strip COMMAND tst_connection_strip)
 set_tests_properties(connection_strip PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
 
+# An elided rail line must stay readable: the full host and detail in the
+# tooltip once either is cut. A truncated transport error was misread as a
+# module incompatibility because nothing else carried the rest of it.
+add_executable(tst_connection_strip_tooltip tst_connection_strip_tooltip.cpp)
+target_link_libraries(tst_connection_strip_tooltip PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME connection_strip_tooltip COMMAND tst_connection_strip_tooltip)
+set_tests_properties(connection_strip_tooltip PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
+
+# Renaming a rail row in place: Enter submits, Escape abandons, focus leaving
+# submits, a refusal keeps the editor open on Enter and abandons on focus-out,
+# and the editor survives the rail being rebuilt from data.
+add_executable(tst_navlist_inline_edit tst_navlist_inline_edit.cpp)
+target_link_libraries(tst_navlist_inline_edit PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME navlist_inline_edit COMMAND tst_navlist_inline_edit)
+set_tests_properties(navlist_inline_edit PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
+
+# Rail rows as drop targets: only declared rows accept, only the declared
+# payload type, a drop reports row and payload, and a rebuild keeps them.
+add_executable(tst_navlist_drop tst_navlist_drop.cpp)
+target_link_libraries(tst_navlist_drop PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME navlist_drop COMMAND tst_navlist_drop)
+set_tests_properties(navlist_drop PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
+
 # A transient surface the user cannot dismiss is a broken surface. This pins
 # the popup window type and every documented way out of a menu.
 add_executable(tst_popover_dismissal tst_popover_dismissal.cpp)
@@ -59,6 +82,15 @@ set_tests_properties(widget_editor PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offsc
 # A row is as tall as its control, not as tall as its control's size hint.
 # QPlainTextEdit over-asks by design, so a Description field of 64 pixels was
 # sitting at the top of a row twice that height and the surplus read as a gap.
+# A switch row is as tall as the hint under it. Three of them with wrapping
+# hints drew over each other in NovuAI's Share form, and a label painted over
+# a switch eats the press - so the switch could not be turned on, which reads
+# as "the feature is not wired up" rather than as a layout fault.
+add_executable(tst_toggle_row_height tst_toggle_row_height.cpp)
+target_link_libraries(tst_toggle_row_height PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME toggle_row_height COMMAND tst_toggle_row_height)
+set_tests_properties(toggle_row_height PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+
 add_executable(tst_setting_row_height tst_setting_row_height.cpp)
 target_link_libraries(tst_setting_row_height PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
 add_test(NAME setting_row_height COMMAND tst_setting_row_height)
@@ -101,3 +133,11 @@ set_tests_properties(gallery PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     TIMEOUT 300
 )
+
+# The shared file picker's favourites and remembered folder: the store, the
+# gestures that reach it, and the window that puts the two together. Redirects
+# the user-scope INI to a temporary directory, so it never touches the real one.
+add_executable(tst_file_picker_places tst_file_picker_places.cpp)
+target_link_libraries(tst_file_picker_places PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME file_picker_places COMMAND tst_file_picker_places)
+set_tests_properties(file_picker_places PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 60)

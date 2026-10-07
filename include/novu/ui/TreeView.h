@@ -11,6 +11,7 @@
 #include <QPoint>
 #include <QRect>
 #include <QHash>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -74,6 +75,24 @@ public:
         Detached,   // present but not loaded: italic, muted
         Dropping,   // a drag is over this row
     };
+
+    // How many rows a gesture may mark.
+    //
+    //   Single    one row is current and that is the whole of it. The
+    //             library's behaviour before this existed, and still the
+    //             default: no tree gains a second selection by accident.
+    //   Extended  Ctrl adds and removes, Shift takes a range. For a rail
+    //             where the same thing is done to several rows at once -
+    //             deleting four chats, moving three workspaces - which the
+    //             legacy QTreeWidget sidebar had and this one did not, so
+    //             those gestures had nowhere to go.
+    //
+    // Selection is NOT the current row. The current row is where the keyboard
+    // is and what a rename edits; the selection is what an action applies to.
+    // They coincide constantly and are still different questions - a context
+    // menu opened on a row inside a selection acts on the selection, and one
+    // opened outside it acts on the row.
+    enum class SelectionMode { Single, Extended };
 
     explicit TreeView(QWidget* parent = nullptr);
 
@@ -174,6 +193,23 @@ public:
     QString currentId() const;
     void setCurrentId(const QString& id);
 
+    // ── selection ────────────────────────────────────────────────────────
+    SelectionMode selectionMode() const { return m_selectionMode; }
+    void setSelectionMode(SelectionMode mode);
+
+    //! Every marked row, in the order they appear on screen. A caller acting
+    //! on "the selection" gets it top to bottom, which is the order a person
+    //! reading the rail would list them in.
+    //!
+    //! Never empty while a current row exists: a single click selects what it
+    //! makes current, so a caller never has to special-case "nothing selected
+    //! but something is current".
+    QStringList selectedIds() const;
+    void setSelectedIds(const QStringList& ids);
+    void clearSelection();
+    bool isSelected(const QString& id) const { return m_selected.contains(id); }
+    int selectionCount() const { return m_selected.size(); }
+
     // Selects a row AND says it was chosen, exactly as a click on it does.
     //
     // setCurrentId() only moves the highlight: it announces currentChanged,
@@ -208,6 +244,10 @@ public:
 signals:
     void activated(const QString& id);
     void currentChanged(const QString& id);
+    //! The marked set changed, in row order. Emitted for a plain click too:
+    //! selecting one row is still a selection change, and a consumer that
+    //! only listened for multi-row changes would miss the common case.
+    void selectionChanged(const QStringList& ids);
     void expandToggled(const QString& id, bool expanded);
 
     void rowActionTriggered(const QString& id);
@@ -288,7 +328,22 @@ private:
     // an index into this.
     QVector<QString> m_rows;
 
+    //! Applies one click's worth of selection, and says whether the row
+    //! should also be opened. A modified click marks without opening: adding
+    //! a fourth row to a selection must not open the fourth row and discard
+    //! the view the selection was being built for.
+    bool applySelectionForClick(const QString& id, Qt::KeyboardModifiers modifiers);
+
     QString m_current;
+    // The marked rows. A set because membership is the only question asked of
+    // it; selectedIds() puts them back into row order when a caller needs to
+    // read them.
+    QSet<QString> m_selected;
+    SelectionMode m_selectionMode = SelectionMode::Single;
+    //! Where a Shift range starts. The last row clicked WITHOUT Shift, so a
+    //! run of Shift-clicks keeps re-measuring from the same end rather than
+    //! walking the anchor along with the cursor.
+    QString m_selectionAnchor;
     int m_hovered = -1;
     bool m_hoveredChevron = false;
     int m_pressed = -1;

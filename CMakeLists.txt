@@ -96,6 +96,7 @@ add_library(NovuUI ${_novuui_link_kind}
     include/novu/ui/Drawer.h
     include/novu/ui/FilePicker.h
     include/novu/ui/FilePickerDialog.h
+    include/novu/ui/FilePickerPlaces.h
     include/novu/ui/ItemList.h
     include/novu/ui/ItemStrip.h
     include/novu/ui/Keys.h
@@ -176,6 +177,7 @@ add_library(NovuUI ${_novuui_link_kind}
     src/Drawer.cpp
     src/FilePicker.cpp
     src/FilePickerDialog.cpp
+    src/FilePickerPlaces.cpp
     src/ItemList.cpp
     src/ItemStrip.cpp
     src/Keys.cpp

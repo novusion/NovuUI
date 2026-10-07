@@ -262,6 +262,11 @@ QString styleSheetFor(const ThemeProfile& p)
         qss+=QStringLiteral("QLineEdit { border-color: %1; color: %2; }").arg(css(c.inputBorder.isValid()?c.inputBorder:c.border),css(c.inputInk.isValid()?c.inputInk:c.textPrimary));
     if(c.inputHoverBorder.isValid())qss+=QStringLiteral("QLineEdit:hover { border-color: %1; }").arg(css(c.inputHoverBorder));
     if(c.inputFocusBg.isValid())qss+=QStringLiteral("QLineEdit:focus { background: %1; border-color: %2; }").arg(css(c.inputFocusBg),css(c.accent));
+    // A field whose value was refused - an inline rename that collides with an
+    // existing name. After the focus rule so that it still reads as wrong while
+    // the person is fixing it. Set with setProperty("invalid", true).
+    qss += QStringLiteral("QLineEdit[invalid=\"true\"], QLineEdit[invalid=\"true\"]:focus"
+                          " { border-color: %1; }").arg(css(c.danger));
     // A refused value, the approved design's `.field.bad .input`.
     //
     // After the rules above, so it wins on equal specificity, and repeated for

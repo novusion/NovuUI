@@ -10,6 +10,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Foundation work for NUI-002 — making NovuUI the single source of truth for
 desktop UI. Everything here is additive; existing consumers link unchanged.
 
+### Added
+
+- **Favourites in the file picker, and a picker that remembers.**
+  `FilePickerDialog` lists the folders a person pinned at the top of its tree,
+  under a name they can choose. Right-click a folder - in the tree or in the
+  listing - for **Add to favourites**; right-click a favourite for **Rename**
+  (or F2, in the row) and **Remove from favourites**. Removing unpins; the
+  folder is never touched. Desktop, Documents, Downloads and home stay as
+  they were: always shown, not renamable.
+
+  Favourites belong to the person rather than to one product, so every Novu
+  application shows the same ones. A favourite whose folder is missing - an
+  unplugged drive - is kept and comes back with it.
+
+  The picker also opens where the last file was chosen, per application,
+  when the caller gives it nowhere to start. It used to open in the process's
+  working directory, which is wherever the application happened to be
+  launched from - and the platform dialog this replaces remembers, so
+  forgetting was a regression for anyone moving off `QFileDialog`. A save
+  suggested as a bare name ("trades.csv") goes to the same place, with the
+  name filled in.
+
+  Stored by the new `FilePickerPlaces` in a user-scope INI,
+  `Novusion/NovuUI.ini`, so a test can redirect it with `QSettings::setPath()`.
+  `FilePicker` gains `locationMenuRequested`, `entryMenuRequested`,
+  `locationRenamed`, `setLocationLabel()` and `renameLocation()`; it still only
+  reports intent, and what a menu offers is the driver's.
+
+- **`FilePickerDialog::chooseFolder()`.** The third question an application
+  asks - "which folder is this workspace?" - had no Novu window, so every
+  caller fell back to the platform's folder dialog: Windows Explorer in the
+  middle of a Novu application. Folder mode lists folders only, confirms with
+  **Select folder**, and answers with the open folder or the one selected;
+  double-clicking still goes into a folder. NovuAI's Connect Folder /
+  Repository uses it.
+
+- **`CountIconButton`**: a chrome icon with a count over it. `FeedbackButton`
+  is this widget with the chat glyph and feedback's wording baked in; NovuAI's
+  title-bar Share needed the same thing, and a third copy of the badge
+  positioning and the 9+ cap was not worth having. Zero draws no badge.
+
+- **`TreeView` selection.** `SelectionMode::Extended` adds Ctrl and Shift
+  selection, `selectedIds()` in row order and `selectionChanged()`. The
+  default stays `Single`, so no existing tree changes behaviour, and nothing
+  enables it yet. A modified click marks a row without opening it: adding a
+  fourth row to a selection must not open the fourth row.
+
+- `tst_toggle_row_height` pins that a `toggleRow()` with a wrapping hint is as
+  tall as its hint and its switch is what a click at it hits - alone, and
+  inside a Card in a scroll area.
+
 ### Fixed
 
 - **The gem filled half the box it was given.** `paintGem()` scales polygons
