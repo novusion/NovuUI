@@ -120,11 +120,31 @@ public:
     // than at the edge of the window.
     int naturalWidth() const;
 
+    // At most this many lines (0: all of them). The last line shown ends in
+    // an ellipsis when the text goes on, the height answered is that of the
+    // lines shown, and the whole text is the tooltip unless the caller set
+    // one. A clamped paragraph paints its plain text itself, so rich text,
+    // selection and links are for unclamped ones.
+    void setMaximumLines(int lines);
+    int maximumLines() const { return m_maxLines; }
+    // Whether the text needs more lines than it may show at its width.
+    bool isTruncated() const;
+
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
+    int heightForWidth(int width) const override;
 
 protected:
     void resizeEvent(QResizeEvent* event) override;
+    void paintEvent(QPaintEvent* event) override;
+
+private:
+    // The lines the plain text takes at this width, and their pitch.
+    int lineCountAt(int width) const;
+    int textWidthFor(int width) const;
+    int verticalChrome() const;
+    int m_maxLines = 0;
+    bool m_autoToolTip = false;
 };
 
 // Paragraph, as the other text helpers read.

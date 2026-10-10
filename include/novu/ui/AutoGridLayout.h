@@ -38,6 +38,12 @@ public:
     int gap() const { return m_gap; }
     void setGap(int gap);
 
+    // CSS's auto-fill rather than auto-fit: the columns that fit are kept
+    // even when there are fewer items than columns, so one item is one
+    // column wide instead of the whole row. Off by default.
+    bool keepsEmptyColumns() const { return m_keepEmpty; }
+    void setKeepEmptyColumns(bool keep);
+
     // How many columns the grid would use at `width`. Public because it is
     // the whole behaviour, and a test that wants to prove the grid drops a
     // column should not have to measure pixels to see it.
@@ -61,6 +67,7 @@ private:
     QList<QLayoutItem*> m_items;
     int m_minimum = 160;
     int m_gap = 9;
+    bool m_keepEmpty = false;
 };
 
 } // namespace novu::ui

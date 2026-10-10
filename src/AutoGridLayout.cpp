@@ -81,8 +81,17 @@ int AutoGridLayout::columnsFor(int width) const
     // n columns need n*minimum + (n-1)*gap. Solved rather than looped so the
     // answer does not depend on how the loop was written.
     int columns = (usable + m_gap) / (m_minimum + m_gap);
-    columns = qBound(1, columns, m_items.size());
+    columns = m_keepEmpty ? qMax(1, columns) : qBound(1, columns, m_items.size());
     return columns;
+}
+
+void AutoGridLayout::setKeepEmptyColumns(bool keep)
+{
+    if (keep == m_keepEmpty) {
+        return;
+    }
+    m_keepEmpty = keep;
+    invalidate();
 }
 
 int AutoGridLayout::layout(const QRect& rect, bool apply) const

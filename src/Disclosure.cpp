@@ -104,6 +104,7 @@ Disclosure::Disclosure(const QString& title, QWidget* parent, Variant variant)
     setMouseTracking(true);
 
     m_body = new QWidget(this);
+    m_body->installEventFilter(this);
     auto* layout = new QVBoxLayout(m_body);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(themeFor(this).spacing.xs);
@@ -197,6 +198,7 @@ void Disclosure::setBodyWidget(QWidget* widget)
     m_body->deleteLater();
     m_body = widget;
     m_body->setParent(this);
+    m_body->installEventFilter(this);
     m_body->setVisible(m_open);
     updateGeometry();
     relayout();
@@ -314,6 +316,9 @@ QSize Disclosure::sizeHint() const
         width += kBlockGap + kActionSide;
     }
 
+    if (hasHeightForWidth() && this->width() > 0) {
+        return QSize(width, heightForWidth(this->width()));
+    }
     int height = headerHeight();
     if (m_open && m_body) {
         height += m_body->sizeHint().height();
@@ -323,11 +328,37 @@ QSize Disclosure::sizeHint() const
 
 QSize Disclosure::minimumSizeHint() const
 {
+    if (hasHeightForWidth() && width() > 0) {
+        return QSize(80, heightForWidth(width()));
+    }
     int height = headerHeight();
     if (m_open && m_body) {
         height += m_body->minimumSizeHint().height();
     }
     return QSize(80, height);
+}
+
+bool Disclosure::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == m_body && event->type() == QEvent::LayoutRequest) {
+        updateGeometry();
+        relayout();
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
+bool Disclosure::hasHeightForWidth() const
+{
+    return m_open && m_body && m_body->hasHeightForWidth();
+}
+
+int Disclosure::heightForWidth(int width) const
+{
+    int height = headerHeight();
+    if (m_open && m_body) {
+        height += m_body->hasHeightForWidth() ? m_body->heightForWidth(width) : m_body->sizeHint().height();
+    }
+    return height;
 }
 
 void Disclosure::resizeEvent(QResizeEvent* event)

@@ -216,10 +216,20 @@ protected:
     void leaveEvent(QEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
     void hideEvent(QHideEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
     bool event(QEvent* event) override;
 
 private:
     enum class Kind { Item, Group, Separator };
+
+    // Sizes and places the menu against `anchorBox` (global): below it when
+    // the whole menu fits there, above it when it fits there instead, else on
+    // the roomier side at that side's height - scrolling the rest. Bounded by
+    // the screen and by the window it was opened from, and never over the
+    // anchor. `reference` is a widget in that window (may be null).
+    void place(const QRect& anchorBox, const QWidget* reference);
+    int maxScroll() const;
+    void ensureItemVisible(int index);
 
     struct Entry
     {
@@ -256,6 +266,8 @@ private:
     QVector<Entry> m_items;
     int m_hovered = -1;
     int m_pressed = -1;
+    // How far the rows are scrolled when the menu is shorter than they are.
+    int m_scroll = 0;
     // The widget the popover was opened under, if any. Kept so the palette is
     // resolved against the caller's scope rather than against this top-level
     // window, which belongs to no scope at all.

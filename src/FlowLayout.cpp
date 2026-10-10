@@ -90,7 +90,10 @@ int FlowLayout::arrange(const QRect& rect, bool testOnly) const
     const int space = gap();
 
     for (QLayoutItem* item : m_items) {
-        const QSize hint = item->sizeHint();
+        // An item wider than a whole line gets the line, never more: a flow
+        // keeps everything it holds inside its own edges.
+        QSize hint = item->sizeHint();
+        if (content.width() > 0) hint.setWidth(qMin(hint.width(), content.width()));
         int next = x + hint.width() + space;
         if (next - space > content.right() && lineHeight > 0) {
             x = content.x();

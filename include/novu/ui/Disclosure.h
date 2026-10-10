@@ -99,6 +99,11 @@ public:
 
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
+    // The header and, when open, the body at this width - so a body of
+    // wrapped text or flowing actions is as tall as it is at the width the
+    // column gives it, not at whatever width its own sizeHint assumed.
+    bool hasHeightForWidth() const override;
+    int heightForWidth(int width) const override;
 
 signals:
     void toggled(bool open);
@@ -113,6 +118,10 @@ protected:
     void keyPressEvent(QKeyEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
     bool event(QEvent* event) override;
+    // The body is placed by hand, not by a layout of this widget, so a body
+    // whose content changes height says nothing to the column holding the
+    // disclosure; its layout requests are passed on as this one's.
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     int headerHeight() const;

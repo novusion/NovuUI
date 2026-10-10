@@ -8,6 +8,7 @@
 #include <QPainter>
 #include <QResizeEvent>
 #include <QTextDocument>
+#include <QTextLayout>
 
 #include <cmath>
 #include <QWidget>
@@ -431,6 +432,109 @@ QSize Paragraph::minimumSizeHint() const
     // reports, and what a scroll area then sizes its content to.
     const int w = width() > 1 ? width() : kUnplacedWidth;
     return QSize(1, heightForWidth(w));
+}
+
+void Paragraph::setMaximumLines(int lines)
+{
+    lines = qMax(0, lines);
+    if (lines == m_maxLines) {
+        return;
+    }
+    m_maxLines = lines;
+    if (m_maxLines > 0 && (toolTip().isEmpty() || m_autoToolTip)) {
+        setToolTip(plainTextOf(this));
+        m_autoToolTip = true;
+    }
+    updateGeometry();
+    update();
+}
+
+int Paragraph::textWidthFor(int width) const
+{
+    const QMargins m = contentsMargins();
+    return qMax(1, width - m.left() - m.right() - 2 * margin() - 2 * frameWidth());
+}
+
+int Paragraph::verticalChrome() const
+{
+    const QMargins m = contentsMargins();
+    return m.top() + m.bottom() + 2 * margin() + 2 * frameWidth();
+}
+
+int Paragraph::lineCountAt(int width) const
+{
+    QTextLayout layout(plainTextOf(this), font());
+    layout.beginLayout();
+    int lines = 0;
+    const int lane = textWidthFor(width);
+    while (true) {
+        QTextLine line = layout.createLine();
+        if (!line.isValid()) {
+            break;
+        }
+        line.setLineWidth(lane);
+        ++lines;
+    }
+    layout.endLayout();
+    return qMax(1, lines);
+}
+
+bool Paragraph::isTruncated() const
+{
+    return m_maxLines > 0 && lineCountAt(width() > 1 ? width() : kUnplacedWidth) > m_maxLines;
+}
+
+int Paragraph::heightForWidth(int width) const
+{
+    if (m_maxLines <= 0) {
+        return QLabel::heightForWidth(width);
+    }
+    // The lines it will show, at the pitch it paints them with.
+    const int lines = qMin(m_maxLines, lineCountAt(width));
+    return lines * QFontMetrics(font()).lineSpacing() + verticalChrome();
+}
+
+void Paragraph::paintEvent(QPaintEvent* event)
+{
+    if (m_maxLines <= 0) {
+        QLabel::paintEvent(event);
+        return;
+    }
+    QPainter painter(this);
+    painter.setPen(palette().color(foregroundRole()));
+    painter.setFont(font());
+    const QMargins m = contentsMargins();
+    const QPointF origin(m.left() + margin() + frameWidth(), m.top() + margin() + frameWidth());
+    const int lane = textWidthFor(width());
+    const QString text = plainTextOf(this);
+    const QFontMetrics metrics(font());
+
+    QTextLayout layout(text, font());
+    layout.beginLayout();
+    QList<QTextLine> lines;
+    while (true) {
+        QTextLine line = layout.createLine();
+        if (!line.isValid()) {
+            break;
+        }
+        line.setLineWidth(lane);
+        lines.append(line);
+    }
+    layout.endLayout();
+
+    const int shown = qMin(m_maxLines, int(lines.size()));
+    for (int i = 0; i < shown; ++i) {
+        const QTextLine& line = lines.at(i);
+        const qreal y = origin.y() + i * metrics.lineSpacing();
+        if (i == shown - 1 && lines.size() > shown) {
+            // The last line shown carries the rest of the text, shortened.
+            const QString rest = text.mid(line.textStart()).simplified();
+            painter.drawText(QPointF(origin.x(), y + metrics.ascent()),
+                             metrics.elidedText(rest, Qt::ElideRight, lane));
+        } else {
+            line.draw(&painter, QPointF(origin.x(), y - line.y()));
+        }
+    }
 }
 
 void Paragraph::resizeEvent(QResizeEvent* event)

@@ -14,6 +14,8 @@
 #include <QPainter>
 #include <QPen>
 #include <QScreen>
+#include <QToolTip>
+#include <QWheelEvent>
 
 #include <utility>
 
@@ -23,6 +25,11 @@ namespace {
 
 // `.popover { min-width:230px; border-radius:12px; padding:6px }`.
 constexpr int kMinWidth = 230;
+// A menu never grows past these: a long list scrolls, a long name elides
+// and says itself in a tooltip.
+constexpr int kMaxHeight = 420;
+constexpr int kMaxWidth = 520;
+constexpr int kEdge = 4;
 constexpr int kPadding = 6;
 
 // `.pitem { padding:7px 10px; gap:9px; border-radius:8px }`.
@@ -380,6 +387,18 @@ bool SelectButton::event(QEvent* event)
         applyGeometry();
         update();
     }
+    // A choice too long for the button says the whole of it - unless the
+    // caller gave the button a tooltip of its own.
+    if (event->type() == QEvent::ToolTip && toolTip().isEmpty()) {
+        auto* help = static_cast<QHelpEvent*>(event);
+        if (measure(currentText()).width() > width()) {
+            QToolTip::showText(help->globalPos(), currentText(), this);
+        } else {
+            QToolTip::hideText();
+            event->ignore();
+        }
+        return true;
+    }
     return QAbstractButton::event(event);
 }
 
@@ -540,7 +559,7 @@ QRect Popover::itemRect(int index) const
     if (index < 0 || index >= m_items.size()) {
         return QRect();
     }
-    int y = kPadding;
+    int y = kPadding - m_scroll;
     for (int i = 0; i < index; ++i) {
         y += entryHeight(m_items.at(i));
     }
@@ -550,6 +569,10 @@ QRect Popover::itemRect(int index) const
 
 int Popover::indexAt(const QPoint& position) const
 {
+    // The padding band is not a row, even where a scrolled row runs under it.
+    if (position.y() < kPadding || position.y() >= height() - kPadding) {
+        return -1;
+    }
     for (int i = 0; i < m_items.size(); ++i) {
         if (m_items.at(i).kind == Kind::Item && itemRect(i).contains(position)) {
             return i;
@@ -677,26 +700,91 @@ void Popover::dismissForeignPopup(QWidget* anchor)
     }
 }
 
+int Popover::maxScroll() const
+{
+    return qMax(0, sizeHint().height() - height());
+}
+
+void Popover::ensureItemVisible(int index)
+{
+    if (index < 0 || index >= m_items.size() || maxScroll() == 0) {
+        return;
+    }
+    const QRect box = itemRect(index);
+    if (box.top() < kPadding) {
+        m_scroll -= kPadding - box.top();
+    } else if (box.bottom() >= height() - kPadding) {
+        m_scroll += box.bottom() - (height() - kPadding) + 1;
+    }
+    m_scroll = qBound(0, m_scroll, maxScroll());
+    update();
+}
+
+void Popover::place(const QRect& anchorBox, const QWidget* reference)
+{
+    const QScreen* screen = reference ? reference->screen()
+                                      : QGuiApplication::screenAt(anchorBox.center());
+    QRect bounds = (screen ? screen : QGuiApplication::primaryScreen())->availableGeometry();
+    // Inside the window it was opened from, when that window can hold a menu
+    // at all; a tiny window falls back to the screen.
+    if (reference && reference->window()) {
+        const QRect window = reference->window()->frameGeometry().intersected(bounds);
+        if (window.height() >= 160 && window.width() >= kMinWidth) {
+            bounds = window;
+        }
+    }
+    const QSize content = sizeHint();
+    const int width = qMin(content.width(), qMin(kMaxWidth, bounds.width() - 2 * kEdge));
+    const int below = bounds.bottom() - kEdge - (anchorBox.bottom() + kEdge);
+    const int above = anchorBox.top() - kEdge - (bounds.top() + kEdge);
+    const int wanted = qMin(content.height(), kMaxHeight);
+    bool down = true;
+    int height = wanted;
+    if (wanted > below) {
+        if (wanted <= above) {
+            down = false;
+        } else {
+            // Neither side holds it: the roomier one, scrolling the rest.
+            down = below >= above;
+            height = qMin(wanted, qMax(qMax(below, above), 2 * kPadding + 96));
+        }
+    }
+    setFixedSize(width, height);
+    m_scroll = 0;
+
+    const int x = qBound(bounds.left() + kEdge, anchorBox.left(),
+                         qMax(bounds.left() + kEdge, bounds.right() - width - kEdge));
+    const int y = down ? anchorBox.bottom() + kEdge : anchorBox.top() - kEdge - height;
+    move(x, qMax(bounds.top() + kEdge, y));
+
+    // A list of choices opens on the one that is chosen.
+    for (int i = 0; i < m_items.size(); ++i) {
+        if (m_items.at(i).checked) {
+            ensureItemVisible(i);
+            break;
+        }
+    }
+}
+
+void Popover::wheelEvent(QWheelEvent* event)
+{
+    if (maxScroll() == 0) {
+        event->ignore();
+        return;
+    }
+    const int step = qMax(1, entryHeight(Entry{}));
+    m_scroll = qBound(0, m_scroll - event->angleDelta().y() * step * 3 / 120, maxScroll());
+    m_hovered = indexAt(event->position().toPoint());
+    update();
+    event->accept();
+}
+
 void Popover::popupAt(const QPoint& globalPosition)
 {
     dismissForeignPopup();
-    const QSize size = sizeHint();
-    setFixedSize(size);
-
-    const QScreen* screen = QGuiApplication::screenAt(globalPosition);
-    const QRect bounds = (screen ? screen : QGuiApplication::primaryScreen())
-                             ->availableGeometry();
-
-    int x = qBound(bounds.left() + 4, globalPosition.x(),
-                   qMax(bounds.left() + 4, bounds.right() - size.width() - 4));
-    int y = globalPosition.y();
-    if (y + size.height() > bounds.bottom() - 4) {
-        // No room below: flip above the point rather than pushing the menu up
-        // over the thing that opened it.
-        y = qMax(bounds.top() + 4, globalPosition.y() - size.height());
-    }
-
-    move(x, y);
+    // No room below: the menu flips above the point rather than pushing up
+    // over the thing that opened it.
+    place(QRect(globalPosition, QSize(1, 1)), parentWidget());
     m_hovered = -1;
     m_pressed = -1;
     show();
@@ -720,22 +808,7 @@ void Popover::popupUnder(QWidget* anchor, const QRect& anchorRect)
     dismissForeignPopup(anchor);
     m_anchor = anchor;
     const QRect box(anchor->mapToGlobal(anchorRect.topLeft()), anchorRect.size());
-
-    const QSize size = sizeHint();
-    setFixedSize(size);
-
-    const QScreen* screen = anchor->screen();
-    const QRect bounds = (screen ? screen : QGuiApplication::primaryScreen())
-                             ->availableGeometry();
-
-    int x = qBound(bounds.left() + 4, box.left(),
-                   qMax(bounds.left() + 4, bounds.right() - size.width() - 4));
-    int y = box.bottom() + 4;
-    if (y + size.height() > bounds.bottom() - 4) {
-        y = qMax(bounds.top() + 4, box.top() - size.height() - 4);
-    }
-
-    move(x, y);
+    place(box, anchor);
     m_hovered = -1;
     m_pressed = -1;
     show();
@@ -834,6 +907,7 @@ void Popover::keyPressEvent(QKeyEvent* event)
         const int next = neighbour(m_hovered, 1);
         if (next >= 0) {
             m_hovered = next;
+            ensureItemVisible(next);
             update();
         }
         return;
@@ -842,6 +916,7 @@ void Popover::keyPressEvent(QKeyEvent* event)
         const int previous = neighbour(m_hovered < 0 ? m_items.size() : m_hovered, -1);
         if (previous >= 0) {
             m_hovered = previous;
+            ensureItemVisible(previous);
             update();
         }
         return;
@@ -885,6 +960,28 @@ bool Popover::event(QEvent* event)
     if (event->type() == ThemeChangeEvent::type() || event->type() == QEvent::ParentChange) {
         updateGeometry();
         update();
+    }
+    if (event->type() == QEvent::ToolTip) {
+        // A row whose label did not fit says the whole of it.
+        auto* help = static_cast<QHelpEvent*>(event);
+        const int index = indexAt(help->pos());
+        if (index >= 0) {
+            const Entry& entry = m_items.at(index);
+            int room = itemRect(index).width() - 2 * kItemPaddingH;
+            if (!m_closesOnTrigger) room -= kItemGlyph + kItemGap;
+            if (entry.glyph != Glyph::None) room -= kItemGlyph + kItemGap;
+            if (entry.submenu) room -= kItemGlyph + kItemGap;
+            if (!entry.meta.isEmpty()) {
+                room -= kItemGap * 2 + QFontMetrics(metaFont(this)).horizontalAdvance(entry.meta);
+            }
+            if (QFontMetrics(itemFont(this)).horizontalAdvance(entry.label) > room) {
+                QToolTip::showText(help->globalPos(), entry.label, this);
+                return true;
+            }
+        }
+        QToolTip::hideText();
+        event->ignore();
+        return true;
     }
     return QWidget::event(event);
 }
@@ -951,9 +1048,15 @@ void Popover::paintEvent(QPaintEvent*)
     const QFontMetrics itemMetrics(items);
     const QFontMetrics metaMetrics(metas);
 
+    // Rows scrolled past the padding are not drawn over the card's edge.
+    painter.save();
+    painter.setClipRect(QRect(0, kPadding, width(), qMax(0, height() - 2 * kPadding)));
     for (int index = 0; index < m_items.size(); ++index) {
         const Entry& entry = m_items.at(index);
         const QRect box = itemRect(index);
+        if (box.bottom() < 0 || box.top() > height()) {
+            continue;
+        }
 
         if (entry.kind == Kind::Separator) {
             painter.setPen(QPen(profile.colors.borderSubtle, 1));
@@ -1034,6 +1137,19 @@ void Popover::paintEvent(QPaintEvent*)
         const QRect textBox(left, box.top(), qMax(0, rightEdge - left), box.height());
         painter.drawText(textBox, Qt::AlignLeft | Qt::AlignVCenter,
                          itemMetrics.elidedText(entry.label, Qt::ElideRight, textBox.width()));
+    }
+    painter.restore();
+
+    // A list longer than the menu says so with a thin bar on its right edge.
+    const int overflow = maxScroll();
+    if (overflow > 0) {
+        const int track = height() - 2 * kPadding;
+        const int content = track + overflow;
+        const int thumb = qMax(18, track * track / content);
+        const int top = kPadding + (track - thumb) * m_scroll / overflow;
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(profile.colors.borderHover);
+        painter.drawRoundedRect(QRectF(width() - 5, top, 3, thumb), 1.5, 1.5);
     }
 }
 
