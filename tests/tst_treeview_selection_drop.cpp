@@ -326,6 +326,55 @@ private slots:
         QVERIFY(tree.dropTargetId().isEmpty());
     }
 
+    // A real drag enters over the row being dragged, which is never a
+    // target. The enter must still be accepted (with no action), or Qt sends
+    // no move events afterwards and every target is refused for the whole
+    // drag - the "forbidden cursor everywhere" bug.
+    void enterOverTheDraggedRowStillAllowsLaterTargets()
+    {
+        ProbeTree tree;
+        tree.resize(260, 400);
+        populate(tree);
+        tree.setDropFilter([](const QStringList& ids, const QString& target) {
+            for (const QString& id : ids)
+                if (!isChat(id)) return false;
+            return !isChat(target);
+        });
+        const QStringList ids{QStringLiteral("chat:1"), QStringLiteral("chat:2")};
+        std::unique_ptr<QMimeData> mime(TreeView::createDragMimeData(ids));
+
+        QDragEnterEvent enter(centreOf(tree, QStringLiteral("chat:1")), Qt::MoveAction, mime.get(),
+                              Qt::LeftButton, Qt::NoModifier);
+        enter.ignore();
+        tree.dragEnterEvent(&enter);
+        QVERIFY(enter.isAccepted());
+        QCOMPARE(enter.dropAction(), Qt::IgnoreAction);
+        QVERIFY(tree.dropTargetId().isEmpty());
+
+        // The category above and another workspace are both targets.
+        QVERIFY(moveAccepted(tree, centreOf(tree, QStringLiteral("cat:x")), *mime));
+        QCOMPARE(tree.dropTargetId(), QStringLiteral("cat:x"));
+        QVERIFY(moveAccepted(tree, centreOf(tree, QStringLiteral("ws:b")), *mime));
+        QCOMPARE(tree.dropTargetId(), QStringLiteral("ws:b"));
+        QVERIFY(!moveAccepted(tree, centreOf(tree, QStringLiteral("chat:3")), *mime));
+    }
+
+    // Foreign payloads (files, text) are not ours: the enter is refused.
+    void foreignPayloadIsRefusedOnEnter()
+    {
+        ProbeTree tree;
+        tree.resize(260, 400);
+        populate(tree);
+        tree.setDropFilter([](const QStringList&, const QString&) { return true; });
+        QMimeData text;
+        text.setText(QStringLiteral("chat:1"));
+        QDragEnterEvent enter(centreOf(tree, QStringLiteral("ws:b")), Qt::MoveAction, &text,
+                              Qt::LeftButton, Qt::NoModifier);
+        enter.ignore();
+        tree.dragEnterEvent(&enter);
+        QVERIFY(!enter.isAccepted());
+    }
+
     void hoveringACollapsedParentOpensIt()
     {
         ProbeTree tree;

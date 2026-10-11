@@ -1001,8 +1001,18 @@ void TreeView::dragEnterEvent(QDragEnterEvent* event)
         event->ignore();
         return;
     }
-    event->accept();
+    // The enter itself is ALWAYS accepted for our payload, even where the
+    // pointer is not over a target. Qt sends no further move events to a
+    // widget that ignored the enter - and a drag starts over the dragged row
+    // itself, which is never a target, so ignoring it here refused every
+    // target for the rest of the drag. Where nothing can be dropped, the
+    // action is IgnoreAction (the forbidden cursor) and the next move asks
+    // again.
     dragMoveEvent(event);   // QDragEnterEvent is a QDragMoveEvent
+    if (!event->isAccepted()) {
+        event->setDropAction(Qt::IgnoreAction);
+        event->accept();
+    }
 }
 
 void TreeView::dragMoveEvent(QDragMoveEvent* event)
