@@ -49,6 +49,15 @@ target_link_libraries(tst_navlist_drop PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
 add_test(NAME navlist_drop COMMAND tst_navlist_drop)
 set_tests_properties(navlist_drop PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
 
+# Tree multi-selection and drag & drop: Ctrl+A through a filter, Escape, clear()
+# and the context-menu selection rule; a drag carries the selection in display
+# order, a drop is refused onto the dragged rows and their subtrees, reported
+# and never performed by the tree, and a hovered collapsed parent opens.
+add_executable(tst_treeview_selection_drop tst_treeview_selection_drop.cpp)
+target_link_libraries(tst_treeview_selection_drop PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME treeview_selection_drop COMMAND tst_treeview_selection_drop)
+set_tests_properties(treeview_selection_drop PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
+
 # A transient surface the user cannot dismiss is a broken surface. This pins
 # the popup window type and every documented way out of a menu.
 add_executable(tst_popover_dismissal tst_popover_dismissal.cpp)

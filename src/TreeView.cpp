@@ -4,13 +4,22 @@
 #include "novu/ui/Theme.h"
 #include "novu/ui/ThemeManager.h"
 
+#include <QApplication>
+#include <QDrag>
+#include <QDragEnterEvent>
+#include <QDragLeaveEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QEvent>
 #include <QFontMetrics>
 #include <QContextMenuEvent>
 #include <QKeyEvent>
 #include <QLineEdit>
+#include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPixmap>
+#include <QTimer>
 #include <QRadialGradient>
 #include <QPainterPath>
 #include <QPen>
@@ -249,14 +258,25 @@ void TreeView::removeNode(const QString& id)
 
 void TreeView::clear()
 {
+    const bool hadSelection = !m_selected.isEmpty();
     m_nodes.clear();
     m_roots.clear();
     m_rows.clear();
     m_current.clear();
+    // A selection of ids that no longer exist is a bulk action waiting to
+    // run on nothing - or, once the host re-adds rows under the same ids, on
+    // rows the person never marked.
+    m_selected.clear();
+    m_selectionAnchor.clear();
     m_hovered = -1;
     m_pressed = -1;
+    m_pressedAction = -1;
+    endDropHover();
     updateScrollRange();
     viewport()->update();
+    if (hadSelection) {
+        emit selectionChanged(QStringList());
+    }
 }
 
 bool TreeView::contains(const QString& id) const
@@ -308,6 +328,16 @@ void TreeView::rebuildRows()
     // shape changes. Dropping them is cheaper and safer than re-finding them.
     m_hovered = -1;
     m_hoveredChevron = false;
+    // The drop highlight is an index too, but it is re-found by id rather
+    // than dropped: auto-expand rebuilds the rows under a drag that has not
+    // moved, and the target it is resting on must stay lit.
+    if (m_drop.isActive()) {
+        const int row = m_rows.indexOf(m_dropTargetId);
+        m_drop.setRow(row);
+        if (row < 0) {
+            m_dropTargetId.clear();
+        }
+    }
     updateScrollRange();
     viewport()->update();
 }
@@ -600,6 +630,434 @@ void TreeView::clearSelection()
     m_selected.clear();
     viewport()->update();
     emit selectionChanged(selectedIds());
+}
+
+void TreeView::setSelectAllFilter(std::function<bool(const QString& id)> filter)
+{
+    m_selectAllFilter = std::move(filter);
+}
+
+void TreeView::selectAll()
+{
+    if (m_selectionMode != SelectionMode::Extended) {
+        return;
+    }
+    // The visible rows only - see the header. A collapsed parent's children
+    // are not on screen, and Ctrl+A is "everything I can see".
+    QSet<QString> next;
+    for (const QString& id : std::as_const(m_rows)) {
+        const Node* entry = node(id);
+        if (!entry || !entry->enabled) {
+            continue;
+        }
+        if (m_selectAllFilter && !m_selectAllFilter(id)) {
+            continue;
+        }
+        next.insert(id);
+    }
+    if (next == m_selected) {
+        return;
+    }
+    m_selected = next;
+    viewport()->update();
+    emit selectionChanged(selectedIds());
+}
+
+// == drag & drop ============================================================
+
+namespace {
+
+// Near an edge (within one row's height) a drag scrolls one row per tick.
+constexpr int kAutoScrollIntervalMs = 40;
+
+} // namespace
+
+QString TreeView::dragMimeType()
+{
+    return QStringLiteral("application/x-novu-tree-ids");
+}
+
+QMimeData* TreeView::createDragMimeData(const QStringList& ids)
+{
+    auto* mime = new QMimeData;
+    const QString joined = ids.join(QLatin1Char('\n'));
+    mime->setData(dragMimeType(), joined.toUtf8());
+    mime->setText(joined);
+    return mime;
+}
+
+QStringList TreeView::dragIdsFromMimeData(const QMimeData* mime)
+{
+    if (!mime || !mime->hasFormat(dragMimeType())) {
+        return {};
+    }
+    return QString::fromUtf8(mime->data(dragMimeType()))
+        .split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+}
+
+void TreeView::setDragEnabled(bool enabled)
+{
+    m_dragEnabled = enabled;
+}
+
+void TreeView::setDraggableFilter(std::function<bool(const QString& id)> filter)
+{
+    m_draggableFilter = std::move(filter);
+}
+
+bool TreeView::isDraggable(const QString& id) const
+{
+    const Node* entry = node(id);
+    if (!entry || !entry->enabled) {
+        return false;
+    }
+    return !m_draggableFilter || m_draggableFilter(id);
+}
+
+QStringList TreeView::dragIdsFor(const QString& id) const
+{
+    if (!isDraggable(id)) {
+        return {};
+    }
+    if (m_selectionMode != SelectionMode::Extended || !m_selected.contains(id)) {
+        return {id};
+    }
+    // Pre-order over the whole tree rather than m_rows: a selected row whose
+    // parent was collapsed after it was marked still travels, and in the
+    // place it holds in the structure rather than tacked on at the end.
+    QStringList ids;
+    QStringList stack;
+    for (auto it = m_roots.crbegin(); it != m_roots.crend(); ++it) {
+        stack << *it;
+    }
+    while (!stack.isEmpty()) {
+        const QString current = stack.takeLast();
+        const Node* entry = node(current);
+        if (!entry) {
+            continue;
+        }
+        if (m_selected.contains(current) && isDraggable(current)) {
+            ids << current;
+        }
+        for (auto it = entry->children.crbegin(); it != entry->children.crend(); ++it) {
+            stack << *it;
+        }
+    }
+    return ids;
+}
+
+void TreeView::setDropFilter(std::function<bool(const QStringList& draggedIds,
+                                                const QString& targetId)> filter)
+{
+    m_dropFilter = std::move(filter);
+    updateAcceptDrops();
+}
+
+void TreeView::updateAcceptDrops()
+{
+    const bool accept = static_cast<bool>(m_dropFilter);
+    setAcceptDrops(accept);
+    viewport()->setAcceptDrops(accept);
+    if (!accept) {
+        endDropHover();
+    }
+}
+
+bool TreeView::isSelfOrDescendantOf(const QString& id, const QStringList& ancestors) const
+{
+    QString walk = id;
+    // Bounded by the depth of the tree; the guard is against a cycle a
+    // future reparenting bug could introduce, not one that can exist today.
+    for (int guard = 0; !walk.isEmpty() && guard <= m_nodes.size(); ++guard) {
+        if (ancestors.contains(walk)) {
+            return true;
+        }
+        const Node* entry = node(walk);
+        if (!entry) {
+            break;
+        }
+        walk = entry->parent;
+    }
+    return false;
+}
+
+bool TreeView::canDrop(const QStringList& draggedIds, const QString& targetId) const
+{
+    if (!m_dropFilter || draggedIds.isEmpty()) {
+        return false;
+    }
+    const Node* target = node(targetId);
+    if (!target || !target->enabled) {
+        return false;
+    }
+    // Onto itself, or into its own subtree, is never a move - whatever the
+    // host would say, the tree refuses before asking.
+    if (isSelfOrDescendantOf(targetId, draggedIds)) {
+        return false;
+    }
+    return m_dropFilter(draggedIds, targetId);
+}
+
+QString TreeView::dropTargetId() const
+{
+    return m_drop.isActive() ? m_dropTargetId : QString();
+}
+
+void TreeView::setAutoExpandDelay(int milliseconds)
+{
+    m_autoExpandDelay = milliseconds;
+    if (m_autoExpandTimer && milliseconds <= 0) {
+        m_autoExpandTimer->stop();
+    }
+}
+
+QPixmap TreeView::dragPixmap(const QStringList& ids) const
+{
+    const ThemeProfile& profile = themeFor(this);
+    const QFont font = nameFont(this, Kind::Item);
+    const QFontMetrics fm(font);
+    const QFont pills = pillFont(this);
+    const QFontMetrics pillMetrics(pills);
+
+    const QString name = fm.elidedText(label(ids.value(0)), Qt::ElideMiddle, 220);
+    const QString badge = ids.size() > 1 ? tr("%n items", nullptr, int(ids.size()))
+                                         : QString();
+    const int height = rowHeight();
+    const int badgeWidth = badge.isEmpty()
+        ? 0 : pillMetrics.horizontalAdvance(badge) + 2 * kCountPaddingH;
+    const int width = kRowPaddingLeft * 2 + kRowGap + fm.horizontalAdvance(name)
+        + (badge.isEmpty() ? 0 : badgeWidth + kRowGap) + kRowPaddingRight;
+
+    const qreal dpr = devicePixelRatioF();
+    QPixmap pixmap(QSize(width, height) * dpr);
+    pixmap.setDevicePixelRatio(dpr);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    const double radius = profile.radii.small + 1;
+    // The plate a selected row wears, on the panel colour so it reads off the
+    // tree it was lifted from.
+    painter.setPen(QPen(profile.colors.border, 1));
+    painter.setBrush(profile.colors.panelBg);
+    painter.drawRoundedRect(QRectF(0.5, 0.5, width - 1.0, height - 1.0), radius, radius);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(withAlpha(profile.colors.accent, 0.14));
+    painter.drawRoundedRect(QRectF(0.5, 0.5, width - 1.0, height - 1.0), radius, radius);
+
+    int x = kRowPaddingLeft + kRowGap / 2;
+    painter.setFont(font);
+    painter.setPen(profile.colors.textPrimary);
+    painter.drawText(QRect(x, 0, fm.horizontalAdvance(name) + 1, height),
+                     Qt::AlignVCenter | Qt::AlignLeft, name);
+    x += fm.horizontalAdvance(name) + kRowGap;
+
+    if (!badge.isEmpty()) {
+        // The count pill a row carries, in the accent: how many are coming
+        // along is the one thing this image has to say beyond the name.
+        const int pillHeight = pillMetrics.height() + 2;
+        const QRectF pill(x, (height - pillHeight) / 2.0, badgeWidth, pillHeight);
+        painter.setPen(QPen(withAlpha(profile.colors.accent, 0.55), 1));
+        painter.setBrush(withAlpha(profile.colors.accent, 0.20));
+        painter.drawRoundedRect(pill.adjusted(0.5, 0.5, -0.5, -0.5),
+                                pillHeight / 2.0, pillHeight / 2.0);
+        painter.setFont(pills);
+        painter.setPen(profile.colors.accentLight);
+        painter.drawText(pill, Qt::AlignCenter, badge);
+    }
+    painter.end();
+    return pixmap;
+}
+
+void TreeView::startRowDrag(const QString& id)
+{
+    const QStringList ids = dragIdsFor(id);
+    if (ids.isEmpty()) {
+        return;
+    }
+    auto* drag = new QDrag(this);
+    drag->setMimeData(createDragMimeData(ids));
+    const QPixmap pixmap = dragPixmap(ids);
+    drag->setPixmap(pixmap);
+    drag->setHotSpot(QPoint(kRowPaddingLeft + kRowGap, pixmap.deviceIndependentSize().height() / 2));
+    drag->exec(Qt::MoveAction, Qt::MoveAction);
+    // The press that started it never becomes a click: the release went to
+    // the drag, and whatever the drop did, the selection is untouched.
+    m_pressed = -1;
+    m_pressedChevron = false;
+    endDropHover();
+    viewport()->update();
+}
+
+int TreeView::updateDropTarget(const QPoint& position, const QStringList& ids)
+{
+    const int row = rowAt(position);
+    const QString id = row >= 0 ? m_rows.at(row) : QString();
+
+    // Auto-expand follows the pointer, valid target or not: opening a parent
+    // is how a person reaches a target further down, and the parent itself
+    // need not accept anything. A dragged row is never opened under itself.
+    if (id != m_autoExpandId) {
+        m_autoExpandId = id;
+        if (m_autoExpandTimer) {
+            m_autoExpandTimer->stop();
+        }
+        const Node* entry = node(id);
+        if (entry && m_autoExpandDelay > 0 && canExpand(*entry) && !entry->expanded
+            && !isSelfOrDescendantOf(id, ids)) {
+            if (!m_autoExpandTimer) {
+                m_autoExpandTimer = new QTimer(this);
+                m_autoExpandTimer->setSingleShot(true);
+                connect(m_autoExpandTimer, &QTimer::timeout, this,
+                        &TreeView::onAutoExpandTimeout);
+            }
+            m_autoExpandTimer->start(m_autoExpandDelay);
+        }
+    }
+
+    const bool valid = !id.isEmpty() && canDrop(ids, id);
+    m_dropTargetId = valid ? id : QString();
+    if (m_drop.setRow(valid ? row : -1)) {
+        viewport()->update();
+    }
+    return valid ? row : -1;
+}
+
+void TreeView::updateAutoScroll(const QPoint& position)
+{
+    const int margin = rowHeight();
+    int step = 0;
+    if (position.y() < margin) {
+        step = -1;
+    } else if (position.y() > viewport()->height() - margin) {
+        step = 1;
+    }
+    m_autoScrollStep = step;
+    if (step == 0) {
+        if (m_autoScrollTimer) {
+            m_autoScrollTimer->stop();
+        }
+        return;
+    }
+    if (!m_autoScrollTimer) {
+        m_autoScrollTimer = new QTimer(this);
+        m_autoScrollTimer->setInterval(kAutoScrollIntervalMs);
+        connect(m_autoScrollTimer, &QTimer::timeout, this, &TreeView::onAutoScrollTimeout);
+    }
+    if (!m_autoScrollTimer->isActive()) {
+        m_autoScrollTimer->start();
+    }
+}
+
+void TreeView::onAutoScrollTimeout()
+{
+    QScrollBar* bar = verticalScrollBar();
+    const int before = bar->value();
+    bar->setValue(before + m_autoScrollStep);
+    if (bar->value() == before) {
+        m_autoScrollTimer->stop();
+        return;
+    }
+    // The pointer has not moved but the row under it has; Qt sends no move
+    // for that, so the highlight is re-measured here. The drop itself is
+    // validated again on release, so this only has to keep the picture true.
+    updateDropTarget(m_dropPosition, m_dropIds);
+}
+
+void TreeView::onAutoExpandTimeout()
+{
+    const QString id = m_autoExpandId;
+    const Node* entry = node(id);
+    if (!entry || entry->expanded || !canExpand(*entry) || m_dropIds.isEmpty()) {
+        return;
+    }
+    setExpanded(id, true);
+    emit expandToggled(id, true);
+}
+
+void TreeView::endDropHover()
+{
+    if (m_autoExpandTimer) {
+        m_autoExpandTimer->stop();
+    }
+    if (m_autoScrollTimer) {
+        m_autoScrollTimer->stop();
+    }
+    m_autoScrollStep = 0;
+    m_autoExpandId.clear();
+    m_dropIds.clear();
+    m_dropTargetId.clear();
+    if (m_drop.clear()) {
+        viewport()->update();
+    }
+}
+
+void TreeView::dragEnterEvent(QDragEnterEvent* event)
+{
+    // Entered for the right kind of payload anywhere over the tree, so every
+    // move is asked about; the action itself is only granted over a target.
+    const QStringList ids = dragIdsFromMimeData(event->mimeData());
+    if (!m_dropFilter || ids.isEmpty()) {
+        event->ignore();
+        return;
+    }
+    event->accept();
+    dragMoveEvent(event);   // QDragEnterEvent is a QDragMoveEvent
+}
+
+void TreeView::dragMoveEvent(QDragMoveEvent* event)
+{
+    const QStringList ids = dragIdsFromMimeData(event->mimeData());
+    if (!m_dropFilter || ids.isEmpty()) {
+        endDropHover();
+        event->ignore();
+        return;
+    }
+    const QPoint position = event->position().toPoint();
+    m_dropIds = ids;
+    m_dropPosition = position;
+    updateAutoScroll(position);
+    const int target = updateDropTarget(position, ids);
+    if (target < 0) {
+        // Ignored, not accepted with no action: ignoring is what shows the
+        // forbidden cursor, and it is asked again on the next move.
+        event->ignore();
+        return;
+    }
+    if (event->possibleActions() & Qt::MoveAction) {
+        event->setDropAction(Qt::MoveAction);
+        event->accept(rowRect(target));
+    } else {
+        event->acceptProposedAction();
+    }
+}
+
+void TreeView::dragLeaveEvent(QDragLeaveEvent* event)
+{
+    endDropHover();
+    QAbstractScrollArea::dragLeaveEvent(event);
+}
+
+void TreeView::dropEvent(QDropEvent* event)
+{
+    const QStringList ids = dragIdsFromMimeData(event->mimeData());
+    const int row = rowAt(event->position().toPoint());
+    const QString target = row >= 0 ? m_rows.at(row) : QString();
+    endDropHover();
+    if (target.isEmpty() || !canDrop(ids, target)) {
+        event->ignore();
+        return;
+    }
+    if (event->possibleActions() & Qt::MoveAction) {
+        event->setDropAction(Qt::MoveAction);
+        event->accept();
+    } else {
+        event->acceptProposedAction();
+    }
+    // Nothing is moved here. The host moves them in its service and rebuilds;
+    // a tree that reparented its own rows would show a move the service may
+    // still refuse.
+    emit rowsDropped(ids, target);
 }
 
 // Applies one click's worth of selection. Returns true when the row should
@@ -971,9 +1429,22 @@ void TreeView::contextMenuEvent(QContextMenuEvent* event)
         return;
     }
     const QString id = m_rows.at(row);
+    // A row inside the selection keeps it - the menu acts on all of them. A
+    // row outside it becomes the whole selection, so the menu never acts on
+    // a set the person is not looking at.
+    const QSet<QString> before = m_selected;
+    if (!m_selected.contains(id)) {
+        m_selected.clear();
+        m_selected.insert(id);
+        m_selectionAnchor = id;
+    }
     // Current first, then the menu: everything the menu offers is about this
     // node, and it must be the node the pointer is on.
     setCurrentId(id);
+    if (m_selected != before) {
+        viewport()->update();
+        emit selectionChanged(selectedIds());
+    }
     emit contextMenuRequested(id, event->globalPos());
     event->accept();
 }
@@ -983,6 +1454,18 @@ bool TreeView::event(QEvent* event)
     if (event->type() == ThemeChangeEvent::type() || event->type() == QEvent::ParentChange) {
         updateScrollRange();
         viewport()->update();
+    }
+    // Claim Ctrl+A and Escape before a window-level shortcut does, but only
+    // when keyPressEvent will actually act on them.
+    if (event->type() == QEvent::ShortcutOverride
+        && m_selectionMode == SelectionMode::Extended && !m_editor) {
+        auto* key = static_cast<QKeyEvent*>(event);
+        if (key->matches(QKeySequence::SelectAll)
+            || (key->key() == Qt::Key_Escape && key->modifiers() == Qt::NoModifier
+                && !m_selected.isEmpty())) {
+            event->accept();
+            return true;
+        }
     }
     return QAbstractScrollArea::event(event);
 }
@@ -1014,6 +1497,7 @@ void TreeView::mousePressEvent(QMouseEvent* event)
     }
 
     m_pressed = row;
+    m_pressPosition = position;
     // The chevron is a target of its own: opening a folder and selecting it are
     // different actions on the same line.
     m_pressedChevron = chevronRect(row).contains(position);
@@ -1074,6 +1558,19 @@ void TreeView::mouseReleaseEvent(QMouseEvent* event)
 void TreeView::mouseMoveEvent(QMouseEvent* event)
 {
     const QPoint position = event->position().toPoint();
+    // A press that travels far enough on a row picks it up. Not from the
+    // chevron: pressing it is opening the folder, and a shaky hand opening
+    // one should not find itself dragging it.
+    if (m_dragEnabled && m_pressed >= 0 && m_pressed < m_rows.size() && !m_pressedChevron
+        && (event->buttons() & Qt::LeftButton)
+        && (position - m_pressPosition).manhattanLength()
+               >= QApplication::startDragDistance()) {
+        const QString id = m_rows.at(m_pressed);
+        if (isDraggable(id)) {
+            startRowDrag(id);
+            return;
+        }
+    }
     const int row = rowAt(position);
     const bool onChevron = row >= 0 && chevronRect(row).contains(position);
     // The action says what it does while the pointer is on it. A bare glyph
@@ -1104,6 +1601,23 @@ void TreeView::leaveEvent(QEvent* event)
 void TreeView::keyPressEvent(QKeyEvent* event)
 {
     const int row = rowOf(m_current);
+
+    if (m_selectionMode == SelectionMode::Extended) {
+        if (event->matches(QKeySequence::SelectAll)) {
+            selectAll();
+            event->accept();
+            return;
+        }
+        // Only when there is something to clear. An empty selection leaves
+        // Escape to the parent - a dialog closing, a panel dismissing - rather
+        // than swallowing it for nothing.
+        if (event->key() == Qt::Key_Escape && event->modifiers() == Qt::NoModifier
+            && !m_selected.isEmpty()) {
+            clearSelection();
+            event->accept();
+            return;
+        }
+    }
 
     switch (event->key()) {
     case Qt::Key_F2:
@@ -1260,7 +1774,12 @@ void TreeView::paintEvent(QPaintEvent*)
             selectionIsActive(this) ? 1.0 : inactiveSelectionOpacity;
 
         const double radius = profile.radii.small + 1;
-        if (entry->mark == Mark::Dropping) {
+        // The live drag target: DropTarget's row highlight, the same one
+        // NavList lights, so a drop reads the same in a rail and a tree.
+        const bool dropLit = m_drop.isRowLit(row);
+        if (dropLit) {
+            paintDropRow(&painter, box, this);
+        } else if (entry->mark == Mark::Dropping) {
             painter.setPen(QPen(profile.colors.accent, 1));
             painter.setBrush(withAlpha(profile.colors.accent, 0.20));
             painter.drawRoundedRect(QRectF(box).adjusted(0.5, 0.5, -0.5, -0.5),
@@ -1488,9 +2007,15 @@ void TreeView::paintEvent(QPaintEvent*)
             // muted and a second muted grey would be invisible.
             font.setItalic(true);
         }
+        QColor nameInk = ink;
+        if (dropLit) {
+            // `.trow.drop-on .tname { color:var(--acc); font-weight:600 }`.
+            nameInk = dropLabelInk().resolve(profile);
+            font.setWeight(QFont::Weight(dropLabelWeight()));
+        }
         const QFontMetrics fm(font);
         painter.setFont(font);
-        painter.setPen(ink);
+        painter.setPen(nameInk);
         const QString text = entry->kind == Kind::Group ? entry->label.toUpper()
                                                         : entry->label;
         const QRect nameBox(x, box.top(), qMax(0, rightEdge - x), box.height());

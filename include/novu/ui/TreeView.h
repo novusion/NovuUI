@@ -3,6 +3,7 @@
 #include "novu/ui/Export.h"
 
 #include "novu/ui/Badge.h"
+#include "novu/ui/DropTarget.h"
 #include "novu/ui/StatusDot.h"
 #include "novu/ui/Icon.h"
 #include "novu/ui/StyleSpec.h"
@@ -16,7 +17,12 @@
 #include <QStringList>
 #include <QVector>
 
+#include <functional>
+
 class QLineEdit;
+class QMimeData;
+class QPixmap;
+class QTimer;
 
 namespace novu::ui {
 
@@ -201,14 +207,73 @@ public:
     //! on "the selection" gets it top to bottom, which is the order a person
     //! reading the rail would list them in.
     //!
-    //! Never empty while a current row exists: a single click selects what it
-    //! makes current, so a caller never has to special-case "nothing selected
-    //! but something is current".
+    //! A single click selects what it makes current, so after any click the
+    //! selection is never empty while a current row exists. Escape (Extended
+    //! mode), clearSelection() and clear() are the deliberate ways to empty
+    //! it; the current row stays where it was (clear() aside).
     QStringList selectedIds() const;
     void setSelectedIds(const QStringList& ids);
     void clearSelection();
     bool isSelected(const QString& id) const { return m_selected.contains(id); }
     int selectionCount() const { return m_selected.size(); }
+
+    //! Which rows Ctrl+A takes. Extended mode only; Single mode ignores the
+    //! shortcut. Ctrl+A selects the rows that are ON SCREEN - the expanded,
+    //! flattened set - and enabled, narrowed by this predicate when one is
+    //! set. Rows inside a collapsed parent are never taken: selecting things
+    //! the person cannot see is how a bulk action deletes too much. An empty
+    //! function (the default) accepts every visible enabled row.
+    //!
+    //! Escape, also Extended only, clears a non-empty selection and is
+    //! otherwise left unhandled so a parent (a dialog, a panel) still gets it.
+    void setSelectAllFilter(std::function<bool(const QString& id)> filter);
+    //! What Ctrl+A does, callable. A no-op in Single mode.
+    void selectAll();
+
+    // ── drag & drop ──────────────────────────────────────────────────────
+    //
+    // The tree carries ids and asks the caller; it never moves a row itself.
+    // A drop is reported with rowsDropped() and the host does the move in its
+    // service, then rebuilds or reconciles the tree - the same contract as
+    // rename, where the label is not written until the service says so.
+
+    //! The MIME type a drag from a TreeView carries: the dragged ids, one per
+    //! line, UTF-8. The same ids go out as text/plain as well.
+    static QString dragMimeType();
+    //! Builds the payload for `ids`. Caller owns the result (QDrag takes it).
+    static QMimeData* createDragMimeData(const QStringList& ids);
+    //! The ids carried by `mime` under dragMimeType(), or an empty list.
+    static QStringList dragIdsFromMimeData(const QMimeData* mime);
+
+    //! Whether a press-and-move on a row starts a drag. Off by default.
+    void setDragEnabled(bool enabled);
+    bool dragEnabled() const { return m_dragEnabled; }
+    //! Which rows may be picked up. Empty (default) = every enabled row.
+    void setDraggableFilter(std::function<bool(const QString& id)> filter);
+    bool isDraggable(const QString& id) const;
+    //! What a drag started on `id` would carry. When `id` is selected and the
+    //! mode is Extended it is the whole selection, otherwise just `id`; in
+    //! both cases only draggable ids, in tree display order (pre-order, so a
+    //! selected row inside a collapsed parent keeps its place). Empty when
+    //! `id` itself is not draggable.
+    QStringList dragIdsFor(const QString& id) const;
+
+    //! Which rows accept which drags. Drops are only accepted once this is
+    //! set; it is asked per hovered row. Before it is consulted the tree has
+    //! already refused a disabled target, and one that is a dragged row or a
+    //! descendant of one. Drags from other widgets carrying dragMimeType()
+    //! are asked about the same way.
+    void setDropFilter(std::function<bool(const QStringList& draggedIds,
+                                          const QString& targetId)> filter);
+    //! The full answer the tree gives for one target, filter included.
+    bool canDrop(const QStringList& draggedIds, const QString& targetId) const;
+    //! The row lit as the drop target right now, or empty.
+    QString dropTargetId() const;
+
+    //! How long a drag rests on a collapsed parent before it opens. 700 ms by
+    //! default; 0 or less turns auto-expand off.
+    void setAutoExpandDelay(int milliseconds);
+    int autoExpandDelay() const { return m_autoExpandDelay; }
 
     // Selects a row AND says it was chosen, exactly as a click on it does.
     //
@@ -249,9 +314,15 @@ signals:
     //! only listened for multi-row changes would miss the common case.
     void selectionChanged(const QStringList& ids);
     void expandToggled(const QString& id, bool expanded);
+    //! `ids` were dropped on `targetId`. Nothing has moved: the receiver does
+    //! the move and rebuilds the tree.
+    void rowsDropped(const QStringList& ids, const QString& targetId);
 
     void rowActionTriggered(const QString& id);
     // A right-click, with the node under the pointer already made current.
+    // A row inside the selection keeps the selection; a row outside it
+    // becomes the whole selection (selectionChanged is emitted first), so a
+    // menu always acts on what is shown selected.
     //
     // Making it current is the point: a menu built from "the selection" after
     // a right-click somewhere else acts on the node the user last clicked,
@@ -273,6 +344,10 @@ protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
     bool event(QEvent* event) override;
     bool eventFilter(QObject* watched, QEvent* event) override;
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dragMoveEvent(QDragMoveEvent* event) override;
+    void dragLeaveEvent(QDragLeaveEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
 
 private:
     int indentStep() const;
@@ -282,6 +357,18 @@ private:
     int contentLeft(int row) const;
     void layOutEditor();
     void endRename(bool commit);
+
+    void startRowDrag(const QString& id);
+    QPixmap dragPixmap(const QStringList& ids) const;
+    bool isSelfOrDescendantOf(const QString& id, const QStringList& ancestors) const;
+    // Hit-tests `position` against the dragged ids and lights (or clears) the
+    // target. Returns the valid target row, or -1.
+    int updateDropTarget(const QPoint& position, const QStringList& ids);
+    void updateAutoScroll(const QPoint& position);
+    void endDropHover();
+    void onAutoExpandTimeout();
+    void onAutoScrollTimeout();
+    void updateAcceptDrops();
 
     struct Node
     {
@@ -355,6 +442,29 @@ private:
     bool m_compact = false;
     bool m_branchesVisible=true,m_guidesVisible=true;
     int m_rowHeight=0;
+
+    std::function<bool(const QString&)> m_selectAllFilter;
+
+    // Drag source.
+    bool m_dragEnabled = false;
+    std::function<bool(const QString&)> m_draggableFilter;
+    QPoint m_pressPosition;
+
+    // Drop target.
+    std::function<bool(const QStringList&, const QString&)> m_dropFilter;
+    DropHighlight m_drop;
+    // The lit row by id, so a rebuild during the hover (auto-expand) can find
+    // it again at its new index.
+    QString m_dropTargetId;
+    // What the drag in progress carries and where it was last seen, for the
+    // timers, which get no event of their own.
+    QStringList m_dropIds;
+    QPoint m_dropPosition;
+    QString m_autoExpandId;
+    int m_autoExpandDelay = 700;
+    int m_autoScrollStep = 0;
+    QTimer* m_autoExpandTimer = nullptr;
+    QTimer* m_autoScrollTimer = nullptr;
 };
 
 } // namespace novu::ui
