@@ -467,7 +467,13 @@ QSize cellContentSize(const QWidget* context, const TableView::CellContent& cont
     if (!context) {
         return QSize();
     }
-    const QFontMetrics metrics(roleFont(context, TypeRole::Body));
+    // Measured in the weight it is drawn in: a strong name measured as a
+    // regular one came out a few pixels short and was drawn elided.
+    QFont textFont = roleFont(context, TypeRole::Body);
+    if (content.strongText) {
+        textFont.setWeight(QFont::Medium);
+    }
+    const QFontMetrics metrics(textFont);
     int width = 0;
     int height = metrics.height();
 
@@ -496,6 +502,12 @@ void paintCellContent(QPainter* painter, const QRect& box, const QWidget* contex
     }
     const ThemeProfile& profile = themeFor(context);
     int x = box.left();
+    // One past the last pixel. QRect::right() is the last pixel itself, and
+    // measuring against it left every cell a pixel short of the width
+    // cellContentSize() had just given it: the widest cell of a column lost
+    // its last letter to an ellipsis, and a cell that was only a badge lost
+    // the badge.
+    const int end = box.x() + box.width();
 
     if (content.hasStatus) {
         const QColor dot = statusDotToken(content.status).resolve(profile);
@@ -530,7 +542,7 @@ void paintCellContent(QPainter* painter, const QRect& box, const QWidget* contex
             font.setWeight(QFont::Medium);
         }
         const QFontMetrics metrics(font);
-        const int room = qMax(0, box.right() - x - reserved);
+        const int room = qMax(0, end - x - reserved);
         painter->save();
         painter->setFont(font);
         painter->setPen(textInk);
@@ -544,7 +556,7 @@ void paintCellContent(QPainter* painter, const QRect& box, const QWidget* contex
     for (int i = 0; i < content.badges.size(); ++i) {
         const QSize size = badgeSizes.at(i);
         x += kContentGap;
-        if (x + size.width() > box.right()) {
+        if (x + size.width() > end) {
             break;
         }
         paintBadge(painter, QRectF(x, box.center().y() - size.height() / 2.0,
@@ -559,7 +571,7 @@ void paintCellContent(QPainter* painter, const QRect& box, const QWidget* contex
         painter->save();
         painter->setFont(roleMonoFont(context, TypeRole::Mono));
         painter->setPen(profile.colors.textDisabled);
-        painter->drawText(QRect(x, box.top(), qMax(0, box.right() - x), box.height()),
+        painter->drawText(QRect(x, box.top(), qMax(0, end - x), box.height()),
                           Qt::AlignVCenter | Qt::AlignLeft, content.trailing);
         painter->restore();
     }
