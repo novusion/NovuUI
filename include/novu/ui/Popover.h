@@ -248,6 +248,9 @@ private:
     int neighbour(int from, int step) const;
     void trigger(int index);
     void openSubmenu(int index,bool keyboard=false);
+    //! The menu this one was opened from (or one before it) under `global`.
+    Popover* ancestorAt(const QPoint& global) const;
+    void hoverAt(const QPoint& local);
     // A menu and its submenus dismiss as one surface: a click or a focus
     // change that lands outside the whole chain closes all of it, while moving
     // between a parent and its submenu closes nothing.

@@ -845,6 +845,11 @@ void Popover::mousePressEvent(QMouseEvent* event)
     // over the application: the click had nowhere left to go. Outside the
     // chain, the press means dismiss.
     if (!rect().contains(event->position().toPoint())) {
+        // A press on the menu this one was opened from is not a press outside.
+        if (ancestorAt(event->globalPosition().toPoint())) {
+            event->accept();
+            return;
+        }
         closeChain();
         event->ignore();
         return;
@@ -876,15 +881,42 @@ void Popover::mouseReleaseEvent(QMouseEvent* event)
     event->accept();
 }
 
-void Popover::mouseMoveEvent(QMouseEvent* event)
+// An open submenu holds the mouse grab, so moves and presses over the menus it
+// was opened from arrive at the submenu. They belong to the menu under the
+// pointer; without this, hovering another item of the parent did nothing.
+Popover* Popover::ancestorAt(const QPoint& global) const
 {
-    const int index = indexAt(event->position().toPoint());
+    for (Popover* menu = m_parentMenu.data(); menu; menu = menu->m_parentMenu.data()) {
+        if (menu->isVisible() && menu->rect().contains(menu->mapFromGlobal(global))) {
+            return menu;
+        }
+    }
+    return nullptr;
+}
+
+void Popover::hoverAt(const QPoint& local)
+{
+    const int index = indexAt(local);
     const int hovered = (index >= 0 && m_items.at(index).enabled) ? index : -1;
     if (hovered != m_hovered) {
         m_hovered = hovered;
         openSubmenu(hovered);
         update();
     }
+}
+
+void Popover::mouseMoveEvent(QMouseEvent* event)
+{
+    const QPoint local = event->position().toPoint();
+    if (!rect().contains(local)) {
+        const QPoint global = event->globalPosition().toPoint();
+        if (Popover* owner = ancestorAt(global)) {
+            owner->hoverAt(owner->mapFromGlobal(global));
+            event->accept();
+            return;
+        }
+    }
+    hoverAt(local);
     QWidget::mouseMoveEvent(event);
 }
 

@@ -146,6 +146,23 @@ private slots:
         menu.popupAt(QPoint(100,100));QTest::mouseMove(&menu,menu.itemRect(0).center());QVERIFY(sub->isVisible());QTest::keyClick(sub,Qt::Key_Escape);QVERIFY(!menu.isVisible());QVERIFY(!sub->isVisible());
     }
 
+    void parentMenuStaysUsableWhileASubmenuIsOpen(){
+        // The open submenu holds the mouse grab: moves over the parent arrive at the
+        // submenu and must still reach the parent's other items.
+        // Events are sent directly: QTest::mouseMove depends on where an earlier test left the cursor.
+        using namespace novu::ui;QWidget host;host.show();Popover menu(&host);auto* sub=menu.addSubmenu("moveto","Move To");sub->addItem("ws","Workspace");menu.addItem("delete","Delete");QSignalSpy chosen(&menu,&Popover::triggered);
+        const auto send=[](QWidget* to,QEvent::Type type,const QPoint& global,Qt::MouseButton button){QMouseEvent event(type,QPointF(to->mapFromGlobal(global)),QPointF(global),button,type==QEvent::MouseMove?Qt::NoButton:button,Qt::NoModifier);QApplication::sendEvent(to,&event);};
+        menu.popupAt(QPoint(100,100));const QPoint same=menu.mapToGlobal(menu.itemRect(0).center()),other=menu.mapToGlobal(menu.itemRect(1).center());
+        send(&menu,QEvent::MouseMove,same,Qt::NoButton);QVERIFY(sub->isVisible());
+        send(sub,QEvent::MouseMove,other,Qt::NoButton);QVERIFY(!sub->isVisible());QVERIFY(menu.isVisible());
+        send(&menu,QEvent::MouseButtonPress,other,Qt::LeftButton);send(&menu,QEvent::MouseButtonRelease,other,Qt::LeftButton);
+        QCOMPARE(chosen.count(),1);QCOMPARE(chosen.first().first().toString(),QString("delete"));
+        // A press on the item that opened the submenu leaves both open.
+        menu.popupAt(QPoint(100,100));send(&menu,QEvent::MouseMove,same,Qt::NoButton);QVERIFY(sub->isVisible());
+        QMouseEvent press(QEvent::MouseButtonPress,QPointF(sub->mapFromGlobal(same)),QPointF(same),Qt::LeftButton,Qt::LeftButton,Qt::NoModifier);QApplication::sendEvent(sub,&press);
+        QVERIFY(menu.isVisible());QVERIFY(sub->isVisible());
+    }
+
     void profileControlsButtonPaddingAndDisabledSurface(){
         using namespace novu::ui;auto profile=novusionBaseProfile();profile.id="button-contract-test";
         QWidget host;ThemeManager::instance().registerProfile(profile);ThemeScope::apply(&host,profile.id);
