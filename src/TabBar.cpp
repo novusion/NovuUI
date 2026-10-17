@@ -1,21 +1,31 @@
 #include "novu/ui/TabBar.h"
 
+#include "novu/ui/Fields.h"
 #include "novu/ui/Motion.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/Theme.h"
 #include "novu/ui/ThemeManager.h"
 #include "novu/ui/Tooltip.h"
 
+#include <QContextMenuEvent>
 #include <QEvent>
+#include <QFocusEvent>
 #include <QFontMetrics>
+#include <QHash>
 #include <QKeyEvent>
+#include <QLineEdit>
 #include <QLinearGradient>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPen>
 #include <QResizeEvent>
+#include <QPointer>
 #include <QShowEvent>
+#include <QStyle>
+#include <QTimer>
+#include <QToolTip>
+#include <QWheelEvent>
 
 #include <utility>
 
@@ -71,6 +81,21 @@ constexpr double kAsleepOpacity = 0.5;
 // click. Without it every click on a tab is a one-pixel drag.
 constexpr int kDragThreshold = 6;
 
+// A drag held this close to either end of the strip scrolls it, by this much
+// per tick - fast enough to cross thirty tabs, slow enough to stop on one.
+constexpr int kAutoScrollZone = 28;
+constexpr int kAutoScrollStep = 14;
+constexpr int kAutoScrollIntervalMs = 16;
+
+// One wheel notch moves the strip by about half a crowded tab.
+constexpr double kWheelPixelsPerNotch = 48.0;
+
+// The fade at a clipped end, which is what says there is more strip there.
+constexpr int kEdgeFade = 18;
+
+// The speaker's strike when a tab is muted.
+constexpr double kMuteStrike = 1.4;
+
 QFont tabFont(const QWidget* context, bool current)
 {
     const ThemeProfile& profile = themeFor(context);
@@ -86,6 +111,58 @@ QFont tabFont(const QWidget* context, bool current)
 
 } // namespace
 
+// State added after the bar's layout was frozen (see TabBar.h). One per bar,
+// owned by it as a child and found through a pointer map, so asking for it is
+// a hash lookup rather than a walk over the bar's children.
+struct TabBarExtras final : public QObject
+{
+    explicit TabBarExtras(TabBar* bar)
+        : QObject(bar), owner(bar)
+    {
+        registry().insert(bar, this);
+    }
+    ~TabBarExtras() override { registry().remove(owner); }
+
+    static QHash<const TabBar*, TabBarExtras*>& registry()
+    {
+        static QHash<const TabBar*, TabBarExtras*> map;
+        return map;
+    }
+    static TabBarExtras* of(const TabBar* bar) { return registry().value(bar); }
+
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (watched == editor && !editKey.isEmpty()) {
+            if (event->type() == QEvent::KeyPress) {
+                if (static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape) {
+                    owner->finishInlineEdit(false, false);
+                    return true;
+                }
+            } else if (event->type() == QEvent::FocusOut) {
+                // A popup taking focus (the tooltip carrying a rejection, a
+                // context menu) is not the person leaving the field.
+                if (static_cast<QFocusEvent*>(event)->reason() != Qt::PopupFocusReason) {
+                    owner->finishInlineEdit(true, true);
+                }
+            }
+        }
+        return QObject::eventFilter(watched, event);
+    }
+
+    TabBar* owner = nullptr;
+    QHash<QString, TabBar::Audio> audio;
+    int scroll = 0;
+    QTimer* autoScroll = nullptr;
+    int autoScrollDirection = 0;
+    QPoint lastDragPosition;
+    int hoveredAudio = -1;
+    int pressedAudio = -1;
+    QPointer<QLineEdit> editor;
+    QString editKey;
+    bool editRejected = false;
+    bool editFinishing = false;
+};
+
 TabBar::TabBar(QWidget* parent)
     : QWidget(parent)
 {
@@ -94,6 +171,10 @@ TabBar::TabBar(QWidget* parent)
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
     setCursor(Qt::PointingHandCursor);
+    auto* extras = new TabBarExtras(this);
+    extras->autoScroll = new QTimer(extras);
+    extras->autoScroll->setInterval(kAutoScrollIntervalMs);
+    connect(extras->autoScroll, &QTimer::timeout, this, [this] { autoScrollStep(); });
 }
 
 // == shape ==================================================================
@@ -135,7 +216,17 @@ void TabBar::removeTab(const QString& key)
     if (index < 0) {
         return;
     }
+    TabBarExtras* extras = TabBarExtras::of(this);
+    if (extras && extras->editKey == key) {
+        // The tab is gone, so there is nothing left to rename.
+        finishInlineEdit(false, false);
+    }
     m_tabs.remove(index);
+    if (extras) {
+        extras->audio.remove(key);
+        extras->hoveredAudio = -1;
+        extras->pressedAudio = -1;
+    }
 
     if (m_tabs.isEmpty()) {
         m_current = -1;
@@ -153,11 +244,21 @@ void TabBar::removeTab(const QString& key)
     m_dragIndex = -1;
     updateMotion();
     updateGeometry();
+    placeInlineEditor();
     update();
 }
 
 void TabBar::clear()
 {
+    if (TabBarExtras* extras = TabBarExtras::of(this)) {
+        if (!extras->editKey.isEmpty()) {
+            finishInlineEdit(false, false);
+        }
+        extras->audio.clear();
+        extras->scroll = 0;
+        extras->hoveredAudio = -1;
+        extras->pressedAudio = -1;
+    }
     m_tabs.clear();
     m_current = -1;
     m_hovered = -1;
@@ -215,6 +316,7 @@ void TabBar::setCurrentIndex(int index)
         return;
     }
     m_current = index;
+    ensureVisible(currentKey());
     update();
     emit currentChanged(currentKey());
 }
@@ -234,6 +336,7 @@ void TabBar::setLabel(const QString& key, const QString& text)
     }
     tab->label = text;
     updateGeometry();
+    placeInlineEditor();
     update();
 }
 
@@ -338,6 +441,35 @@ void TabBar::setClosable(const QString& key, bool closable)
     update();
 }
 
+void TabBar::setAudio(const QString& key, Audio audio)
+{
+    TabBarExtras* extras = TabBarExtras::of(this);
+    if (!extras || !find(key)) {
+        return;
+    }
+    const Audio previous = extras->audio.value(key, Audio::None);
+    if (previous == audio) {
+        return;
+    }
+    if (audio == Audio::None) {
+        extras->audio.remove(key);
+    } else {
+        extras->audio.insert(key, audio);
+    }
+    // The speaker takes room after the label only while it is there.
+    if ((previous == Audio::None) != (audio == Audio::None)) {
+        updateGeometry();
+        placeInlineEditor();
+    }
+    update();
+}
+
+TabBar::Audio TabBar::audio(const QString& key) const
+{
+    const TabBarExtras* extras = TabBarExtras::of(this);
+    return extras ? extras->audio.value(key, Audio::None) : Audio::None;
+}
+
 void TabBar::setReorderable(bool reorderable)
 {
     if (m_reorderable == reorderable) {
@@ -387,6 +519,11 @@ void TabBar::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
     placeTrailing();
+    // A narrower strip can push the current tab out of view; it stays in it.
+    if (m_current >= 0) {
+        ensureVisible(currentKey());
+    }
+    placeInlineEditor();
 }
 
 // == geometry ===============================================================
@@ -405,6 +542,9 @@ int TabBar::tabWidth(const Tab& tab) const
         }
     } else if (tab.glyph != Glyph::None || tab.state != State::Idle) {
         width += kMark + kGap;
+    }
+    if (audio(tab.key) != Audio::None) {
+        width += kGap + kMark;
     }
     if (tab.closable) {
         width += kGap + kCloseSide;
@@ -472,13 +612,88 @@ QRect TabBar::tabRect(int index) const
         return QRect();
     }
     const QVector<int> widths = laidOutWidths();
-    int left = kInsetLeft;
+    int left = kInsetLeft - effectiveScroll();
     for (int i = 0; i < index; ++i) {
         left += widths.at(i) + kTabGap;
     }
     // The rule at the bottom edge is the page's, not the strip's: a tab ends
     // on it, as `.btab{border-bottom:none}` says.
     return QRect(left, kInsetTop, widths.at(index), height() - kInsetTop - 1);
+}
+
+QRect TabBar::tabsViewport() const
+{
+    const int trailing = m_trailing ? m_trailing->sizeHint().width() : 0;
+    const int newTab = m_newTab ? kNewTabWidth + 4 + kTabGap : 0;
+    const int span = qMax(0, width() - 2 * kInsetLeft - newTab - trailing);
+    return QRect(kInsetLeft, 0, span, height());
+}
+
+int TabBar::contentWidth() const
+{
+    const QVector<int> widths = laidOutWidths();
+    int total = 0;
+    for (int each : widths) {
+        total += each;
+    }
+    if (!widths.isEmpty()) {
+        total += kTabGap * (widths.size() - 1);
+    }
+    return total;
+}
+
+int TabBar::maximumScrollOffset() const
+{
+    return qMax(0, contentWidth() - tabsViewport().width());
+}
+
+int TabBar::effectiveScroll() const
+{
+    const TabBarExtras* extras = TabBarExtras::of(this);
+    if (!extras) {
+        return 0;
+    }
+    return qBound(0, extras->scroll, maximumScrollOffset());
+}
+
+int TabBar::scrollOffset() const
+{
+    return effectiveScroll();
+}
+
+void TabBar::setScrollOffset(int pixels)
+{
+    TabBarExtras* extras = TabBarExtras::of(this);
+    if (!extras) {
+        return;
+    }
+    const int clamped = qBound(0, pixels, maximumScrollOffset());
+    if (clamped == effectiveScroll() && clamped == extras->scroll) {
+        return;
+    }
+    extras->scroll = clamped;
+    m_hovered = -1;
+    m_hoveredClose = false;
+    extras->hoveredAudio = -1;
+    placeInlineEditor();
+    update();
+}
+
+void TabBar::ensureVisible(const QString& key)
+{
+    const int index = indexOfKey(key);
+    if (index < 0 || maximumScrollOffset() == 0) {
+        return;
+    }
+    const QRect box = tabRect(index);
+    const QRect viewport = tabsViewport();
+    int scroll = effectiveScroll();
+    if (box.left() < viewport.left()) {
+        scroll -= viewport.left() - box.left();
+    } else if (box.right() > viewport.right()) {
+        scroll += box.right() - viewport.right();
+    }
+    setScrollOffset(scroll);
 }
 
 QRect TabBar::closeRect(int index) const
@@ -499,9 +714,11 @@ QRect TabBar::newTabRect() const
     if (!m_newTab) {
         return QRect();
     }
+    // After the last tab, or pinned at the end of the band once the strip
+    // scrolls - the "+" is never scrolled away with the tabs.
     int left = kInsetLeft;
-    for (int each : laidOutWidths()) {
-        left += each + kTabGap;
+    if (!m_tabs.isEmpty()) {
+        left += qMin(contentWidth(), tabsViewport().width()) + kTabGap;
     }
     // `.btab-new{margin:0 0 4px 4px}` - it sits on the page's edge with the
     // tabs, not centred in the band above them.
@@ -510,6 +727,11 @@ QRect TabBar::newTabRect() const
 
 int TabBar::indexAt(const QPoint& position) const
 {
+    // A tab scrolled under either end is not there to be hit.
+    const QRect viewport = tabsViewport();
+    if (position.x() < viewport.left() || position.x() > viewport.right()) {
+        return -1;
+    }
     for (int i = 0; i < m_tabs.size(); ++i) {
         if (tabRect(i).contains(position)) {
             return i;
@@ -528,6 +750,26 @@ QSize TabBar::sizeHint() const
         width += kNewTabWidth;
     }
     return QSize(qMax(width, kMinWidth), kHeight);
+}
+
+QRect TabBar::audioRect(int index) const
+{
+    if (index < 0 || index >= m_tabs.size() || audio(m_tabs.at(index).key) == Audio::None) {
+        return QRect();
+    }
+    const Tab& tab = m_tabs.at(index);
+    const QRect box = tabRect(index);
+    const QRect close = closeRect(index);
+    int rightEdge = close.isNull() ? box.right() - kPaddingH : close.left() - kGap;
+    const bool lettered = !tab.mark.isEmpty() && tab.state != State::Loading;
+    if (lettered && (tab.state == State::Failed || tab.state == State::Asleep)) {
+        rightEdge -= kStateDot + kGap;
+    }
+    const QRect speaker(rightEdge - kMark + 1, box.top() + (box.height() - kMark) / 2,
+                        kMark, kMark);
+    // Too narrow a tab keeps its mark and close box and loses the speaker
+    // before it loses the label entirely.
+    return speaker.left() > box.left() + kPaddingH + kMarkTile ? speaker : QRect();
 }
 
 QSize TabBar::minimumSizeHint() const
@@ -567,6 +809,9 @@ void TabBar::showEvent(QShowEvent* event)
 void TabBar::hideEvent(QHideEvent* event)
 {
     QWidget::hideEvent(event);
+    if (TabBarExtras* extras = TabBarExtras::of(this)) {
+        extras->autoScroll->stop();
+    }
     updateMotion();
 }
 
@@ -577,7 +822,195 @@ bool TabBar::event(QEvent* event)
         updateGeometry();
         update();
     }
+    // Handled here rather than in wheelEvent()/contextMenuEvent() overrides,
+    // which would change the class modules were built against.
+    if (event->type() == QEvent::Wheel && handleWheel(static_cast<QWheelEvent*>(event))) {
+        return true;
+    }
+    if (event->type() == QEvent::ContextMenu
+        && handleContextMenu(static_cast<QContextMenuEvent*>(event))) {
+        return true;
+    }
     return QWidget::event(event);
+}
+
+bool TabBar::handleWheel(QWheelEvent* event)
+{
+    if (maximumScrollOffset() == 0) {
+        return false;
+    }
+    // A trackpad gives pixels, a wheel gives notches. Either axis scrolls:
+    // the strip has only one, and most wheels only turn the vertical one.
+    const QPoint pixels = event->pixelDelta();
+    const QPoint angle = event->angleDelta();
+    int delta = 0;
+    if (!pixels.isNull()) {
+        delta = qAbs(pixels.x()) > qAbs(pixels.y()) ? pixels.x() : pixels.y();
+    } else {
+        const int notches = qAbs(angle.x()) > qAbs(angle.y()) ? angle.x() : angle.y();
+        delta = qRound(notches / 120.0 * kWheelPixelsPerNotch);
+    }
+    if (delta == 0) {
+        return false;
+    }
+    setScrollOffset(effectiveScroll() - delta);
+    event->accept();
+    return true;
+}
+
+bool TabBar::handleContextMenu(QContextMenuEvent* event)
+{
+    int index = -1;
+    QPoint global = event->globalPos();
+    if (event->reason() == QContextMenuEvent::Mouse) {
+        index = indexAt(event->pos());
+    } else if (m_current >= 0) {
+        index = m_current;
+        ensureVisible(currentKey());
+        const QRect box = tabRect(index);
+        global = mapToGlobal(QPoint(box.left() + kPaddingH, box.bottom()));
+    }
+    if (index < 0) {
+        return false;
+    }
+    event->accept();
+    emit contextMenuRequested(m_tabs.at(index).key, global);
+    return true;
+}
+
+// == renaming in place ======================================================
+//
+// One QLineEdit for the bar, laid over the label band of the tab being
+// renamed - the same convention, and the same rules, as NavList's.
+
+bool TabBar::beginInlineEdit(const QString& key, const QString& text)
+{
+    TabBarExtras* extras = TabBarExtras::of(this);
+    const int index = indexOfKey(key);
+    if (!extras || index < 0) {
+        return false;
+    }
+    if (!extras->editor) {
+        extras->editor = lineEdit(QString(), this);
+        extras->editor->setObjectName(QStringLiteral("novuTabInlineEditor"));
+        extras->editor->installEventFilter(extras);
+        connect(extras->editor, &QLineEdit::returnPressed, this,
+                [this] { finishInlineEdit(true, false); });
+        connect(extras->editor, &QLineEdit::textEdited, this, [extras] {
+            // Typing again clears a previous rejection's mark.
+            extras->editor->setProperty("invalid", false);
+            extras->editor->style()->unpolish(extras->editor);
+            extras->editor->style()->polish(extras->editor);
+            extras->editor->setToolTip(QString());
+        });
+    }
+    extras->editKey = key;
+    extras->editRejected = false;
+    extras->editor->setProperty("invalid", false);
+    extras->editor->setToolTip(QString());
+    extras->editor->setText(text.isNull() ? m_tabs.at(index).label : text);
+    ensureVisible(key);
+    placeInlineEditor();
+    extras->editor->show();
+    extras->editor->raise();
+    extras->editor->setFocus(Qt::OtherFocusReason);
+    extras->editor->selectAll();
+    return true;
+}
+
+bool TabBar::isInlineEditing() const
+{
+    const TabBarExtras* extras = TabBarExtras::of(this);
+    return extras && extras->editor && extras->editor->isVisible()
+        && !extras->editKey.isEmpty();
+}
+
+QString TabBar::inlineEditKey() const
+{
+    const TabBarExtras* extras = TabBarExtras::of(this);
+    return extras ? extras->editKey : QString();
+}
+
+void TabBar::rejectInlineEdit(const QString& message)
+{
+    TabBarExtras* extras = TabBarExtras::of(this);
+    if (!extras || !extras->editor) {
+        return;
+    }
+    extras->editRejected = true;
+    extras->editor->setProperty("invalid", true);
+    extras->editor->style()->unpolish(extras->editor);
+    extras->editor->style()->polish(extras->editor);
+    extras->editor->setToolTip(message);
+    if (!message.isEmpty() && extras->editor->isVisible()) {
+        QToolTip::showText(extras->editor->mapToGlobal(QPoint(0, extras->editor->height())),
+                           message, extras->editor);
+    }
+}
+
+void TabBar::cancelInlineEdit()
+{
+    finishInlineEdit(false, false);
+}
+
+void TabBar::finishInlineEdit(bool submit, bool fromFocusOut)
+{
+    TabBarExtras* extras = TabBarExtras::of(this);
+    if (!extras || extras->editFinishing || extras->editKey.isEmpty() || !extras->editor) {
+        return;
+    }
+    extras->editFinishing = true;
+    const QString key = extras->editKey;
+    if (submit) {
+        extras->editRejected = false;
+        emit inlineEditCommitted(key, extras->editor->text());
+        if (extras->editRejected && !fromFocusOut) {
+            // Kept open with the reason beside it; the person fixes the name.
+            extras->editFinishing = false;
+            extras->editor->setFocus(Qt::OtherFocusReason);
+            return;
+        }
+        const bool rejected = extras->editRejected;
+        extras->editKey.clear();
+        extras->editor->hide();
+        extras->editFinishing = false;
+        if (rejected) {
+            // Focus left with an unacceptable name: abandon rather than steal
+            // focus back.
+            emit inlineEditCancelled(key);
+        }
+        return;
+    }
+    extras->editKey.clear();
+    extras->editor->hide();
+    extras->editFinishing = false;
+    emit inlineEditCancelled(key);
+}
+
+void TabBar::placeInlineEditor()
+{
+    TabBarExtras* extras = TabBarExtras::of(this);
+    if (!extras || !extras->editor || extras->editKey.isEmpty()) {
+        return;
+    }
+    const int index = indexOfKey(extras->editKey);
+    if (index < 0) {
+        finishInlineEdit(false, false);
+        return;
+    }
+    const Tab& tab = m_tabs.at(index);
+    const QRect box = tabRect(index);
+    int left = box.left() + kPaddingH;
+    if (!tab.mark.isEmpty()) {
+        left += kMarkTile + kGap;
+    } else if (tab.glyph != Glyph::None || tab.state != State::Idle) {
+        left += kMark + kGap;
+    }
+    const QRect close = closeRect(index);
+    const int right = close.isNull() ? box.right() - kPaddingH + 4 : close.left() - 4;
+    const int editorHeight = qMin(box.height() - 4, extras->editor->sizeHint().height());
+    extras->editor->setGeometry(left - 4, box.top() + (box.height() - editorHeight) / 2,
+                                qMax(80, right - left + 4), editorHeight);
 }
 
 // == interaction ============================================================
@@ -618,6 +1051,14 @@ void TabBar::mousePressEvent(QMouseEvent* event)
     }
 
     const int index = indexAt(position);
+    if (TabBarExtras* extras = TabBarExtras::of(this)) {
+        extras->pressedAudio = index >= 0 && audioRect(index).contains(position) ? index : -1;
+        if (extras->pressedAudio >= 0) {
+            m_pressed = -1;
+            update();
+            return;
+        }
+    }
     m_pressed = index;
     m_pressedClose = index >= 0 && closeRect(index).contains(position);
     m_dragOrigin = position;
@@ -637,25 +1078,8 @@ void TabBar::mouseMoveEvent(QMouseEvent* event)
             m_dragIndex = m_pressed;
         }
         if (m_dragIndex >= 0) {
-            const int over = indexAt(position);
-            if (over >= 0 && over != m_dragIndex) {
-                const QString key = m_tabs.at(m_dragIndex).key;
-                const int from = m_dragIndex;
-                m_tabs.move(m_dragIndex, over);
-                // The colour and the state travel with the tab, because they
-                // live on it.
-                if (m_current == from) {
-                    m_current = over;
-                } else if (from < m_current && over >= m_current) {
-                    --m_current;
-                } else if (from > m_current && over <= m_current) {
-                    ++m_current;
-                }
-                m_dragIndex = over;
-                m_pressed = over;
-                update();
-                emit tabMoved(key, from, over);
-            }
+            dragTo(position);
+            updateAutoScroll(position);
             return;
         }
     }
@@ -663,10 +1087,17 @@ void TabBar::mouseMoveEvent(QMouseEvent* event)
     const int index = indexAt(position);
     const bool onClose = index >= 0 && closeRect(index).contains(position);
     const bool onNew = newTabRect().contains(position);
-    if (index != m_hovered || onClose != m_hoveredClose || onNew != m_hoveredNew) {
+    TabBarExtras* extras = TabBarExtras::of(this);
+    const int onAudio = index >= 0 && audioRect(index).contains(position) ? index : -1;
+    const bool audioChanged = extras && extras->hoveredAudio != onAudio;
+    if (index != m_hovered || onClose != m_hoveredClose || onNew != m_hoveredNew
+        || audioChanged) {
         // A shrunken tab hides its label, so the tip is the only way to read
         // it. Installed only when the label is actually elided.
-        if (index != m_hovered) {
+        if (onAudio >= 0) {
+            Tooltip::install(this, audio(m_tabs.at(onAudio).key) == Audio::Muted
+                                       ? tr("Unmute tab") : tr("Mute tab"));
+        } else if (index != m_hovered || audioChanged) {
             if (index >= 0 && tabRect(index).width() <= kMinWidth + 8) {
                 Tooltip::install(this, m_tabs.at(index).label);
             } else {
@@ -676,9 +1107,90 @@ void TabBar::mouseMoveEvent(QMouseEvent* event)
         m_hovered = index;
         m_hoveredClose = onClose;
         m_hoveredNew = onNew;
+        if (extras) {
+            extras->hoveredAudio = onAudio;
+        }
         update();
     }
     QWidget::mouseMoveEvent(event);
+}
+
+void TabBar::dragTo(const QPoint& position)
+{
+    if (m_dragIndex < 0) {
+        return;
+    }
+    if (TabBarExtras* extras = TabBarExtras::of(this)) {
+        extras->lastDragPosition = position;
+    }
+    // Held past an end of the band, the drag is over the nearest tab there:
+    // that is the tab the auto-scroll is bringing into view.
+    const QRect viewport = tabsViewport();
+    const QPoint probe(qBound(viewport.left(), position.x(), viewport.right()),
+                       qBound(kInsetTop, position.y(), height() - 2));
+    const int over = indexAt(probe);
+    if (over < 0 || over == m_dragIndex) {
+        return;
+    }
+    const QString key = m_tabs.at(m_dragIndex).key;
+    const int from = m_dragIndex;
+    m_tabs.move(m_dragIndex, over);
+    // The colour and the state travel with the tab, because they live on it.
+    if (m_current == from) {
+        m_current = over;
+    } else if (from < m_current && over >= m_current) {
+        --m_current;
+    } else if (from > m_current && over <= m_current) {
+        ++m_current;
+    }
+    m_dragIndex = over;
+    m_pressed = over;
+    placeInlineEditor();
+    update();
+    emit tabMoved(key, from, over);
+}
+
+void TabBar::updateAutoScroll(const QPoint& position)
+{
+    TabBarExtras* extras = TabBarExtras::of(this);
+    if (!extras) {
+        return;
+    }
+    const QRect viewport = tabsViewport();
+    int direction = 0;
+    if (m_dragIndex >= 0 && maximumScrollOffset() > 0) {
+        if (position.x() < viewport.left() + kAutoScrollZone && effectiveScroll() > 0) {
+            direction = -1;
+        } else if (position.x() > viewport.right() - kAutoScrollZone
+                   && effectiveScroll() < maximumScrollOffset()) {
+            direction = 1;
+        }
+    }
+    extras->autoScrollDirection = direction;
+    if (direction == 0) {
+        extras->autoScroll->stop();
+    } else if (!extras->autoScroll->isActive()) {
+        extras->autoScroll->start();
+    }
+}
+
+void TabBar::autoScrollStep()
+{
+    TabBarExtras* extras = TabBarExtras::of(this);
+    if (!extras || m_dragIndex < 0 || extras->autoScrollDirection == 0) {
+        if (extras) {
+            extras->autoScroll->stop();
+        }
+        return;
+    }
+    const int before = effectiveScroll();
+    setScrollOffset(before + extras->autoScrollDirection * kAutoScrollStep);
+    if (effectiveScroll() == before) {
+        extras->autoScroll->stop();
+        return;
+    }
+    // The strip moved under a pointer that did not: the tab under it changed.
+    dragTo(extras->lastDragPosition);
 }
 
 void TabBar::mouseReleaseEvent(QMouseEvent* event)
@@ -696,6 +1208,19 @@ void TabBar::mouseReleaseEvent(QMouseEvent* event)
         }
         update();
         return;
+    }
+
+    if (TabBarExtras* extras = TabBarExtras::of(this)) {
+        extras->autoScroll->stop();
+        extras->autoScrollDirection = 0;
+        const int pressedAudio = std::exchange(extras->pressedAudio, -1);
+        if (pressedAudio >= 0) {
+            if (indexAt(position) == pressedAudio && audioRect(pressedAudio).contains(position)) {
+                emit audioToggleRequested(m_tabs.at(pressedAudio).key);
+            }
+            update();
+            return;
+        }
     }
 
     const int pressed = m_pressed;
@@ -832,10 +1357,17 @@ void TabBar::paintEvent(QPaintEvent*)
     const int rule = qMax(1, profile.border(BorderRole::Divider));
     painter.fillRect(QRect(0, height() - rule, width(), rule), profile.colors.border);
 
+    // The tabs are drawn inside their band only: once the strip scrolls, a
+    // tab half under the "+" or the trailing actions is cut at the band's
+    // edge rather than drawn over them.
+    const QRect viewport = tabsViewport();
+    painter.save();
+    painter.setClipRect(viewport.adjusted(0, 0, 1, 0));
+    const TabBarExtras* extras = TabBarExtras::of(this);
     for (int index = 0; index < m_tabs.size(); ++index) {
         const Tab& tab = m_tabs.at(index);
         const QRect box = tabRect(index);
-        if (!box.intersects(rect())) {
+        if (!box.intersects(viewport)) {
             continue;
         }
         const ResolvedStyle style = resolve(tabStyleSpec(index), this, box.height());
@@ -877,11 +1409,14 @@ void TabBar::paintEvent(QPaintEvent*)
                 painter.drawRect(rule);
             }
         } else if (tab.color.isValid()) {
-            // Inactive tabs keep a faint trace of their colour, or a coloured
-            // set is only ever one tab's worth of information.
+            // Inactive tabs keep a trace of their colour, or a coloured set is
+            // only ever one tab's worth of information. The same rule as the
+            // current tab's, at a lower weight, so it reads as the same mark.
             painter.setPen(Qt::NoPen);
-            painter.setBrush(withAlpha(tab.color, 0.45));
-            painter.drawRect(QRectF(box.left(), box.bottom() - 1.0, box.width(), 1.0));
+            painter.setBrush(withAlpha(tab.color, 0.55));
+            const double inset = m_variant == Variant::Underline ? kUnderlineInset : 0.0;
+            painter.drawRect(QRectF(box.left() + inset, box.bottom() - kUnderlineHeight + 1,
+                                    box.width() - 2 * inset, kUnderlineHeight));
         }
 
         QColor ink = current ? style.checkedForeground
@@ -967,6 +1502,30 @@ void TabBar::paintEvent(QPaintEvent*)
             rightEdge -= kStateDot + kGap;
         }
 
+        // ── the speaker ──────────────────────────────────────────────────
+        const QRect speaker = audioRect(index);
+        if (!speaker.isNull()) {
+            const bool muted = audio(tab.key) == Audio::Muted;
+            const bool hotAudio = extras && extras->hoveredAudio == index;
+            if (hotAudio) {
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(profile.colors.surfaceHover);
+                painter.drawRoundedRect(QRectF(speaker).adjusted(-2, -2, 2, 2),
+                                        profile.radii.small, profile.radii.small);
+            }
+            const QColor speakerInk = muted ? profile.colors.textDisabled
+                                            : (hotAudio ? profile.colors.textPrimary
+                                                        : profile.colors.textSecondary);
+            paintGlyph(&painter, Glyph::Audio, QRectF(speaker), speakerInk);
+            if (muted) {
+                painter.setPen(QPen(speakerInk, kMuteStrike, Qt::SolidLine, Qt::RoundCap));
+                painter.setBrush(Qt::NoBrush);
+                painter.drawLine(QPointF(speaker.left() + 1, speaker.top() + 1),
+                                 QPointF(speaker.right(), speaker.bottom()));
+            }
+            rightEdge = speaker.left() - kGap;
+        }
+
         // ── the label ────────────────────────────────────────────────────
         const QFont font = tabFont(this, current);
         const QFontMetrics fm(font);
@@ -999,6 +1558,32 @@ void TabBar::paintEvent(QPaintEvent*)
         }
     }
 
+    painter.restore();
+
+    // ── the ends of a scrolled strip ─────────────────────────────────────
+    //
+    // A fade into the band's own colour where tabs continue out of sight.
+    if (m_variant == Variant::Browser) {
+        const QColor band = profile.colors.panelBgAlt;
+        QColor clear = band;
+        clear.setAlpha(0);
+        const int scroll = effectiveScroll();
+        const int bandHeight = height() - rule;
+        if (scroll > 0) {
+            QLinearGradient fade(viewport.left(), 0, viewport.left() + kEdgeFade, 0);
+            fade.setColorAt(0.0, band);
+            fade.setColorAt(1.0, clear);
+            painter.fillRect(QRect(viewport.left(), 0, kEdgeFade, bandHeight), fade);
+        }
+        if (scroll < maximumScrollOffset()) {
+            QLinearGradient fade(viewport.right() - kEdgeFade, 0, viewport.right() + 1, 0);
+            fade.setColorAt(0.0, clear);
+            fade.setColorAt(1.0, band);
+            painter.fillRect(QRect(viewport.right() - kEdgeFade + 1, 0, kEdgeFade, bandHeight),
+                             fade);
+        }
+    }
+
     // ── the new-tab button ───────────────────────────────────────────────
     const QRect plus = newTabRect();
     if (!plus.isNull()) {
@@ -1013,6 +1598,7 @@ void TabBar::paintEvent(QPaintEvent*)
     }
 
     if (m_ring.visibleOn(this) && m_current >= 0) {
+        painter.setClipRect(viewport.adjusted(0, 0, 1, 0));
         painter.setPen(QPen(profile.colors.accent, profile.border(BorderRole::Focus)));
         painter.setBrush(Qt::NoBrush);
         painter.drawRoundedRect(QRectF(tabRect(m_current)).adjusted(1, 1, -1, -2),

@@ -42,6 +42,14 @@ target_link_libraries(tst_navlist_inline_edit PRIVATE Novu::UI Qt6::Test Qt6::Wi
 add_test(NAME navlist_inline_edit COMMAND tst_navlist_inline_edit)
 set_tests_properties(navlist_inline_edit PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
 
+# A browser's tab strip: renaming in place by NavList's rules, a per-tab menu
+# request, scrolling past the width floor with hit-testing and reordering that
+# follow the scroll, and the per-tab speaker mark.
+add_executable(tst_tabbar_browser_workflow tst_tabbar_browser_workflow.cpp)
+target_link_libraries(tst_tabbar_browser_workflow PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME tabbar_browser_workflow COMMAND tst_tabbar_browser_workflow)
+set_tests_properties(tabbar_browser_workflow PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
+
 # Rail rows as drop targets: only declared rows accept, only the declared
 # payload type, a drop reports row and payload, and a rebuild keeps them.
 add_executable(tst_navlist_drop tst_navlist_drop.cpp)
