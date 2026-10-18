@@ -4,6 +4,9 @@
 #include "novu/ui/ThemeManager.h"
 
 #include <QApplication>
+#include <QItemSelectionModel>
+
+#include <algorithm>
 #include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -26,6 +29,7 @@ constexpr int kCellContentRole = Qt::UserRole + 977;
 
 constexpr int kContentGap = 7;
 constexpr int kContentDot = 6;
+constexpr int kContentGlyph = 12;
 
 } // namespace
 
@@ -177,8 +181,11 @@ public:
         const QColor ink = (option.state & QStyle::State_Selected)
                                ? profile.colors.textPrimary
                                : profile.colors.textSecondary;
-        paintCellContent(painter, option.rect.adjusted(pad, 0, -pad, 0), m_table,
-                         data.value<TableView::CellContent>(), ink);
+        const TableView::CellContent content = data.value<TableView::CellContent>();
+        // a wrapped cell reads from the top, so it keeps the row's top padding;
+        // a one-line cell is centred in the row and needs none
+        const int padV = content.wrapText ? profile.space(SpacingRole::TableCellPadding) : 0;
+        paintCellContent(painter, option.rect.adjusted(pad, padV, -pad, -padV), m_table, content, ink);
     }
 
     QSize sizeHint(const QStyleOptionViewItem& option,
@@ -214,6 +221,8 @@ TableView::TableView(QWidget* parent)
     // it gets here, so this is the reference's rule with nothing added.
     connect(this, &QTableWidget::cellClicked, this,
             [this](int row, int) { emit rowActivated(row); });
+    connect(this, &QTableWidget::cellDoubleClicked, this,
+            [this](int row, int) { emit rowDoubleActivated(row); });
 
     // `table.tbl tbody tr:hover{background:var(--panel)}` - mouseMoveEvent()
     // needs move events even with no button held, which Qt only delivers with
@@ -480,6 +489,9 @@ QSize cellContentSize(const QWidget* context, const TableView::CellContent& cont
     if (content.hasStatus) {
         width += kContentDot + kContentGap;
     }
+    if (content.hasGlyph) {
+        width += kContentGlyph + kContentGap;
+    }
     if (!content.text.isEmpty()) {
         width += metrics.horizontalAdvance(content.text);
     }
@@ -492,6 +504,55 @@ QSize cellContentSize(const QWidget* context, const TableView::CellContent& cont
         width += kContentGap + metrics.horizontalAdvance(content.trailing);
     }
     return QSize(width, height);
+}
+
+namespace {
+// What is laid out before and after the text, shared by measuring and painting.
+int leadingWidth(const TableView::CellContent& content)
+{
+    return (content.hasStatus ? kContentDot + kContentGap : 0)
+           + (content.hasGlyph ? kContentGlyph + kContentGap : 0);
+}
+
+int trailingWidth(const QWidget* context, const TableView::CellContent& content)
+{
+    int reserved = 0;
+    for (const TableView::CellBadge& badge : content.badges) {
+        reserved += kContentGap + badgeSizeFor(context, badge.text, Badge::Size::Regular).width();
+    }
+    if (!content.trailing.isEmpty()) {
+        reserved += kContentGap + QFontMetrics(roleMonoFont(context, TypeRole::Mono))
+                                      .horizontalAdvance(content.trailing);
+    }
+    return reserved;
+}
+
+QFont contentFont(const QWidget* context, const TableView::CellContent& content)
+{
+    QFont font = roleFont(context, TypeRole::Body);
+    if (content.strongText) {
+        font.setWeight(QFont::Medium);
+    }
+    return font;
+}
+} // namespace
+
+int cellContentHeight(const QWidget* context, const TableView::CellContent& content, int width)
+{
+    if (!context) {
+        return 0;
+    }
+    const QFontMetrics metrics(contentFont(context, content));
+    int height = metrics.height();
+    for (const TableView::CellBadge& badge : content.badges) {
+        height = qMax(height, badgeSizeFor(context, badge.text, Badge::Size::Regular).height());
+    }
+    if (content.wrapText && !content.text.isEmpty()) {
+        const int room = qMax(1, width - leadingWidth(content) - trailingWidth(context, content));
+        height = qMax(height, metrics.boundingRect(QRect(0, 0, room, 0),
+                                                   Qt::TextWordWrap | Qt::AlignLeft, content.text).height());
+    }
+    return height;
 }
 
 void paintCellContent(QPainter* painter, const QRect& box, const QWidget* context,
@@ -508,6 +569,10 @@ void paintCellContent(QPainter* painter, const QRect& box, const QWidget* contex
     // its last letter to an ellipsis, and a cell that was only a badge lost
     // the badge.
     const int end = box.x() + box.width();
+    // the line the marks sit on: the row's middle, or a wrapped text's first line
+    const double lineY = content.wrapText
+        ? box.top() + QFontMetrics(contentFont(context, content)).height() / 2.0
+        : box.center().y();
 
     if (content.hasStatus) {
         const QColor dot = statusDotToken(content.status).resolve(profile);
@@ -515,10 +580,16 @@ void paintCellContent(QPainter* painter, const QRect& box, const QWidget* contex
         painter->setRenderHint(QPainter::Antialiasing, true);
         painter->setPen(Qt::NoPen);
         painter->setBrush(dot);
-        painter->drawEllipse(QPointF(x + kContentDot / 2.0, box.center().y()),
+        painter->drawEllipse(QPointF(x + kContentDot / 2.0, lineY),
                              kContentDot / 2.0, kContentDot / 2.0);
         painter->restore();
         x += kContentDot + kContentGap;
+    }
+    if (content.hasGlyph) {
+        paintGlyph(painter, content.glyph,
+                   QRectF(x, lineY - kContentGlyph / 2.0, kContentGlyph, kContentGlyph),
+                   profile.colors.textTertiary, 0.0, 0.0, context);
+        x += kContentGlyph + kContentGap;
     }
 
     // The badges and the trailing note are measured first and reserved at the
@@ -546,11 +617,17 @@ void paintCellContent(QPainter* painter, const QRect& box, const QWidget* contex
         painter->save();
         painter->setFont(font);
         painter->setPen(textInk);
-        painter->drawText(QRect(x, box.top(), room, box.height()),
-                          Qt::AlignVCenter | Qt::AlignLeft,
-                          metrics.elidedText(content.text, Qt::ElideRight, room));
+        if (content.wrapText) {
+            painter->drawText(QRect(x, box.top(), room, box.height()),
+                              Qt::AlignTop | Qt::AlignLeft | Qt::TextWordWrap, content.text);
+            x += room;   // the badges go to the right edge, beside the first line
+        } else {
+            painter->drawText(QRect(x, box.top(), room, box.height()),
+                              Qt::AlignVCenter | Qt::AlignLeft,
+                              metrics.elidedText(content.text, Qt::ElideRight, room));
+            x += qMin(room, metrics.horizontalAdvance(content.text));
+        }
         painter->restore();
-        x += qMin(room, metrics.horizontalAdvance(content.text));
     }
 
     for (int i = 0; i < content.badges.size(); ++i) {
@@ -559,7 +636,7 @@ void paintCellContent(QPainter* painter, const QRect& box, const QWidget* contex
         if (x + size.width() > end) {
             break;
         }
-        paintBadge(painter, QRectF(x, box.center().y() - size.height() / 2.0,
+        paintBadge(painter, QRectF(x, lineY - size.height() / 2.0,
                                    size.width(), size.height()),
                    context, content.badges.at(i).text, content.badges.at(i).tone,
                    Badge::Size::Regular);
@@ -1136,6 +1213,16 @@ void TableView::fitRows()
                                    : widget->sizeHint().height());
                 continue;
             }
+            if (const QTableWidgetItem* painted = this->item(row, column)) {
+                const QVariant data = painted->data(kCellContentRole);
+                if (data.isValid()) {
+                    const CellContent cell = data.value<CellContent>();
+                    if (cell.wrapText) {
+                        content = qMax(content, cellContentHeight(this, cell, columnWidth(column) - 2 * padH));
+                    }
+                    continue;
+                }
+            }
             if (column >= m_roles.size()
                 || (m_roles.at(column) != ColumnRole::Flexible
                     && m_roles.at(column) != ColumnRole::Mono)) {
@@ -1156,6 +1243,13 @@ void TableView::fitRows()
             content = qMax(content, bounds.height());
         }
         tallest = qMax(tallest, content);
+        if (!m_uniformRowHeights) {
+            setRowHeight(row, qMax(floor, content + 2 * padV));
+        }
+    }
+    if (!m_uniformRowHeights) {
+        updateGeometry();
+        return;
     }
 
     const int height = qMax(floor, tallest + 2 * padV);
@@ -1187,8 +1281,11 @@ void TableView::paintEvent(QPaintEvent* event)
         // whole function returns, so the ordering only matters for text.
         const ThemeProfile& profile = themeFor(this);
         QPainter under(viewport());
+        const QList<int> picked = selectedRowList();
         for (int row = 0; row < rows; ++row) {
-            const bool selected = m_selectionAccented && row == currentRow();
+            const bool selected = m_selectionAccented
+                && (selectionMode() == QAbstractItemView::SingleSelection ? row == currentRow()
+                                                                          : picked.contains(row));
             const bool hovered = row == m_hoveredRow;
             if (!selected && !hovered) {
                 continue;
@@ -1225,9 +1322,10 @@ void TableView::paintEvent(QPaintEvent* event)
     // hairline bar on the selected row's own leading edge, painted rather
     // than a border on the cell so it reads as the row's, not the first
     // column's.
-    if (m_selectionAccented && currentRow() >= 0) {
-        const int row = currentRow();
-        const int top = rowViewportPosition(row);
+    if (m_selectionAccented) {
+        const QList<int> bars = selectionMode() == QAbstractItemView::SingleSelection
+            ? (currentRow() >= 0 ? QList<int>{currentRow()} : QList<int>{})
+            : selectedRowList();
         constexpr double kBarWidth = 2.5;
         // Accent while this list is what keyboard input reaches; the same
         // muted tone the row's own wash falls back to once focus has moved to
@@ -1235,12 +1333,131 @@ void TableView::paintEvent(QPaintEvent* event)
         // whether this is still "the focused list", not just about which row.
         const QColor barColor = hasFocus() ? profile.colors.accent
                                            : profile.colors.surfaceActive;
-        painter.fillRect(QRectF(0, top, kBarWidth, rowHeight(row)), barColor);
+        for (int row : bars) {
+            painter.fillRect(QRectF(0, rowViewportPosition(row), kBarWidth, rowHeight(row)), barColor);
+        }
     }
+
+    // where the dragged rows will land: a line between two rows
+    if (m_dropBefore >= 0) {
+        const int y = m_dropBefore < rows ? rowViewportPosition(m_dropBefore)
+                                          : rowViewportPosition(rows - 1) + rowHeight(rows - 1);
+        painter.fillRect(QRect(0, qMax(0, y - 1), viewport()->width(), 2), profile.colors.accent);
+    }
+}
+
+void TableView::setUniformRowHeights(bool uniform)
+{
+    if (m_uniformRowHeights == uniform) {
+        return;
+    }
+    m_uniformRowHeights = uniform;
+    fitRows();
+}
+
+void TableView::setRowsReorderable(bool reorderable)
+{
+    m_rowsReorderable = reorderable;
+}
+
+QList<int> TableView::selectedRowList() const
+{
+    QList<int> rows;
+    if (const QItemSelectionModel* model = selectionModel()) {
+        for (const QModelIndex& index : model->selectedRows()) {
+            rows << index.row();
+        }
+    }
+    std::sort(rows.begin(), rows.end());
+    return rows;
+}
+
+int TableView::dropBeforeAt(int y) const
+{
+    const int rows = rowCount();
+    for (int row = 0; row < rows; ++row) {
+        if (y < rowViewportPosition(row) + rowHeight(row) / 2) {
+            return row;
+        }
+    }
+    return rows;
+}
+
+void TableView::mousePressEvent(QMouseEvent* event)
+{
+    m_pressRow = -1;
+    m_pressKeptSelection = false;
+    m_dragRows.clear();
+    m_dropBefore = -1;
+    if (m_rowsReorderable && event->button() == Qt::LeftButton) {
+        m_pressRow = rowAt(event->position().toPoint().y());
+        m_pressAt = event->position().toPoint();
+        // pressing one of several selected rows keeps them all, so they can
+        // be dragged together; a click without a drag picks it alone on release
+        if (m_pressRow >= 0 && event->modifiers() == Qt::NoModifier
+            && selectedRowList().size() > 1 && selectedRowList().contains(m_pressRow)) {
+            m_pressKeptSelection = true;
+            event->accept();
+            return;
+        }
+    }
+    QTableWidget::mousePressEvent(event);
+}
+
+void TableView::mouseReleaseEvent(QMouseEvent* event)
+{
+    if (!m_dragRows.isEmpty()) {
+        const QList<int> moved = m_dragRows;
+        const int before = m_dropBefore;
+        m_dragRows.clear();
+        m_dropBefore = -1;
+        m_pressRow = -1;
+        unsetCursor();
+        viewport()->update();
+        event->accept();
+        // a drop beside the rows themselves moves nothing
+        const bool inPlace = before >= moved.first() && before <= moved.last() + 1
+                             && moved.last() - moved.first() + 1 == moved.size();
+        if (before >= 0 && !inPlace) {
+            emit rowsMoved(moved, before);
+        }
+        return;
+    }
+    if (m_pressKeptSelection) {
+        m_pressKeptSelection = false;
+        const int row = m_pressRow;
+        m_pressRow = -1;
+        if (row >= 0) {
+            setCurrentCell(row, 0, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+            emit rowActivated(row);
+        }
+        event->accept();
+        return;
+    }
+    m_pressRow = -1;
+    QTableWidget::mouseReleaseEvent(event);
 }
 
 void TableView::mouseMoveEvent(QMouseEvent* event)
 {
+    if (m_rowsReorderable && m_pressRow >= 0 && (event->buttons() & Qt::LeftButton)) {
+        const QPoint at = event->position().toPoint();
+        if (m_dragRows.isEmpty()
+            && (at - m_pressAt).manhattanLength() >= QApplication::startDragDistance()) {
+            const QList<int> picked = selectedRowList();
+            m_dragRows = picked.contains(m_pressRow) ? picked : QList<int>{m_pressRow};
+            setCursor(Qt::ClosedHandCursor);
+        }
+        if (!m_dragRows.isEmpty()) {
+            const int before = dropBeforeAt(at.y());
+            if (before != m_dropBefore) {
+                m_dropBefore = before;
+                viewport()->update();
+            }
+            event->accept();
+            return;
+        }
+    }
     QTableWidget::mouseMoveEvent(event);
     const int row = rowAt(event->position().toPoint().y());
     if (row != m_hoveredRow) {

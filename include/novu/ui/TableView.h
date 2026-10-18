@@ -3,6 +3,7 @@
 #include "novu/ui/Export.h"
 
 #include "novu/ui/Badge.h"
+#include "novu/ui/Icon.h"
 #include "novu/ui/StatusDot.h"
 
 #include <QColor>
@@ -133,6 +134,15 @@ public:
         // Muted, and only if there is room left once the badges have theirs.
         QString trailing;
         bool strongText = false;
+        // A small mark after the status dot - what kind of thing the row is
+        // (one agent or a workflow, say), in the muted ink.
+        bool hasGlyph = false;
+        Glyph glyph = Glyph::Agent;
+        // The whole text, on as many lines as it takes, from the top of the
+        // row; the dot, the mark and the badges stay on its first line. With
+        // setUniformRowHeights(false) the row is exactly that tall. Off, the
+        // text is one line that ends in an ellipsis, as before.
+        bool wrapText = false;
     };
 
     void setContent(int row, int column, const CellContent& content);
@@ -188,6 +198,25 @@ public:
     void setStretchToFill(bool stretch);
     bool stretchesToFill() const { return m_stretchToFill; }
 
+    // On by default: every row is as tall as the tallest, which is what a
+    // table is. A list of items whose text wraps - a task queue, a feed - is
+    // not a grid, and a two-line row there must not make every one-line row
+    // two lines tall. Off, each row is the height of its own content.
+    void setUniformRowHeights(bool uniform);
+    bool hasUniformRowHeights() const { return m_uniformRowHeights; }
+
+    // Rows that a person puts in order by dragging them up or down. A line
+    // between two rows shows where they land; the table moves nothing itself
+    // - it says which rows go where (rowsMoved) and the page reorders its data
+    // and fills the table again, so the order is the page's, not the view's.
+    // Dragging a selected row of several takes all of them.
+    void setRowsReorderable(bool reorderable);
+    bool rowsReorderable() const { return m_rowsReorderable; }
+
+    // The rows selected, top first. With ExtendedSelection (Ctrl / Shift
+    // click) more than one; the accented wash follows every one of them.
+    QList<int> selectedRowList() const;
+
 signals:
     // A row was opened: the design's `class="selectable"` plus a
     // `data-open-*` / `data-select-*` attribute on the row itself.
@@ -205,6 +234,10 @@ signals:
     // click on a row - or, more often, grew nothing at all and left the row
     // dead while only the eye button worked.
     void rowActivated(int row);
+    // A row was double-clicked: opened for editing, as opposed to picked.
+    void rowDoubleActivated(int row);
+    // A drag put `rows` (top first) before `beforeRow`; rowCount() is the end.
+    void rowsMoved(const QList<int>& rows, int beforeRow);
 
 protected:
     bool event(QEvent* event) override;
@@ -219,6 +252,8 @@ protected:
     // anything. Qt's own item delegate paints no such thing on its own.
     void mouseMoveEvent(QMouseEvent* event) override;
     void leaveEvent(QEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
 
 private:
     // Raises the row height to fit the tallest cell widget actually in the
@@ -243,11 +278,23 @@ private:
     bool m_stretchToFill = true;
     int m_heightCap = 0;
     int m_hoveredRow = -1;
+    bool m_uniformRowHeights = true;
+    bool m_rowsReorderable = false;
+    // a drag in progress: where it began, which rows it carries, where they land
+    int m_pressRow = -1;
+    QPoint m_pressAt;
+    bool m_pressKeptSelection = false;
+    QList<int> m_dragRows;
+    int m_dropBefore = -1;
+    int dropBeforeAt(int y) const;
 };
 
 // What a painted cell measures and how it draws, so the delegate and the
 // column measurement cannot disagree about how wide a row needs to be.
 QSize cellContentSize(const QWidget* context, const TableView::CellContent& content);
+// The height a painted cell needs in `width` (the cell less its padding) -
+// one line, or the wrapped text when the content wraps.
+int cellContentHeight(const QWidget* context, const TableView::CellContent& content, int width);
 void paintCellContent(QPainter* painter, const QRect& box, const QWidget* context,
                       const TableView::CellContent& content, const QColor& textInk);
 
