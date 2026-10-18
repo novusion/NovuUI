@@ -86,6 +86,14 @@ target_link_libraries(tst_tooltip_help PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
 add_test(NAME tooltip_help COMMAND tst_tooltip_help)
 set_tests_properties(tooltip_help PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
 
+# The global switch: off silences every hover path - the branded card, plain
+# QWidget::setToolTip, Qt::ToolTipRole and a component's own handler - and on
+# brings each back.
+add_executable(tst_tooltip_gate tst_tooltip_gate.cpp)
+target_link_libraries(tst_tooltip_gate PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME tooltip_gate COMMAND tst_tooltip_gate)
+set_tests_properties(tooltip_gate PROPERTIES TIMEOUT 60)
+
 add_executable(tst_card_interaction tst_card_interaction.cpp)
 target_link_libraries(tst_card_interaction PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
 add_test(NAME card_interaction COMMAND tst_card_interaction)

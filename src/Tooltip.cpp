@@ -15,6 +15,7 @@
 #include <QScreen>
 #include <QTextOption>
 #include <QTimer>
+#include <QToolTip>
 
 #include <algorithm>
 
@@ -115,7 +116,59 @@ int wrappedHeight(const QFontMetrics& fm, const QString& text, int width, double
     return qRound(fm.height() * leading) * lines;
 }
 
+// The global switch's state. On by default: an application that never sets it
+// gets the tooltips it always had.
+bool g_tooltipsEnabled = true;
+
+// The one application-wide gate. An application event filter sees every
+// event before its receiver does, so a QEvent::ToolTip swallowed here never
+// reaches QWidget::event(), an item view's viewportEvent(), QTabBar, QMenu or
+// QWebEngineView - and never reaches a component's own handler either.
+class TooltipGate final : public QObject
+{
+public:
+    using QObject::QObject;
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (!g_tooltipsEnabled && event->type() == QEvent::ToolTip) {
+            event->accept();
+            return true;
+        }
+        return QObject::eventFilter(watched, event);
+    }
+};
+
+QPointer<TooltipGate> g_gate;
+
+void ensureGate()
+{
+    QCoreApplication* app = QCoreApplication::instance();
+    if (!app || g_gate) {
+        return;
+    }
+    g_gate = new TooltipGate(app);
+    app->installEventFilter(g_gate);
+}
+
 } // namespace
+
+bool tooltipsEnabled()
+{
+    return g_tooltipsEnabled;
+}
+
+void setTooltipsEnabled(bool on)
+{
+    ensureGate();
+    g_tooltipsEnabled = on;
+    if (!on) {
+        // Whatever is on screen goes now, not when the pointer next moves.
+        Tooltip::hideTip();
+        QToolTip::hideText();
+    }
+}
 
 Tooltip& Tooltip::instance()
 {
@@ -322,7 +375,7 @@ void Tooltip::scheduleFor(QWidget* target)
     // A menu or a transient surface opening takes over the screen the tip is
     // drawn on, and Qt gives popups their own window. Checking here rather
     // than watching for it means no timer runs to find out.
-    if (QApplication::activePopupWidget()) {
+    if (QApplication::activePopupWidget() || !g_tooltipsEnabled) {
         return;
     }
     m_pending = target;
@@ -420,7 +473,9 @@ void Tooltip::relayout()
 void Tooltip::present(QWidget* target)
 {
     m_showTimer->stop();
-    if (!target || !m_tips.contains(target) || !target->isVisible()) {
+    // The global switch, checked where every path ends - the hover timer,
+    // keyboard focus and showFor() all arrive here.
+    if (!g_tooltipsEnabled || !target || !m_tips.contains(target) || !target->isVisible()) {
         dismiss();
         return;
     }
