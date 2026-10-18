@@ -5,6 +5,7 @@
 
 #include <QApplication>
 #include <QItemSelectionModel>
+#include <QLabel>
 
 #include <algorithm>
 #include <QFontMetrics>
@@ -1338,6 +1339,14 @@ void TableView::paintEvent(QPaintEvent* event)
         }
     }
 
+    // the rows in the hand are left where they were, faded, until they land
+    if (!m_dragRows.isEmpty()) {
+        QColor veil = profile.colors.panelBg;
+        veil.setAlphaF(0.55);
+        for (int row : m_dragRows)
+            painter.fillRect(QRect(0, rowViewportPosition(row), viewport()->width(), rowHeight(row)), veil);
+    }
+
     // where the dragged rows will land: a line between two rows
     if (m_dropBefore >= 0) {
         const int y = m_dropBefore < rows ? rowViewportPosition(m_dropBefore)
@@ -1370,6 +1379,61 @@ QList<int> TableView::selectedRowList() const
     }
     std::sort(rows.begin(), rows.end());
     return rows;
+}
+
+void TableView::showGhost(const QPoint& viewportPos)
+{
+    dropGhost();
+    QWidget* root = window();
+    if (!root || m_dragRows.isEmpty()) {
+        return;
+    }
+    // the carried rows, one under another, as they look in the list - taken
+    // before they are faded in place
+    const QList<int> carried = m_dragRows;
+    m_dragRows.clear();
+    int height = 0;
+    for (int row : carried) height += rowHeight(row);
+    const int width = viewport()->width();
+    const qreal ratio = devicePixelRatioF();
+    QPixmap image(QSize(width, height) * ratio);
+    image.setDevicePixelRatio(ratio);
+    image.fill(Qt::transparent);
+    {
+        QPainter painter(&image);
+        const ThemeProfile& profile = themeFor(this);
+        painter.setOpacity(0.86);
+        painter.fillRect(QRect(0, 0, width, height), profile.colors.panelBgAlt);
+        int y = 0;
+        for (int row : carried) {
+            const QRect source(0, rowViewportPosition(row), width, rowHeight(row));
+            painter.drawPixmap(QPoint(0, y), viewport()->grab(source));
+            y += rowHeight(row);
+        }
+        painter.setOpacity(1.0);
+        painter.setPen(QPen(profile.colors.accent, 1));
+        painter.drawRect(QRectF(0.5, 0.5, width - 1, height - 1));
+    }
+    m_dragRows = carried;
+    viewport()->update();
+    m_ghost = new QLabel(root);
+    m_ghost->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_ghost->setPixmap(image);
+    m_ghost->setFixedSize(width, height);
+    // held where it was taken: the point under the pointer stays under it
+    m_ghostOffset = QPoint(viewportPos.x(), viewportPos.y() - rowViewportPosition(carried.first()));
+    m_ghost->move(root->mapFromGlobal(viewport()->mapToGlobal(viewportPos)) - m_ghostOffset);
+    m_ghost->show();
+    m_ghost->raise();
+}
+
+void TableView::dropGhost()
+{
+    if (m_ghost) {
+        m_ghost->hide();
+        m_ghost->deleteLater();
+        m_ghost = nullptr;
+    }
 }
 
 int TableView::dropBeforeAt(int y) const
@@ -1412,6 +1476,7 @@ void TableView::mouseReleaseEvent(QMouseEvent* event)
         m_dragRows.clear();
         m_dropBefore = -1;
         m_pressRow = -1;
+        dropGhost();
         unsetCursor();
         viewport()->update();
         event->accept();
@@ -1447,8 +1512,14 @@ void TableView::mouseMoveEvent(QMouseEvent* event)
             const QList<int> picked = selectedRowList();
             m_dragRows = picked.contains(m_pressRow) ? picked : QList<int>{m_pressRow};
             setCursor(Qt::ClosedHandCursor);
+            showGhost(m_pressAt);
         }
         if (!m_dragRows.isEmpty()) {
+            if (m_ghost) {
+                QWidget* root = m_ghost->parentWidget();
+                m_ghost->move(root->mapFromGlobal(viewport()->mapToGlobal(at)) - m_ghostOffset);
+                m_ghost->raise();
+            }
             const int before = dropBeforeAt(at.y());
             if (before != m_dropBefore) {
                 m_dropBefore = before;

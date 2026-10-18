@@ -12,6 +12,8 @@
 #include <QTableWidget>
 #include <QVector>
 
+class QLabel;
+
 namespace novu::ui {
 
 // The table used across all Novu applications.
@@ -286,7 +288,13 @@ private:
     bool m_pressKeptSelection = false;
     QList<int> m_dragRows;
     int m_dropBefore = -1;
+    // what the hand holds while it drags: the rows themselves, drawn over the
+    // window and following the pointer (as Flow's board does), not a cursor
+    QLabel* m_ghost = nullptr;
+    QPoint m_ghostOffset;
     int dropBeforeAt(int y) const;
+    void showGhost(const QPoint& viewportPos);
+    void dropGhost();
 };
 
 // What a painted cell measures and how it draws, so the delegate and the
