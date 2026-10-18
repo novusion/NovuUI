@@ -43,6 +43,18 @@ int paddingFor(const QWidget* widget,ControlSize size)
     return size==ControlSize::Small?c.buttonPaddingSmall:size==ControlSize::Large?c.buttonPaddingLarge:c.buttonPadding;
 }
 
+// The radius handed to the style sheet. QStyleSheetStyle draws no rounding
+// at all once a corner radius reaches half the box: a pill (radius = half the
+// control height) on a button exactly that tall came out as a plain
+// rectangle with a stray edge, while the same preset one pixel taller - the
+// composer's Send, whose caption font measures taller - stayed a pill. Held
+// one pixel under half of the height the button really has, so a pill is a
+// pill in every row it is placed in.
+int sheetRadius(int radius, int height)
+{
+    return qMin(radius, qMax(0, height / 2 - 1));
+}
+
 } // namespace
 
 Button::Button(QWidget* parent)
@@ -98,7 +110,8 @@ void Button::setTrailingGlyph(Glyph glyph)
         return;
     }
     m_trailingGlyph = glyph;
-    updateGeometry();
+    // The style sheet reserves the glyph's space; see applyVariant().
+    applyVariant();
     update();
 }
 
@@ -340,11 +353,21 @@ void Button::applyVariant()
         .arg(css(style.background), style.foreground.name())
         .arg(style.borderWidth)
         .arg(css(style.border))
-        .arg(style.radius)
+        .arg(sheetRadius(style.radius, sizeHint().height()))
         .arg(css(style.hoverBackground), css(style.hoverBorder),
              disabledOpacity>=0?style.foreground.name():style.disabledForeground.name(),
              css(disabledOpacity>=0?style.border:style.disabledBorder),
-             disabledOpacity>=0?css(style.background):QStringLiteral("transparent")));
+             disabledOpacity>=0?css(style.background):QStringLiteral("transparent"))
+        // A trailing glyph is painted by paintEvent() in the last glyph-plus-
+        // gap of the width sizeHint() asked for. QPushButton centres its
+        // caption across the whole content rect, so without this the caption
+        // sat half that space too far right and ran into the glyph. Taking the
+        // space out of the content rect centres the caption in what is left,
+        // and the gap between them is exactly kIconGap.
+        + (m_trailingGlyph == Glyph::None
+               ? QString()
+               : QStringLiteral("QPushButton { padding-right: %1px; }")
+                     .arg(glyphSizeFor(this, m_size) + kIconGap)));
 
     updateGeometry();
 }

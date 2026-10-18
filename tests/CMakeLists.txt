@@ -100,6 +100,16 @@ target_link_libraries(tst_toggle_row_height PRIVATE Novu::UI Qt6::Test Qt6::Widg
 add_test(NAME toggle_row_height COMMAND tst_toggle_row_height)
 set_tests_properties(toggle_row_height PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
 
+add_executable(tst_toggle_click_state tst_toggle_click_state.cpp)
+target_link_libraries(tst_toggle_click_state PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME toggle_click_state COMMAND tst_toggle_click_state)
+set_tests_properties(toggle_click_state PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+
+add_executable(tst_small_button_pill tst_small_button_pill.cpp)
+target_link_libraries(tst_small_button_pill PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME small_button_pill COMMAND tst_small_button_pill)
+set_tests_properties(small_button_pill PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+
 add_executable(tst_setting_row_height tst_setting_row_height.cpp)
 target_link_libraries(tst_setting_row_height PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
 add_test(NAME setting_row_height COMMAND tst_setting_row_height)

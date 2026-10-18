@@ -110,10 +110,15 @@ void Toggle::checkStateSet()
 void Toggle::nextCheckState()
 {
     // Toggling is the whole interaction, and it happens on release inside the
-    // control - which QAbstractButton already arranges. Overridden only so the
-    // slide starts from the same place whether the change came from a click,
-    // the space bar or setChecked().
+    // control - which QAbstractButton already arranges.
     QAbstractButton::nextCheckState();
+    // A click or the space bar reaches setChecked() through here with
+    // QAbstractButton's refresh blocked, so checkStateSet() is NOT called for
+    // it - Qt calls that hook only for setChecked() from outside
+    // nextCheckState(). Without this every click changed the checked state and
+    // never moved the knob: the caption beside it said "Shared" while the
+    // switch was still drawn off. Only setChecked() from code ever animated.
+    animateTo(isChecked() ? 1.0 : 0.0);
 }
 
 void Toggle::enterEvent(QEnterEvent* event)
