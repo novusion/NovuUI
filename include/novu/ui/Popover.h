@@ -172,6 +172,10 @@ public:
     // which kind of menu it is on.
     bool closesOnTrigger() const { return m_closesOnTrigger; }
     void setClosesOnTrigger(bool closes) { m_closesOnTrigger = closes; }
+    // The tallest the menu opens before it scrolls (420 unless set). The
+    // window or the screen it opens in still bounds it; what does not fit
+    // scrolls, the last row included.
+    void setMaximumMenuHeight(int height) { m_maxHeight = height; }
     bool isChecked(const QString& key) const;
     // `.pitem.danger` — the ink and the hover both go red. For the one entry a
     // user must not hit by accident.
@@ -263,6 +267,7 @@ private:
 
     QPointer<Popover> m_parentMenu;
     bool m_closesOnTrigger = true;
+    int m_maxHeight = 420;
     Entry* find(const QString& key);
     const Entry* find(const QString& key) const;
 

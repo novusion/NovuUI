@@ -25,9 +25,8 @@ namespace {
 
 // `.popover { min-width:230px; border-radius:12px; padding:6px }`.
 constexpr int kMinWidth = 230;
-// A menu never grows past these: a long list scrolls, a long name elides
-// and says itself in a tooltip.
-constexpr int kMaxHeight = 420;
+// A menu never grows past these: a long list scrolls (past m_maxHeight, 420
+// unless the owner sets it), a long name elides and says itself in a tooltip.
 constexpr int kMaxWidth = 520;
 constexpr int kEdge = 4;
 constexpr int kPadding = 6;
@@ -737,7 +736,7 @@ void Popover::place(const QRect& anchorBox, const QWidget* reference)
     const int width = qMin(content.width(), qMin(kMaxWidth, bounds.width() - 2 * kEdge));
     const int below = bounds.bottom() - kEdge - (anchorBox.bottom() + kEdge);
     const int above = anchorBox.top() - kEdge - (bounds.top() + kEdge);
-    const int wanted = qMin(content.height(), kMaxHeight);
+    const int wanted = qMin(content.height(), m_maxHeight);
     bool down = true;
     int height = wanted;
     if (wanted > below) {
