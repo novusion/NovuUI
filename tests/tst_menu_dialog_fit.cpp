@@ -10,6 +10,7 @@
 
 #include <QApplication>
 #include <QLabel>
+#include <QSignalSpy>
 #include <QTest>
 #include <QTimer>
 #include <QWidget>
@@ -45,6 +46,39 @@ private slots:
                  qPrintable(QStringLiteral("menu %1..%2, submenu at %3")
                                 .arg(menu->geometry().left()).arg(menu->geometry().right())
                                 .arg(sub->geometry().left())));
+        menu->close();
+        delete menu;
+    }
+
+    // the pointer goes from the item to its submenu across the menu's right
+    // padding: the submenu stays open and its item can be clicked
+    void submenuSurvivesThePointerCrossingThePadding()
+    {
+        QWidget host;
+        host.setGeometry(100, 100, 1000, 600);
+        host.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&host));
+
+        auto* menu = new Popover(&host);
+        menu->addItem(QStringLiteral("a"), QStringLiteral("New dataset"));
+        Popover* sub = menu->addSubmenu(QStringLiteral("s"), QStringLiteral("Load preset"));
+        sub->addItem(QStringLiteral("p"), QStringLiteral("Taxonomy - Graphics Core"));
+        menu->popupAt(host.mapToGlobal(QPoint(20, 20)));
+        QTRY_VERIFY(menu->isVisible());
+
+        const QRect row = menu->itemRect(menu->indexOfKey(QStringLiteral("s")));
+        QTest::mouseMove(menu, row.center());
+        QTRY_VERIFY(sub->isVisible());
+        // the menu's own padding right of the item, not yet under the submenu
+        // (it starts 2 px inside the menu): no item there
+        QTest::mouseMove(menu, QPoint(menu->width() - 4, row.center().y()));
+        QVERIFY2(sub->isVisible(), "the submenu closed while the pointer crossed the padding");
+        // ... and into the submenu, onto its item
+        QSignalSpy chosen(sub, &Popover::triggered);
+        const QRect target = sub->itemRect(sub->indexOfKey(QStringLiteral("p")));
+        QTest::mouseMove(sub, target.center());
+        QTest::mouseClick(sub, Qt::LeftButton, {}, target.center());
+        QTRY_COMPARE(chosen.count(), 1);
         menu->close();
         delete menu;
     }

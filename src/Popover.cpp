@@ -916,6 +916,14 @@ void Popover::hoverAt(const QPoint& local)
 {
     const int index = indexAt(local);
     const int hovered = (index >= 0 && m_items.at(index).enabled) ? index : -1;
+    // On the way to an open submenu the pointer crosses this menu's padding
+    // (and maybe a separator or a group title): nothing there is an item, and
+    // closing the submenu for it made the submenu unreachable. It closes when
+    // another item is hovered, as menus do.
+    if (index < 0 && m_hovered >= 0 && m_items.at(m_hovered).submenu
+        && m_items.at(m_hovered).submenu->isVisible()) {
+        return;
+    }
     if (hovered != m_hovered) {
         m_hovered = hovered;
         openSubmenu(hovered);
