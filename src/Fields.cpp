@@ -149,7 +149,7 @@ void ComboBox::showPopup()
     // the profile gives the list, and the view scrolls past the cap the way
     // any list does.
     if (QAbstractItemView* list = view()) {
-        constexpr int kMaxVisibleRows = 8;
+        constexpr int kMaxVisibleRows = 7;   // 5-7 rows, then the list scrolls
         const int rowHeight = count() > 0 && list->sizeHintForRow(0) > 0
                                   ? list->sizeHintForRow(0)
                                   : themeFor(this).controlHeight(ControlSize::Small);
