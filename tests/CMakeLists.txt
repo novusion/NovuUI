@@ -160,3 +160,10 @@ add_executable(tst_file_picker_places tst_file_picker_places.cpp)
 target_link_libraries(tst_file_picker_places PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
 add_test(NAME file_picker_places COMMAND tst_file_picker_places)
 set_tests_properties(file_picker_places PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 60)
+
+# A submenu opens beside its menu, and a message dialog is as large as its
+# message: two surfaces that used to hide their own content.
+add_executable(tst_menu_dialog_fit tst_menu_dialog_fit.cpp)
+target_link_libraries(tst_menu_dialog_fit PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME menu_dialog_fit COMMAND tst_menu_dialog_fit)
+set_tests_properties(menu_dialog_fit PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)

@@ -1225,6 +1225,28 @@ Dialog* buildMessageDialog(QWidget* parent, const QString& title, const QString&
     return dialog;
 }
 
+// The message dialogs' size. `base` is the least they take -- the size they
+// always had -- and a message that does not fit makes the dialog wider (up
+// to kMessageMaxWidth, so a long sentence does not become a narrow tower)
+// and then as tall as the text needs. A fixed size clipped every message
+// longer than about two lines, top and bottom.
+constexpr int kMessageMaxWidth = 460;
+
+void sizeMessageDialog(Dialog* dialog, QSize base)
+{
+    dialog->ensurePolished();
+    QVBoxLayout* layout = dialog->contentLayout();
+    layout->activate();
+    const auto heightAt = [layout](int width) {
+        return layout->hasHeightForWidth() ? layout->totalHeightForWidth(width)
+                                           : layout->totalSizeHint().height();
+    };
+    int width = base.width();
+    if (heightAt(width) > base.height())
+        width = qMax(width, kMessageMaxWidth);
+    dialog->shell()->setContentSize(QSize(width, qMax(base.height(), heightAt(width))));
+}
+
 } // namespace
 
 bool Dialog::confirm(QWidget* parent, const QString& title, const QString& message,
@@ -1256,7 +1278,7 @@ bool Dialog::confirm(QWidget* parent, const QString& title, const QString& messa
         accept->setDefault(true);
     }
 
-    dialog->shell()->setContentSize(QSize(360, 140));
+    sizeMessageDialog(dialog, QSize(360, 140));
     const bool confirmed = dialog->exec() == QDialog::Accepted;
     dialog->deleteLater();
     return confirmed;
@@ -1270,7 +1292,7 @@ void Dialog::inform(QWidget* parent, const QString& title, const QString& messag
     dialog->buttonRow()->addWidget(ok);
     connect(ok, &QAbstractButton::clicked, dialog, &QDialog::accept);
     ok->setDefault(true);
-    dialog->shell()->setContentSize(QSize(360, 130));
+    sizeMessageDialog(dialog, QSize(360, 130));
     dialog->exec();
     dialog->deleteLater();
 }
@@ -1285,7 +1307,7 @@ void Dialog::reportError(QWidget* parent, const QString& title, const QString& m
     dialog->buttonRow()->addWidget(ok);
     connect(ok, &QAbstractButton::clicked, dialog, &QDialog::accept);
     ok->setDefault(true);
-    dialog->shell()->setContentSize(QSize(380, 140));
+    sizeMessageDialog(dialog, QSize(380, 140));
     dialog->exec();
     dialog->deleteLater();
 }

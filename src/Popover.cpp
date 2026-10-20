@@ -29,6 +29,31 @@ constexpr int kMinWidth = 230;
 // unless the owner sets it), a long name elides and says itself in a tooltip.
 constexpr int kMaxWidth = 520;
 constexpr int kEdge = 4;
+
+// The widget whose window a menu stays inside. A submenu's parent is the menu
+// it opens from -- itself a window (Qt::Popup) -- so walking up past every
+// menu reaches the application window the menu tree belongs to. Measured
+// against the parent menu instead, a submenu was squeezed back over it.
+const QWidget* boundsReference(const QWidget* widget)
+{
+    while (widget && widget->inherits("novu::ui::Popover"))
+        widget = widget->parentWidget();
+    return widget;
+}
+
+// Where a menu opened from `reference` may lie: the window, when it can hold
+// a menu at all, else the screen.
+QRect menuBounds(const QWidget* reference, const QPoint& at)
+{
+    const QScreen* screen = reference ? reference->screen() : QGuiApplication::screenAt(at);
+    QRect bounds = (screen ? screen : QGuiApplication::primaryScreen())->availableGeometry();
+    if (reference && reference->window()) {
+        const QRect window = reference->window()->frameGeometry().intersected(bounds);
+        if (window.height() >= 160 && window.width() >= kMinWidth)
+            bounds = window;
+    }
+    return bounds;
+}
 constexpr int kPadding = 6;
 
 // `.pitem { padding:7px 10px; gap:9px; border-radius:8px }`.
@@ -437,7 +462,9 @@ void Popover::openSubmenu(int index,bool keyboard)
     if(index<0||index>=m_items.size()||!m_items[index].enabled||!m_items[index].submenu)return;
     auto* menu=m_items[index].submenu.data();if(menu->isVisible()){if(keyboard)menu->setFocus();return;}
     const QRect row=itemRect(index);QPoint origin=mapToGlobal(QPoint(width()-2,row.top()-kPadding));
-    if(auto* screen=QGuiApplication::screenAt(origin))if(origin.x()+menu->sizeHint().width()>screen->availableGeometry().right()-4)origin.setX(mapToGlobal(QPoint()).x()-menu->sizeHint().width()+2);
+    // beside this menu: to the right, or to the left when the window has no room there
+    const int subWidth=qMin(menu->sizeHint().width(),kMaxWidth);
+    if(origin.x()+subWidth>menuBounds(boundsReference(this),origin).right()-kEdge)origin.setX(mapToGlobal(QPoint()).x()-subWidth+2);
     menu->m_anchor=this;menu->popupAt(origin);
     if(keyboard){menu->m_hovered=menu->neighbour(-1,1);menu->update();}
 }
@@ -721,17 +748,9 @@ void Popover::ensureItemVisible(int index)
 
 void Popover::place(const QRect& anchorBox, const QWidget* reference)
 {
-    const QScreen* screen = reference ? reference->screen()
-                                      : QGuiApplication::screenAt(anchorBox.center());
-    QRect bounds = (screen ? screen : QGuiApplication::primaryScreen())->availableGeometry();
     // Inside the window it was opened from, when that window can hold a menu
     // at all; a tiny window falls back to the screen.
-    if (reference && reference->window()) {
-        const QRect window = reference->window()->frameGeometry().intersected(bounds);
-        if (window.height() >= 160 && window.width() >= kMinWidth) {
-            bounds = window;
-        }
-    }
+    const QRect bounds = menuBounds(boundsReference(reference), anchorBox.center());
     const QSize content = sizeHint();
     const int width = qMin(content.width(), qMin(kMaxWidth, bounds.width() - 2 * kEdge));
     const int below = bounds.bottom() - kEdge - (anchorBox.bottom() + kEdge);
