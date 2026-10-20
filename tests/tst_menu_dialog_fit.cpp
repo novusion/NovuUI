@@ -8,6 +8,7 @@
 #include "novu/ui/Popover.h"
 #include "novu/ui/WindowShell.h"
 
+#include <QAbstractButton>
 #include <QApplication>
 #include <QLabel>
 #include <QSignalSpy>
@@ -114,7 +115,7 @@ private slots:
             "file where it is; the import can be repeated and is checked against the files afterwards.");
         // measured inside the modal loop, asserted after it: a failed check
         // must close the dialog, not leave it waiting for the test's timeout
-        int shown = -1, needed = -1;
+        int shown = -1, needed = -1, top = -1, buttons = -1;
         QTimer::singleShot(0, [&] {
             QWidget* dialog = QApplication::activeModalWidget();
             if (!dialog)
@@ -123,6 +124,10 @@ private slots:
                 if (l->text() == message) {
                     shown = l->height();
                     needed = l->heightForWidth(l->width());
+                    top = l->y();
+                    buttons = l->parentWidget()->height();
+                    for (QAbstractButton* b : l->parentWidget()->findChildren<QAbstractButton*>())
+                        buttons = qMin(buttons, b->y());
                 }
             }
             static_cast<QDialog*>(dialog)->reject();
@@ -131,6 +136,11 @@ private slots:
                         QStringLiteral("Import"));
         QVERIFY2(needed > 0, "the message label was not found");
         QVERIFY2(shown >= needed, qPrintable(QStringLiteral("label %1 px tall, needs %2").arg(shown).arg(needed)));
+        // laid out from the top, ending above the buttons (a label measured
+        // but squeezed sat 31 px down, its last line under the buttons)
+        QVERIFY2(top <= 20, qPrintable(QStringLiteral("the message starts %1 px down").arg(top)));
+        QVERIFY2(top + shown <= buttons, qPrintable(QStringLiteral("the message ends at %1, the buttons start at %2")
+                                                        .arg(top + shown).arg(buttons)));
     }
 
     void aShortMessageKeepsTheDialogsSize()

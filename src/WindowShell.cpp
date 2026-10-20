@@ -1219,7 +1219,10 @@ Dialog* buildMessageDialog(QWidget* parent, const QString& title, const QString&
     // three helpers ended up being the only dialogs that had it.
 
     QLabel* body = label(message, dialog->content(), TypeRole::Body, tone);
+    body->setObjectName(QStringLiteral("novuMessageBody"));
     body->setWordWrap(true);
+    // from the top: a label taller than its text never centres it away
+    body->setAlignment(Qt::AlignLeft | Qt::AlignTop);
     dialog->contentLayout()->addWidget(body);
     dialog->contentLayout()->addStretch(1);
     return dialog;
@@ -1236,10 +1239,22 @@ void sizeMessageDialog(Dialog* dialog, QSize base)
 {
     dialog->ensurePolished();
     QVBoxLayout* layout = dialog->contentLayout();
-    layout->activate();
-    const auto heightAt = [layout](int width) {
-        return layout->hasHeightForWidth() ? layout->totalHeightForWidth(width)
-                                           : layout->totalSizeHint().height();
+    auto* body = dialog->content()->findChild<QLabel*>(QStringLiteral("novuMessageBody"));
+    const QMargins margins = layout->contentsMargins();
+    // The wrapped message is measured for the width it will have, and told
+    // so: as a child of the content widget it is laid out by its size hint
+    // (one line, wide), not by its height for the width -- which is what
+    // clipped every message longer than a line, whatever the window's size.
+    const auto heightAt = [&](int width) {
+        if (body) {
+            body->setFixedHeight(body->heightForWidth(width - margins.left() - margins.right()));
+        }
+        layout->invalidate();
+        layout->activate();
+        // + one spacing: the stretch between the message and the buttons is
+        // a spacer, and a box layout adds no spacing beside a spacer when it
+        // reports its minimum -- but does when it lays the items out
+        return layout->totalMinimumSize().height() + layout->spacing();
     };
     int width = base.width();
     if (heightAt(width) > base.height())
