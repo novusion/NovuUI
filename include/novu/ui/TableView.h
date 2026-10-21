@@ -145,6 +145,11 @@ public:
         // setUniformRowHeights(false) the row is exactly that tall. Off, the
         // text is one line that ends in an ellipsis, as before.
         bool wrapText = false;
+        // A check box first in the cell, drawn as every Novu check indicator
+        // is, for a list a person picks rows from. It is only drawn: the view
+        // that shows it decides what a click on the row does.
+        bool hasCheck = false;
+        bool checked = false;
     };
 
     void setContent(int row, int column, const CellContent& content);

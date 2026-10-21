@@ -17,6 +17,7 @@
 #include <QEvent>
 #include <QResizeEvent>
 #include <QStyle>
+#include <QStyleOption>
 #include <QTimer>
 #include <QVBoxLayout>
 
@@ -31,6 +32,7 @@ constexpr int kCellContentRole = Qt::UserRole + 977;
 constexpr int kContentGap = 7;
 constexpr int kContentDot = 6;
 constexpr int kContentGlyph = 12;
+constexpr int kContentCheck = 14;
 
 } // namespace
 
@@ -487,6 +489,10 @@ QSize cellContentSize(const QWidget* context, const TableView::CellContent& cont
     int width = 0;
     int height = metrics.height();
 
+    if (content.hasCheck) {
+        width += kContentCheck + kContentGap;
+        height = qMax(height, kContentCheck);
+    }
     if (content.hasStatus) {
         width += kContentDot + kContentGap;
     }
@@ -511,7 +517,8 @@ namespace {
 // What is laid out before and after the text, shared by measuring and painting.
 int leadingWidth(const TableView::CellContent& content)
 {
-    return (content.hasStatus ? kContentDot + kContentGap : 0)
+    return (content.hasCheck ? kContentCheck + kContentGap : 0)
+           + (content.hasStatus ? kContentDot + kContentGap : 0)
            + (content.hasGlyph ? kContentGlyph + kContentGap : 0);
 }
 
@@ -575,6 +582,15 @@ void paintCellContent(QPainter* painter, const QRect& box, const QWidget* contex
         ? box.top() + QFontMetrics(contentFont(context, content)).height() / 2.0
         : box.center().y();
 
+    if (content.hasCheck) {
+        // the one Novu check indicator, from the style, not a second drawing
+        QStyleOption option;
+        option.initFrom(context);
+        option.rect = QRect(x, qRound(lineY - kContentCheck / 2.0), kContentCheck, kContentCheck);
+        option.state = QStyle::State_Enabled | (content.checked ? QStyle::State_On : QStyle::State_Off);
+        context->style()->drawPrimitive(QStyle::PE_IndicatorItemViewItemCheck, &option, painter, context);
+        x += kContentCheck + kContentGap;
+    }
     if (content.hasStatus) {
         const QColor dot = statusDotToken(content.status).resolve(profile);
         painter->save();
