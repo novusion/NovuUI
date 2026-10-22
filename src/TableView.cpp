@@ -19,6 +19,7 @@
 #include <QStyle>
 #include <QStyleOption>
 #include <QTimer>
+#include <QTextLayout>
 #include <QVBoxLayout>
 
 namespace novu::ui {
@@ -33,6 +34,14 @@ constexpr int kContentGap = 7;
 constexpr int kContentDot = 6;
 constexpr int kContentGlyph = 12;
 constexpr int kContentCheck = 14;
+// a stacked cell: the gap between its three parts, and between its badges
+constexpr int kStackGap = 5;
+constexpr int kStackBadgeGap = 5;
+// a row drawn as a card: the gap to the next card, split above and below,
+// and the card's own padding
+constexpr int kCardGapHalf = 3;
+constexpr int kCardPadH = 10;
+constexpr int kCardPadV = 8;
 
 } // namespace
 
@@ -185,9 +194,16 @@ public:
                                ? profile.colors.textPrimary
                                : profile.colors.textSecondary;
         const TableView::CellContent content = data.value<TableView::CellContent>();
+        if (m_table->rowCards()) {
+            // inside the card painted under the row (TableView::paintEvent)
+            paintCellContent(painter, option.rect.adjusted(kCardPadH, kCardGapHalf + kCardPadV,
+                                                           -kCardPadH, -kCardGapHalf - kCardPadV),
+                             m_table, content, ink);
+            return;
+        }
         // a wrapped cell reads from the top, so it keeps the row's top padding;
         // a one-line cell is centred in the row and needs none
-        const int padV = content.wrapText ? profile.space(SpacingRole::TableCellPadding) : 0;
+        const int padV = (content.wrapText || content.stacked) ? profile.space(SpacingRole::TableCellPadding) : 0;
         paintCellContent(painter, option.rect.adjusted(pad, padV, -pad, -padV), m_table, content, ink);
     }
 
@@ -393,7 +409,10 @@ void TableView::applySelectionStyle()
     // FloatingPanel opened over the list, most often) the row falls back to
     // the same neutral wash an unaccented table's own selection uses, rather
     // than keep claiming a focus it no longer has.
-    const QString selectionBg = m_selectionAccented && hasFocus()
+    // A card draws its own selection (paintEvent); a band behind it would
+    // fill the gap between two cards.
+    const QString selectionBg = m_rowCards ? QStringLiteral("transparent")
+        : m_selectionAccented && hasFocus()
         ? blend(t.accent, t.panelBg, 0.13).name()
         : t.surfaceActive.name();
     setStyleSheet(QStringLiteral(
@@ -440,6 +459,18 @@ void TableView::setSelectionAccented(bool accented)
     m_selectionAccented = accented;
     applySelectionStyle();
     update();
+}
+
+void TableView::setRowCards(bool cards)
+{
+    if (m_rowCards == cards) {
+        return;
+    }
+    m_rowCards = cards;
+    setShowGrid(false);
+    applySelectionStyle();
+    fitRows();
+    viewport()->update();
 }
 
 void TableView::setStretchToFill(bool stretch)
@@ -545,10 +576,182 @@ QFont contentFont(const QWidget* context, const TableView::CellContent& content)
 }
 } // namespace
 
+namespace {
+// The text of a stacked cell as the lines it is drawn on: wrapped at word
+// boundaries, a token too long for a line broken where it must (a path, an
+// id), at most `maxLines`, the last one elided when the text goes on.
+QStringList stackedLines(const QFont& font, const QString& text, int width, int maxLines)
+{
+    QStringList out;
+    if (text.isEmpty() || width <= 0) {
+        return out;
+    }
+    const QFontMetrics metrics(font);
+    QTextLayout layout(text, font);
+    QTextOption option;
+    option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
+    layout.setTextOption(option);
+    layout.beginLayout();
+    for (;;) {
+        QTextLine line = layout.createLine();
+        if (!line.isValid()) {
+            break;
+        }
+        line.setLineWidth(width);
+        if (out.size() == qMax(1, maxLines) - 1) {
+            // the last line allowed: whatever is left, ending in an ellipsis
+            const QString rest = text.mid(line.textStart()).simplified();
+            out << metrics.elidedText(rest, Qt::ElideRight, width);
+            break;
+        }
+        out << text.mid(line.textStart(), line.textLength()).trimmed();
+    }
+    layout.endLayout();
+    return out;
+}
+
+QFont stackedFooterFont(const QWidget* context)
+{
+    return roleFont(context, TypeRole::Caption);
+}
+
+// Where each badge of a stacked cell goes, from (0, 0), flowing onto another
+// line when `width` ends; the block's height.
+int stackedBadgeLayout(const QWidget* context, const TableView::CellContent& content, int width,
+                       QVector<QRect>* rects)
+{
+    int x = 0;
+    int y = 0;
+    int lineHeight = 0;
+    for (const TableView::CellBadge& badge : content.badges) {
+        const QSize size = badgeSizeFor(context, badge.text, Badge::Size::Regular);
+        if (x > 0 && x + size.width() > width) {
+            x = 0;
+            y += lineHeight + kStackBadgeGap;
+            lineHeight = 0;
+        }
+        if (rects) {
+            rects->append(QRect(QPoint(x, y), size));
+        }
+        x += size.width() + kStackBadgeGap;
+        lineHeight = qMax(lineHeight, size.height());
+    }
+    return content.badges.isEmpty() ? 0 : y + lineHeight;
+}
+
+int stackedLeading(const TableView::CellContent& content)
+{
+    return (content.hasCheck ? kContentCheck + kContentGap : 0)
+           + (content.hasGlyph ? kContentGlyph + kContentGap : 0);
+}
+
+int stackedHeight(const QWidget* context, const TableView::CellContent& content, int width)
+{
+    QFont font = roleFont(context, TypeRole::Body);
+    if (content.strongText) {
+        font.setWeight(QFont::Medium);
+    }
+    const QFontMetrics metrics(font);
+    const int lines = qMax(1, int(stackedLines(font, content.text, qMax(1, width - stackedLeading(content)),
+                                               content.maxTextLines).size()));
+    int height = lines * metrics.lineSpacing();
+    const int badgeLeft = content.hasCheck ? kContentCheck + kContentGap : 0;
+    const int badges = stackedBadgeLayout(context, content, qMax(1, width - badgeLeft), nullptr);
+    if (badges > 0) {
+        height += kStackGap + badges;
+    }
+    if (!content.footer.isEmpty()) {
+        height += kStackGap + qMax(QFontMetrics(stackedFooterFont(context)).height(), kContentGlyph);
+    }
+    return height;
+}
+
+void paintStacked(QPainter* painter, const QRect& box, const QWidget* context,
+                  const TableView::CellContent& content, const QColor& textInk)
+{
+    const ThemeProfile& profile = themeFor(context);
+    QFont font = roleFont(context, TypeRole::Body);
+    if (content.strongText) {
+        font.setWeight(QFont::Medium);
+    }
+    const QFontMetrics metrics(font);
+    const int end = box.x() + box.width();
+    int x = box.left();
+    const double firstLineY = box.top() + metrics.lineSpacing() / 2.0;
+
+    // 1. the check box, the mark, the text
+    if (content.hasCheck) {
+        QStyleOption option;
+        option.initFrom(context);
+        option.rect = QRect(x, qRound(firstLineY - kContentCheck / 2.0), kContentCheck, kContentCheck);
+        option.state = QStyle::State_Enabled | (content.checked ? QStyle::State_On : QStyle::State_Off);
+        context->style()->drawPrimitive(QStyle::PE_IndicatorItemViewItemCheck, &option, painter, context);
+        x += kContentCheck + kContentGap;
+    }
+    const int badgeLeft = x;
+    if (content.hasGlyph) {
+        paintGlyph(painter, content.glyph,
+                   QRectF(x, firstLineY - kContentGlyph / 2.0, kContentGlyph, kContentGlyph),
+                   profile.colors.textTertiary, 0.0, 0.0, context);
+        x += kContentGlyph + kContentGap;
+    }
+    const QStringList lines = stackedLines(font, content.text, qMax(1, end - x), content.maxTextLines);
+    painter->save();
+    painter->setFont(font);
+    painter->setPen(textInk);
+    int y = box.top();
+    for (const QString& line : lines) {
+        painter->drawText(QRect(x, y, qMax(0, end - x), metrics.lineSpacing()),
+                          Qt::AlignVCenter | Qt::AlignLeft, line);
+        y += metrics.lineSpacing();
+    }
+    painter->restore();
+    y = box.top() + qMax(1, int(lines.size())) * metrics.lineSpacing();
+
+    // 2. the badges, flowing
+    QVector<QRect> rects;
+    const int badges = stackedBadgeLayout(context, content, qMax(1, end - badgeLeft), &rects);
+    if (badges > 0) {
+        y += kStackGap;
+        for (int i = 0; i < rects.size(); ++i) {
+            const QRect r = rects.at(i).translated(badgeLeft, y);
+            paintBadge(painter, QRectF(r), context, content.badges.at(i).text, content.badges.at(i).tone,
+                       Badge::Size::Regular);
+        }
+        y += badges;
+    }
+
+    // 3. the footer
+    if (!content.footer.isEmpty()) {
+        y += kStackGap;
+        const QFont small = stackedFooterFont(context);
+        const QFontMetrics smallMetrics(small);
+        const int lineHeight = qMax(smallMetrics.height(), kContentGlyph);
+        const QColor ink = content.footerWarning ? profile.colors.warning : profile.colors.textTertiary;
+        int fx = badgeLeft;
+        if (content.hasFooterGlyph) {
+            paintGlyph(painter, content.footerGlyph,
+                       QRectF(fx, y + (lineHeight - kContentGlyph) / 2.0, kContentGlyph, kContentGlyph),
+                       ink, 0.0, 0.0, context);
+            fx += kContentGlyph + kContentGap;
+        }
+        painter->save();
+        painter->setFont(small);
+        painter->setPen(content.footerWarning ? ink : profile.colors.textSecondary);
+        painter->drawText(QRect(fx, y, qMax(0, end - fx), lineHeight), Qt::AlignVCenter | Qt::AlignLeft,
+                          smallMetrics.elidedText(content.footer, Qt::ElideRight, qMax(0, end - fx)));
+        painter->restore();
+    }
+}
+} // namespace
+
 int cellContentHeight(const QWidget* context, const TableView::CellContent& content, int width)
 {
     if (!context) {
         return 0;
+    }
+    if (content.stacked) {
+        return stackedHeight(context, content, width);
     }
     const QFontMetrics metrics(contentFont(context, content));
     int height = metrics.height();
@@ -567,6 +770,10 @@ void paintCellContent(QPainter* painter, const QRect& box, const QWidget* contex
                       const TableView::CellContent& content, const QColor& textInk)
 {
     if (!painter || !context) {
+        return;
+    }
+    if (content.stacked) {
+        paintStacked(painter, box, context, content, textInk);
         return;
     }
     const ThemeProfile& profile = themeFor(context);
@@ -1234,8 +1441,10 @@ void TableView::fitRows()
                 const QVariant data = painted->data(kCellContentRole);
                 if (data.isValid()) {
                     const CellContent cell = data.value<CellContent>();
-                    if (cell.wrapText) {
-                        content = qMax(content, cellContentHeight(this, cell, columnWidth(column) - 2 * padH));
+                    if (cell.wrapText || cell.stacked) {
+                        const int inner = m_rowCards ? columnWidth(column) - 2 * kCardPadH
+                                                     : columnWidth(column) - 2 * padH;
+                        content = qMax(content, cellContentHeight(this, cell, inner));
                     }
                     continue;
                 }
@@ -1261,7 +1470,8 @@ void TableView::fitRows()
         }
         tallest = qMax(tallest, content);
         if (!m_uniformRowHeights) {
-            setRowHeight(row, qMax(floor, content + 2 * padV));
+            setRowHeight(row, m_rowCards ? content + 2 * (kCardGapHalf + kCardPadV)
+                                         : qMax(floor, content + 2 * padV));
         }
     }
     if (!m_uniformRowHeights) {
@@ -1299,7 +1509,31 @@ void TableView::paintEvent(QPaintEvent* event)
         const ThemeProfile& profile = themeFor(this);
         QPainter under(viewport());
         const QList<int> picked = selectedRowList();
-        for (int row = 0; row < rows; ++row) {
+        if (m_rowCards) {
+            // each row its own card: plate, hairline border, a gap to the next;
+            // hovered a lighter plate, picked the accent border and wash
+            under.setRenderHint(QPainter::Antialiasing, true);
+            const double radius = qMin(profile.radius(SurfaceRole::Card), 10);
+            for (int row = 0; row < rows; ++row) {
+                const bool selected = picked.contains(row);
+                const bool hovered = row == m_hoveredRow;
+                const QRectF card = QRectF(0, rowViewportPosition(row), viewport()->width(), rowHeight(row))
+                                        .adjusted(0.5, kCardGapHalf + 0.5, -0.5, -kCardGapHalf - 0.5);
+                QColor fill = hovered ? profile.colors.surfaceHover : profile.colors.panelBgAlt;
+                under.setPen(QPen(selected ? profile.colors.accent : hovered ? profile.colors.borderHover
+                                                                             : profile.colors.border, 1));
+                under.setBrush(fill);
+                under.drawRoundedRect(card, radius, radius);
+                if (selected) {
+                    QColor wash = profile.colors.accent;
+                    wash.setAlphaF(hovered ? 0.17 : 0.13);
+                    under.setPen(Qt::NoPen);
+                    under.setBrush(wash);
+                    under.drawRoundedRect(card, radius, radius);
+                }
+            }
+        }
+        for (int row = 0; row < rows && !m_rowCards; ++row) {
             const bool selected = m_selectionAccented
                 && (selectionMode() == QAbstractItemView::SingleSelection ? row == currentRow()
                                                                           : picked.contains(row));
@@ -1329,7 +1563,8 @@ void TableView::paintEvent(QPaintEvent* event)
     QPainter painter(viewport());
     painter.setPen(QPen(profile.table.gridLine, 1));
     // Every row but the last - `table.tbl tr:last-child td{border-bottom:none}`.
-    for (int row = 0; row < rows - 1; ++row) {
+    // Cards are their own separation.
+    for (int row = 0; row < rows - 1 && !m_rowCards; ++row) {
         const int y = rowViewportPosition(row) + rowHeight(row) - 1;
         paintHairline(&painter, QPoint(0, y), QPoint(viewport()->width() - 1, y),
                       profile.table.gridLine);
@@ -1339,7 +1574,7 @@ void TableView::paintEvent(QPaintEvent* event)
     // hairline bar on the selected row's own leading edge, painted rather
     // than a border on the cell so it reads as the row's, not the first
     // column's.
-    if (m_selectionAccented) {
+    if (m_selectionAccented && !m_rowCards) {
         const QList<int> bars = selectionMode() == QAbstractItemView::SingleSelection
             ? (currentRow() >= 0 ? QList<int>{currentRow()} : QList<int>{})
             : selectedRowList();

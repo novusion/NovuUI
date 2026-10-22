@@ -150,6 +150,25 @@ public:
         // that shows it decides what a click on the row does.
         bool hasCheck = false;
         bool checked = false;
+        // STACKED: the cell as three parts, top to bottom, for a narrow list
+        // of tasks or messages - the name never shares its line with anything
+        // but its mark:
+        //   1. the check box, the mark and the text, on up to maxTextLines
+        //      lines (words wrap; a token too long for a line - a path, an id -
+        //      breaks where it must), the last one ending in an ellipsis;
+        //   2. the badges, under the text, flowing onto another line when the
+        //      width ends - never overlapping, never cut;
+        //   3. the footer: a small glyph and a short muted note (who carries
+        //      it out, what it waits for), elided to one line. Omitted when
+        //      empty.
+        // The row is as tall as that, with setUniformRowHeights(false); the
+        // status dot, `trailing` and `wrapText` are not used.
+        bool stacked = false;
+        int maxTextLines = 2;
+        QString footer;
+        bool hasFooterGlyph = false;
+        Glyph footerGlyph = Glyph::Info;
+        bool footerWarning = false;   // the footer in the warning ink
     };
 
     void setContent(int row, int column, const CellContent& content);
@@ -191,6 +210,14 @@ public:
     // not to keep it open beside them.
     void setSelectionAccented(bool accented);
     bool isSelectionAccented() const { return m_selectionAccented; }
+
+    // Each row drawn as a card of its own - a rounded plate with a hairline
+    // border and a gap to the next - instead of a band between hairlines. For
+    // a list of separate items in a narrow column (a task queue). The hover
+    // and the selection are the card's: a lighter plate, an accent border and
+    // the accent wash. Off by default.
+    void setRowCards(bool cards);
+    bool rowCards() const { return m_rowCards; }
 
     // On by default: a table with room to spare hands the extra width to its
     // Text/Flexible/Mono columns (`table.tbl{width:100%}` under automatic
@@ -282,6 +309,7 @@ private:
     QVector<ColumnRole> m_roles;
     bool m_inRelayout = false;
     bool m_selectionAccented = false;
+    bool m_rowCards = false;
     bool m_stretchToFill = true;
     int m_heightCap = 0;
     int m_hoveredRow = -1;
