@@ -12,6 +12,13 @@ desktop UI. Everything here is additive; existing consumers link unchanged.
 
 ### Added
 
+- **Stacked cells and row cards in `TableView`.** `CellContent::stacked`
+  lays a cell out in three parts for a narrow list: the mark and the text on
+  up to `maxTextLines` lines (word wrap; a path or an id too long for a line
+  breaks where it must; the last line elided), the badges under it flowing
+  onto another line, and a footer - a small glyph and a short note, muted or
+  in the warning ink. `TableView::setRowCards()` draws each row as a card
+  with its own hover and selection. Both off by default.
 - **New folder in the file picker.** When choosing a folder or saving a file,
   `FilePickerDialog` shows a **New folder** button at the start of the bottom
   row. It works the way a file manager does: the folder is created right
