@@ -104,6 +104,14 @@ public:
     void setConfirmLabel(const QString& text);
     void setConfirmEnabled(bool enabled);
 
+    // A "New folder" button at the start of the bottom row. Hidden until a
+    // caller shows it, because only a caller that writes to the filesystem
+    // can answer it: it arrives as newFolderRequested().
+    void setNewFolderVisible(bool visible);
+    // Highlights the row called `name` in the listing and scrolls it into
+    // view. Nothing happens when there is no such row.
+    void selectEntry(const QString& name);
+
     TreeView* tree() const { return m_tree; }
     TableView* table() const { return m_table; }
     Splitter* splitter() const { return m_splitter; }
@@ -130,6 +138,8 @@ signals:
     // The in-row rename finished with a new, non-empty name. Not emitted for
     // an abandoned rename or an unchanged one.
     void locationRenamed(const QString& id, const QString& label);
+    // The "New folder" button was pressed, in currentLocation().
+    void newFolderRequested();
 
 private:
     void handleLocationActivated(const QString& id);
@@ -140,6 +150,7 @@ private:
     Splitter* m_splitter = nullptr;
     TableView* m_table = nullptr;
     QLineEdit* m_nameField = nullptr;
+    Button* m_newFolderButton = nullptr;
     Button* m_cancelButton = nullptr;
     Button* m_confirmButton = nullptr;
     QVector<Entry> m_entries;

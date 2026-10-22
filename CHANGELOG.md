@@ -12,6 +12,16 @@ desktop UI. Everything here is additive; existing consumers link unchanged.
 
 ### Added
 
+- **New folder in the file picker.** When choosing a folder or saving a file,
+  `FilePickerDialog` shows a **New folder** button at the start of the bottom
+  row. It works the way a file manager does: the folder is created right
+  away as "New folder" ("New folder (2)" when that name is taken), its name
+  is edited in place in the tree, and the folder is then selected - so in
+  `chooseFolder()` the confirm button picks it. Escape keeps the name it was
+  given; the window never deletes the folder again. Only the folder made in
+  that window can be renamed there. Opening a file does not show the button.
+  `FilePicker` gains `setNewFolderVisible()`, `selectEntry()` and
+  `newFolderRequested`.
 - **Favourites in the file picker, and a picker that remembers.**
   `FilePickerDialog` lists the folders a person pinned at the top of its tree,
   under a name they can choose. Right-click a folder - in the tree or in the

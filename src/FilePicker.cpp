@@ -94,6 +94,12 @@ FilePicker::FilePicker(QWidget* parent)
     bottom->setContentsMargins(0, 0, 0, 0);
     bottom->setSpacing(themeFor(this).spacing.sm);
 
+    m_newFolderButton = new Button(tr("New folder"), Button::Variant::Outlined, this);
+    m_newFolderButton->setGlyph(Glyph::Plus);
+    m_newFolderButton->setObjectName(QStringLiteral("FilePickerNewFolder"));
+    m_newFolderButton->setVisible(false);
+    bottom->addWidget(m_newFolderButton);
+
     m_nameField = lineEdit(QString(), this);
     bottom->addWidget(m_nameField, 1);
 
@@ -110,6 +116,7 @@ FilePicker::FilePicker(QWidget* parent)
     connect(m_table, &QTableWidget::itemSelectionChanged, this,
             &FilePicker::handleSelectionChanged);
     connect(m_cancelButton, &Button::clicked, this, &FilePicker::cancelled);
+    connect(m_newFolderButton, &Button::clicked, this, &FilePicker::newFolderRequested);
 
     // Right-clicks and renames are passed on rather than acted on: FilePicker
     // does not know what a location is, so it cannot know what a menu on one
@@ -207,6 +214,22 @@ void FilePicker::setConfirmLabel(const QString& text)
 void FilePicker::setConfirmEnabled(bool enabled)
 {
     m_confirmButton->setEnabled(enabled);
+}
+
+void FilePicker::setNewFolderVisible(bool visible)
+{
+    m_newFolderButton->setVisible(visible);
+}
+
+void FilePicker::selectEntry(const QString& name)
+{
+    for (int r = 0; r < m_entries.size(); ++r) {
+        if (m_entries.at(r).name == name) {
+            m_table->selectRow(r);
+            m_table->scrollTo(m_table->model()->index(r, 0));
+            return;
+        }
+    }
 }
 
 void FilePicker::handleLocationActivated(const QString& id)

@@ -163,6 +163,12 @@ public:
         connect(m_picker, &FilePicker::selectionChanged, this, [this] { refreshConfirm(); });
         connect(m_picker, &FilePicker::cancelled, m_dialog, &QDialog::reject);
         connect(m_picker, &FilePicker::confirmed, this, &Session::confirm);
+        connect(m_picker, &FilePicker::newFolderRequested, this, &Session::newFolder);
+
+        // Where a file is about to be written or a folder chosen, the folder
+        // the person wants is often one that does not exist yet. Opening a
+        // file never needs one.
+        m_picker->setNewFolderVisible(saving || folders);
 
         openStart(startPath);
         m_dialog->resize(880, 560);
@@ -408,9 +414,88 @@ private:
     // on anything else the row simply keeps its name.
     void renameFavourite(const QString& id, const QString& label)
     {
+        if (id == m_created) {
+            renameCreated(label);
+            return;
+        }
         if (m_favourites.contains(id) && FilePickerPlaces::renameFavourite(id, label)) {
             m_picker->setLocationLabel(id, label.trimmed());
         }
+    }
+
+    // NEW FOLDER, the way a file manager does it: the folder exists the moment
+    // the button is pressed, as "New folder", and its name is then edited in
+    // place. Escape keeps the name it was given - the folder is already there,
+    // and a picker that deleted it again would be deleting something on disk
+    // behind the person's back.
+    void newFolder()
+    {
+        const QDir dir(m_current);
+        if (!dir.exists()) {
+            return;
+        }
+        QString name = tr("New folder");
+        for (int n = 2; QFileInfo::exists(dir.filePath(name)); ++n) {
+            name = tr("New folder (%1)").arg(n);
+        }
+        if (!dir.mkdir(name)) {
+            Dialog::reportError(m_dialog, tr("Could not create the folder"),
+                                tr("%1 could not be created in %2.")
+                                    .arg(name, QDir::toNativeSeparators(m_current)));
+            return;
+        }
+        m_created = FilePickerPlaces::normalised(dir.filePath(name));
+        showCreated();
+        m_picker->renameLocation(m_created);
+    }
+
+    // Only the folder made in this window can be renamed here: renaming a
+    // folder that was already on disk is a file manager's job, not a
+    // picker's.
+    void renameCreated(const QString& label)
+    {
+        const QString name = label.trimmed();
+        const QFileInfo created(m_created);
+        if (name.isEmpty() || name == created.fileName()) {
+            return;
+        }
+        if (name.contains(QLatin1Char('/')) || name.contains(QLatin1Char('\\'))
+            || name == QLatin1String(".") || name == kParentEntry) {
+            Dialog::reportError(m_dialog, tr("Could not rename the folder"),
+                                tr("A folder name cannot contain / or \\."));
+            m_picker->renameLocation(m_created);
+            return;
+        }
+        QDir parent = created.dir();
+        if (QFileInfo::exists(parent.filePath(name))) {
+            Dialog::reportError(m_dialog, tr("Could not rename the folder"),
+                                tr("%1 already exists here.").arg(name));
+            m_picker->renameLocation(m_created);
+            return;
+        }
+        if (!parent.rename(created.fileName(), name)) {
+            Dialog::reportError(m_dialog, tr("Could not rename the folder"),
+                                tr("%1 could not be renamed to %2.")
+                                    .arg(created.fileName(), name));
+            return;
+        }
+        m_created = FilePickerPlaces::normalised(parent.filePath(name));
+        showCreated();
+    }
+
+    // The new folder in the tree and the listing, selected - and, when it is a
+    // folder being chosen, the answer the confirm button gives.
+    void showCreated()
+    {
+        // The tree has no way to move or re-sort a node, so it is rebuilt,
+        // which also lists the folder the new one is in afresh.
+        rebuildTree();
+        const QString name = QFileInfo(m_created).fileName();
+        m_picker->selectEntry(name);
+        if (m_folders) {
+            m_picker->setSelectedName(name);
+        }
+        refreshConfirm();
     }
 
     // Walks up until it reaches somewhere the tree already knows - a root, or a
@@ -558,6 +643,8 @@ private:
     // because only the first may be renamed or removed.
     QSet<QString> m_favourites;
     QSet<QString> m_fixed;
+    // The folder made with New folder in this window, the only one it renames.
+    QString m_created;
     QString m_chosen;
 };
 

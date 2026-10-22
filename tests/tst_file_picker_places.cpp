@@ -431,6 +431,95 @@ private slots:
         QVERIFY(!stillRoot);
     }
 
+    // ── new folder ──────────────────────────────────────────────────────────
+
+    void newFolderIsOfferedWhereAFolderCanBeTheAnswer()
+    {
+        QTemporaryDir root;
+        bool onOpen = true;
+        bool onFolder = false;
+        bool onSave = false;
+        whenOpen([&](QDialog* dialog, FilePicker*) {
+            onOpen = dialog->findChild<QWidget*>(QStringLiteral("FilePickerNewFolder"))->isVisible();
+        });
+        FilePickerDialog::open(nullptr, QStringLiteral("Open"), root.path());
+        whenOpen([&](QDialog* dialog, FilePicker*) {
+            onFolder = dialog->findChild<QWidget*>(QStringLiteral("FilePickerNewFolder"))->isVisible();
+        });
+        FilePickerDialog::chooseFolder(nullptr, QStringLiteral("Clone into"), root.path());
+        whenOpen([&](QDialog* dialog, FilePicker*) {
+            onSave = dialog->findChild<QWidget*>(QStringLiteral("FilePickerNewFolder"))->isVisible();
+        });
+        FilePickerDialog::save(nullptr, QStringLiteral("Save"), root.path());
+
+        QVERIFY(!onOpen);
+        QVERIFY(onFolder);
+        QVERIFY(onSave);
+    }
+
+    void aNewFolderIsMadeNamedInTheRowAndChosen()
+    {
+        QTemporaryDir root;
+        mkdir(root, QStringLiteral("New folder"));   // taken: the next is (2)
+        const QString expected = FilePickerPlaces::normalised(
+            QDir(root.path()).filePath(QStringLiteral("NovuExplorer")));
+
+        bool made = false;
+        auto* timer = new QTimer;
+        timer->setInterval(10);
+        QObject::connect(timer, &QTimer::timeout, [&, timer] {
+            auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+            if (!dialog) {
+                return;
+            }
+            timer->stop();
+            timer->deleteLater();
+            auto* picker = dialog->findChild<FilePicker*>();
+            emit picker->newFolderRequested();
+            made = QFileInfo(QDir(root.path()).filePath(QStringLiteral("New folder (2)"))).isDir();
+
+            // The rename the button starts, typed and committed in the row.
+            auto* editor = picker->tree()->findChild<QLineEdit*>();
+            QVERIFY(editor);
+            editor->setText(QStringLiteral("NovuExplorer"));
+            picker->tree()->commitRename();
+
+            emit picker->confirmed(picker->selectedName());
+        });
+        timer->start();
+        const QString chosen =
+            FilePickerDialog::chooseFolder(nullptr, QStringLiteral("Clone into"), root.path());
+
+        QVERIFY(made);
+        QCOMPARE(FilePickerPlaces::normalised(chosen), expected);
+        QVERIFY(QFileInfo(expected).isDir());
+        QVERIFY(!QFileInfo::exists(QDir(root.path()).filePath(QStringLiteral("New folder (2)"))));
+    }
+
+    void renamingANewFolderOntoAnotherIsRefused()
+    {
+        QTemporaryDir root;
+        mkdir(root, QStringLiteral("Taken"));
+
+        whenOpen([&](QDialog*, FilePicker* picker) {
+            emit picker->newFolderRequested();
+            const QString made = FilePickerPlaces::normalised(
+                QDir(root.path()).filePath(QStringLiteral("New folder")));
+            // Refused with a message box, which is closed as soon as it shows.
+            QTimer::singleShot(10, [] {
+                if (auto* box = qobject_cast<QDialog*>(QApplication::activeModalWidget())) {
+                    box->reject();
+                }
+            });
+            emit picker->locationRenamed(made, QStringLiteral("Taken"));
+            picker->tree()->cancelRename();
+        });
+        FilePickerDialog::chooseFolder(nullptr, QStringLiteral("Clone into"), root.path());
+
+        QVERIFY(QFileInfo(QDir(root.path()).filePath(QStringLiteral("New folder"))).isDir());
+        QVERIFY(QFileInfo(QDir(root.path()).filePath(QStringLiteral("Taken"))).isDir());
+    }
+
 private:
     QTemporaryDir m_settings;
 };
