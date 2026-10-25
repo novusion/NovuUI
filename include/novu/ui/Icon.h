@@ -123,6 +123,11 @@ enum class Glyph {
     Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, PhoneOff,
     Mic, MicOff, VideoOff, Monitor, Radio, Waveform,
     Hash, Paperclip, Smile, CheckDouble, WifiOff, Alert, Pin, Headset,
+
+    // direction, the two the set lacked: a "previous / next" pair drawn as
+    // the same chevron as ChevronDown (Back is an arrow, not its mirror).
+    // Appended for the reason above.
+    ChevronLeft, ChevronRight,
 };
 
 // The name the design uses for a glyph ("chevron-down"), and the reverse.
