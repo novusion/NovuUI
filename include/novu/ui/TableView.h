@@ -140,6 +140,10 @@ public:
         // (one agent or a workflow, say), in the muted ink.
         bool hasGlyph = false;
         Glyph glyph = Glyph::Agent;
+        // A short key before the text - a stable id ("TK-042") - in the muted
+        // mono ink, never elided: the text after it is what gives way. Empty:
+        // nothing is drawn and nothing is reserved. Not used when stacked.
+        QString lead;
         // The whole text, on as many lines as it takes, from the top of the
         // row; the dot, the mark and the badges stay on its first line. With
         // setUniformRowHeights(false) the row is exactly that tall. Off, the

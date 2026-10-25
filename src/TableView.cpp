@@ -530,6 +530,9 @@ QSize cellContentSize(const QWidget* context, const TableView::CellContent& cont
     if (content.hasGlyph) {
         width += kContentGlyph + kContentGap;
     }
+    if (!content.lead.isEmpty()) {
+        width += QFontMetrics(roleMonoFont(context, TypeRole::Mono)).horizontalAdvance(content.lead) + kContentGap;
+    }
     if (!content.text.isEmpty()) {
         width += metrics.horizontalAdvance(content.text);
     }
@@ -546,11 +549,13 @@ QSize cellContentSize(const QWidget* context, const TableView::CellContent& cont
 
 namespace {
 // What is laid out before and after the text, shared by measuring and painting.
-int leadingWidth(const TableView::CellContent& content)
+int leadingWidth(const QWidget* context, const TableView::CellContent& content)
 {
     return (content.hasCheck ? kContentCheck + kContentGap : 0)
            + (content.hasStatus ? kContentDot + kContentGap : 0)
-           + (content.hasGlyph ? kContentGlyph + kContentGap : 0);
+           + (content.hasGlyph ? kContentGlyph + kContentGap : 0)
+           + (content.lead.isEmpty() ? 0
+              : QFontMetrics(roleMonoFont(context, TypeRole::Mono)).horizontalAdvance(content.lead) + kContentGap);
 }
 
 int trailingWidth(const QWidget* context, const TableView::CellContent& content)
@@ -759,7 +764,7 @@ int cellContentHeight(const QWidget* context, const TableView::CellContent& cont
         height = qMax(height, badgeSizeFor(context, badge.text, Badge::Size::Regular).height());
     }
     if (content.wrapText && !content.text.isEmpty()) {
-        const int room = qMax(1, width - leadingWidth(content) - trailingWidth(context, content));
+        const int room = qMax(1, width - leadingWidth(context, content) - trailingWidth(context, content));
         height = qMax(height, metrics.boundingRect(QRect(0, 0, room, 0),
                                                    Qt::TextWordWrap | Qt::AlignLeft, content.text).height());
     }
@@ -814,6 +819,19 @@ void paintCellContent(QPainter* painter, const QRect& box, const QWidget* contex
                    QRectF(x, lineY - kContentGlyph / 2.0, kContentGlyph, kContentGlyph),
                    profile.colors.textTertiary, 0.0, 0.0, context);
         x += kContentGlyph + kContentGap;
+    }
+    if (!content.lead.isEmpty()) {
+        const QFont font = roleMonoFont(context, TypeRole::Mono);
+        const int advance = QFontMetrics(font).horizontalAdvance(content.lead);
+        painter->save();
+        painter->setFont(font);
+        painter->setPen(profile.colors.textTertiary);
+        const QRect lead = content.wrapText
+            ? QRect(x, box.top(), advance, QFontMetrics(contentFont(context, content)).height())
+            : QRect(x, box.top(), advance, box.height());
+        painter->drawText(lead, Qt::AlignVCenter | Qt::AlignLeft, content.lead);
+        painter->restore();
+        x += advance + kContentGap;
     }
 
     // The badges and the trailing note are measured first and reserved at the
