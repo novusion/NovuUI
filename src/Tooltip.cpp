@@ -2,6 +2,7 @@
 
 #include <QApplication>
 #include <QKeyEvent>
+#include <QMouseEvent>
 
 #include "novu/ui/Text.h"
 #include "novu/ui/ThemeManager.h"
@@ -245,6 +246,40 @@ void Tooltip::hideTip()
     instance().dismiss();
 }
 
+void Tooltip::showAt(QWidget* owner, const QRect& area, const TipContent& content)
+{
+    Tooltip& tip = instance();
+    if (!owner || !owner->isVisible() || content.isEmpty() || area.isEmpty()) {
+        tip.dismiss();
+        return;
+    }
+    if (QApplication::activePopupWidget()) {
+        return;
+    }
+    // watched for leaving, pressing and scrolling, as an installed target is;
+    // installing again only moves the filter to the front
+    owner->installEventFilter(&tip);
+    tip.m_showTimer->stop();
+    tip.m_detailTimer->stop();
+    tip.m_pending = nullptr;
+    tip.m_content = content;
+    if (!tip.m_help && !tip.m_content.title.isEmpty()) {
+        tip.m_content.status.clear();
+        if (!tip.m_content.brief.isEmpty() && !tip.m_content.detail.isEmpty()) {
+            tip.m_content.brief.clear();
+        }
+    }
+    tip.m_shown = owner;
+    tip.m_area = area;
+    tip.m_detail = false;
+    tip.relayout();
+    tip.show();
+    tip.raise();
+    if (tip.m_help && !tip.m_content.detail.isEmpty()) {
+        tip.m_detailTimer->start();
+    }
+}
+
 void Tooltip::setHelpMode(bool on)
 {
     Tooltip& tip = instance();
@@ -272,6 +307,33 @@ QWidget* Tooltip::shownFor()
 bool Tooltip::eventFilter(QObject* watched, QEvent* event)
 {
     auto* widget = qobject_cast<QWidget*>(watched);
+    // the owner of a showAt() tip: only what ends it
+    const bool areaOwner = widget && !m_area.isEmpty() && widget == m_shown.data();
+    if (areaOwner && !m_tips.contains(widget)) {
+        switch (event->type()) {
+        case QEvent::MouseMove:
+            if (!m_area.contains(static_cast<QMouseEvent*>(event)->position().toPoint())) {
+                dismiss();
+            }
+            break;
+        case QEvent::Leave:
+        case QEvent::FocusOut:
+        case QEvent::MouseButtonPress:
+        case QEvent::Wheel:
+        case QEvent::Hide:
+        case QEvent::WindowDeactivate:
+            dismiss();
+            break;
+        case QEvent::KeyPress:
+            if (static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape) {
+                dismiss();
+            }
+            break;
+        default:
+            break;
+        }
+        return QWidget::eventFilter(watched, event);
+    }
     if (!widget || !m_tips.contains(widget)) {
         return QWidget::eventFilter(watched, event);
     }
@@ -399,7 +461,9 @@ void Tooltip::relayout()
     const QSize size = measure(m_content, m_detail);
     setFixedSize(size);
 
-    const QRect targetRect(m_shown->mapToGlobal(QPoint(0, 0)), m_shown->size());
+    const QRect targetRect = m_area.isEmpty()
+        ? QRect(m_shown->mapToGlobal(QPoint(0, 0)), m_shown->size())
+        : QRect(m_shown->mapToGlobal(m_area.topLeft()), m_area.size());
     const QRect screen = m_shown->screen()
         ? m_shown->screen()->availableGeometry()
         : QGuiApplication::primaryScreen()->availableGeometry();
@@ -427,6 +491,7 @@ void Tooltip::present(QWidget* target)
 
     m_content = m_tips.value(target);
     m_shown = target;
+    m_area = {};
     m_detail = false;
 
     // Off, a tip is the name and the key. The one-line brief is shown even then
@@ -454,6 +519,7 @@ void Tooltip::dismiss()
     m_detailTimer->stop();
     m_pending = nullptr;
     m_shown = nullptr;
+    m_area = {};
     m_detail = false;
     if (isVisible()) {
         hide();

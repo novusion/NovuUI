@@ -159,6 +159,13 @@ public:
     // keyboard focus rather than the pointer.
     static void showFor(QWidget* target);
     static void hideTip();
+    // A tip for a part of a widget that is not a widget of its own - a node
+    // on a painted canvas, a row of a painted list. Shown at once (the owner's
+    // QEvent::ToolTip already waited the hover delay), anchored to `area` in
+    // `owner`'s coordinates, and gone when the pointer leaves that area or
+    // the owner. Nothing is installed: the owner says what is under the
+    // pointer each time.
+    static void showAt(QWidget* owner, const QRect& area, const TipContent& content);
 
     static void setHelpMode(bool on);
     static bool helpMode();
@@ -191,6 +198,8 @@ private:
     QHash<QWidget*, TipContent> m_tips;
     QPointer<QWidget> m_pending;
     QPointer<QWidget> m_shown;
+    // showAt(): the part of m_shown the tip is about; empty for an installed tip
+    QRect m_area;
     QTimer* m_showTimer = nullptr;
     // The second delay: the long form is not part of the first impression, so
     // it arrives only if the pointer is still there.
