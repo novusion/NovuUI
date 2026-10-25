@@ -188,7 +188,12 @@ PageHeader::PageHeader(const QString& title, QWidget* parent)
     : QWidget(parent)
     , m_title(title)
 {
-    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+    // Content-first: exactly as tall as its content at the width it has. With
+    // a growing vertical policy a page column of fixed-height sections handed
+    // its spare height to the header, and the centred title drifted down.
+    QSizePolicy policy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    policy.setHeightForWidth(true);
+    setSizePolicy(policy);
 
     m_actions = new QWidget(this);
     auto* layout = new QHBoxLayout(m_actions);

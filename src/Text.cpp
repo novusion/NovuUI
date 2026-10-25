@@ -389,6 +389,9 @@ Paragraph::Paragraph(const QString& text, QWidget* parent, TypeRole role, Ink in
     QSizePolicy policy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     policy.setHeightForWidth(true);
     setSizePolicy(policy);
+    // Content-first: given more height than its lines need, the text stays
+    // at the top of it rather than floating to the middle.
+    setAlignment(Qt::AlignLeft | Qt::AlignTop);
     applyText(this, role, ink);
 }
 

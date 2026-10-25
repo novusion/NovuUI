@@ -92,8 +92,15 @@ Card::Card(const QString& title, QWidget* parent)
     // body layout would otherwise keep around an empty row.
     m_header = new QWidget(this);
     m_header->setLayout(m_headerRow);
+    // Content-first (`.card-head` is height:auto): the head is never handed
+    // spare height. A card made taller than its content - stretched by a
+    // tall neighbour - used to give it to the head when the body's rows
+    // could not grow: the title sat at the top, the subtitle half way down
+    // and the fields at the bottom. Spare height now stays below the body.
+    m_header->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     m_outer->addWidget(m_header);
     m_outer->addLayout(m_body, 1);
+    m_outer->addStretch(0);
 
     updateHeaderVisibility();
     applyTheme();
