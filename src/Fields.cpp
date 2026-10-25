@@ -1,4 +1,6 @@
 #include "novu/ui/Fields.h"
+#include "novu/ui/Popover.h"
+#include <QStandardItemModel>
 
 #include "novu/ui/Style.h"
 #include "novu/ui/StyleSheet.h"
@@ -135,6 +137,41 @@ void ComboBox::setOpen(bool open)
 
 void ComboBox::showPopup()
 {
+    // A closed box opens the approved dropdown (Popover). A searchable one
+    // keeps Qt's list, which its completer filters as the person types.
+    if (!isEditable()) {
+        if (!m_menu) {
+            m_menu = new Popover(this);
+            m_menu->setMaximumVisibleItems(7);
+            connect(m_menu, &Popover::triggered, this, [this](const QString& key) {
+                bool ok = false;
+                const int index = key.toInt(&ok);
+                if (!ok || index < 0 || index >= count()) return;
+                setCurrentIndex(index);
+                emit activated(index);
+                emit textActivated(itemText(index));
+            });
+            connect(m_menu, &Popover::closed, this, [this] { setOpen(false); });
+        }
+        m_menu->clear();
+        for (int i = 0; i < count(); ++i) {
+            // a separator QComboBox::insertSeparator made
+            if (itemData(i, Qt::AccessibleDescriptionRole).toString() == QLatin1String("separator")) {
+                m_menu->addSeparator();
+                continue;
+            }
+            const QString key = QString::number(i);
+            m_menu->addItem(key, itemText(i));
+            if (const auto* items = qobject_cast<const QStandardItemModel*>(model()))
+                if (const QStandardItem* item = items->item(i, modelColumn()); item && !item->isEnabled())
+                    m_menu->setItemEnabled(key, false);
+            if (i == currentIndex()) m_menu->setChecked(key, true);
+        }
+        if (m_menu->count() == 0) return;
+        setOpen(true);
+        m_menu->popupUnder(this);
+        return;
+    }
     setOpen(true);
     // A list of options is not a page.
     //
@@ -163,6 +200,7 @@ void ComboBox::showPopup()
 
 void ComboBox::hidePopup()
 {
+    if (m_menu && m_menu->isVisible()) m_menu->close();
     setOpen(false);
     QComboBox::hidePopup();
 }

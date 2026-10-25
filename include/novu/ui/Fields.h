@@ -21,6 +21,8 @@ namespace novu::ui {
 // filled rectangle that reads as a dash, and the control then looks exactly
 // like a line edit. Supplying an image would tie the arrow colour to a file
 // instead of the profile. So the arrow is painted, from the theme.
+class Popover;
+
 class NOVUUI_API ComboBox : public QComboBox
 {
     Q_OBJECT
@@ -40,6 +42,12 @@ public:
     // window to know which one is on screen.
     bool isOpen() const { return m_open; }
 
+    // The list a closed (non-searchable) box opens: the same Popover as
+    // SelectButton - the approved dropdown - so every standard dropdown has
+    // one look, one row height, one hover and one way of opening up or down,
+    // seven rows at most and the rest scrolling. Null until first opened.
+    Popover* menu() const { return m_menu; }
+
 protected:
     void paintEvent(QPaintEvent* event) override;
     void showPopup() override;
@@ -49,6 +57,7 @@ private:
     void setOpen(bool open);
 
     bool m_open = false;
+    Popover* m_menu = nullptr;
 };
 
 // A checkbox that says which mark it wants.

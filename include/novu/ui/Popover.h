@@ -124,7 +124,11 @@ private:
     //
     // Its own width is therefore the width of its widest option: stable
     // whatever is picked, and never eliding at a width that would have fitted.
-    QString m_widestLabel;
+    mutable QString m_widestLabel;
+    // the labels, measured once when the size is asked for - not once per
+    // option added (a list of a thousand milestones measured each one twice)
+    QStringList m_labels;
+    mutable bool m_widestDirty = false;
     QString m_metaText;
     Glyph m_glyph = Glyph::None;
     StatusDot* m_dot = nullptr;
@@ -176,6 +180,9 @@ public:
     // window or the screen it opens in still bounds it; what does not fit
     // scrolls, the last row included.
     void setMaximumMenuHeight(int height) { m_maxHeight = height; }
+    //! At most this many rows are shown at once; the rest scroll. 0 = no row
+    //! limit (only the height cap). The standard dropdown shows seven.
+    void setMaximumVisibleItems(int rows) { m_maxRows = qMax(0, rows); }
     bool isChecked(const QString& key) const;
     // `.pitem.danger` — the ink and the hover both go red. For the one entry a
     // user must not hit by accident.
@@ -268,6 +275,13 @@ private:
     QPointer<Popover> m_parentMenu;
     bool m_closesOnTrigger = true;
     int m_maxHeight = 420;
+    int m_maxRows = 0;
+    // Row offsets, measured once per change of the entries: a list of
+    // thousands is laid out in O(n), not again for every row it paints.
+    mutable QVector<int> m_offsets;
+    mutable QSize m_contentSize;
+    void invalidateLayout() { m_offsets.clear(); m_contentSize = QSize(); }
+    void ensureLayout() const;
     Entry* find(const QString& key);
     const Entry* find(const QString& key) const;
 

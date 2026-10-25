@@ -1751,3 +1751,8 @@ The branded hover tip, in two modes. Off it gives the name and the key; on it ex
 | `detail` | `QString` | The long form, in help mode after a second delay — .tip-d. |
 | `compact` | `bool` | A tip about a row: the same card, one step smaller. |
 
+### Standard dropdown rule
+
+**All standard dropdowns must use the approved NovuUI dropdown component and visual behavior. Custom dropdown implementations are prohibited unless technically justified.** Use `SelectButton`; a `ComboBox` opens the same `Popover`
+(seven rows at most, the rest scroll). See `APPLICATION_RULES.md`, "Standard dropdowns".
+

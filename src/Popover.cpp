@@ -1,4 +1,5 @@
 #include "novu/ui/Popover.h"
+#include <algorithm>
 
 #include <QApplication>
 
@@ -133,6 +134,8 @@ SelectButton::SelectButton(QWidget* parent)
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     m_menu = new Popover(this);
+    // the standard dropdown shows seven rows, the rest scroll
+    m_menu->setMaximumVisibleItems(7);
     connect(m_menu, &Popover::triggered, this, [this](const QString& key) {
         setCurrentKey(key);
         emit currentChanged(key);
@@ -158,10 +161,8 @@ int SelectButton::addOption(const QString& key, const QString& label, Glyph glyp
     const int index = m_menu->addItem(key, label, glyph);
     // Measured in text, not pixels: the font can change under a theme switch,
     // and the longest STRING stays the longest string.
-    if (QFontMetrics(labelFont()).horizontalAdvance(label)
-        > QFontMetrics(labelFont()).horizontalAdvance(m_widestLabel)) {
-        m_widestLabel = label;
-    }
+    m_labels << label;
+    m_widestDirty = true;
     if (m_currentKey.isEmpty()) {
         setCurrentKey(key);
     }
@@ -174,6 +175,8 @@ void SelectButton::clearOptions()
     m_menu->clear();
     m_currentKey.clear();
     m_widestLabel.clear();
+    m_labels.clear();
+    m_widestDirty = false;
     applyGeometry();
     updateGeometry();
     update();
@@ -314,6 +317,15 @@ QSize SelectButton::measure(const QString& text) const
 
 QSize SelectButton::sizeHint() const
 {
+    if (m_widestDirty) {
+        const QFontMetrics metrics(labelFont());
+        int widest = -1;
+        for (const QString& l : m_labels) {
+            const int w = metrics.horizontalAdvance(l);
+            if (w > widest) { widest = w; m_widestLabel = l; }
+        }
+        m_widestDirty = false;
+    }
     return measure(m_widestLabel.isEmpty() ? currentText() : m_widestLabel);
 }
 
@@ -446,6 +458,7 @@ int Popover::addItem(const QString& key, const QString& label, Glyph glyph)
     entry.label = label;
     entry.glyph = glyph;
     m_items.append(entry);
+    invalidateLayout();
     updateGeometry();
     update();
     return m_items.size() - 1;
@@ -474,6 +487,7 @@ int Popover::addGroup(const QString& title)
     entry.kind = Kind::Group;
     entry.label = title;
     m_items.append(entry);
+    invalidateLayout();
     updateGeometry();
     update();
     return m_items.size() - 1;
@@ -484,6 +498,7 @@ int Popover::addSeparator()
     Entry entry;
     entry.kind = Kind::Separator;
     m_items.append(entry);
+    invalidateLayout();
     updateGeometry();
     update();
     return m_items.size() - 1;
@@ -493,6 +508,7 @@ void Popover::clear()
 {
     for(auto& entry:m_items)if(entry.submenu)delete entry.submenu.data();
     m_items.clear();
+    invalidateLayout();
     m_hovered = -1;
     m_pressed = -1;
     updateGeometry();
@@ -527,6 +543,7 @@ void Popover::setMeta(const QString& key, const QString& meta)
         return;
     }
     entry->meta = meta;
+    invalidateLayout();
     updateGeometry();
     update();
 }
@@ -580,17 +597,28 @@ int Popover::entryHeight(const Entry& entry) const
     return qMax(QFontMetrics(itemFont(this)).height(), kItemGlyph) + 2 * kItemPaddingV;
 }
 
+void Popover::ensureLayout() const
+{
+    if (m_offsets.size() == m_items.size() + 1) {
+        return;
+    }
+    m_offsets.resize(m_items.size() + 1);
+    int y = 0;
+    for (int i = 0; i < m_items.size(); ++i) {
+        m_offsets[i] = y;
+        y += entryHeight(m_items.at(i));
+    }
+    m_offsets[m_items.size()] = y;
+}
+
 QRect Popover::itemRect(int index) const
 {
     if (index < 0 || index >= m_items.size()) {
         return QRect();
     }
-    int y = kPadding - m_scroll;
-    for (int i = 0; i < index; ++i) {
-        y += entryHeight(m_items.at(i));
-    }
-    return QRect(kPadding, y, qMax(0, width() - 2 * kPadding),
-                 entryHeight(m_items.at(index)));
+    ensureLayout();
+    return QRect(kPadding, kPadding - m_scroll + m_offsets.at(index), qMax(0, width() - 2 * kPadding),
+                 m_offsets.at(index + 1) - m_offsets.at(index));
 }
 
 int Popover::indexAt(const QPoint& position) const
@@ -599,10 +627,13 @@ int Popover::indexAt(const QPoint& position) const
     if (position.y() < kPadding || position.y() >= height() - kPadding) {
         return -1;
     }
-    for (int i = 0; i < m_items.size(); ++i) {
-        if (m_items.at(i).kind == Kind::Item && itemRect(i).contains(position)) {
-            return i;
-        }
+    // the row by its offset: a binary search over the measured rows
+    ensureLayout();
+    const int y = position.y() - kPadding + m_scroll;
+    const auto it = std::upper_bound(m_offsets.cbegin(), m_offsets.cend(), y);
+    const int i = int(it - m_offsets.cbegin()) - 1;
+    if (i >= 0 && i < m_items.size() && m_items.at(i).kind == Kind::Item && itemRect(i).contains(position)) {
+        return i;
     }
     return -1;
 }
@@ -619,6 +650,9 @@ int Popover::neighbour(int from, int step) const
 
 QSize Popover::sizeHint() const
 {
+    if (m_contentSize.isValid()) {
+        return m_contentSize;
+    }
     const QFontMetrics items(itemFont(this));
     const QFontMetrics metas(metaFont(this));
     const QFontMetrics groups(groupFont(this));
@@ -654,7 +688,8 @@ QSize Popover::sizeHint() const
         }
         }
     }
-    return QSize(qMax(kMinWidth, width + 2 * kPadding), height);
+    m_contentSize = QSize(qMax(kMinWidth, width + 2 * kPadding), height);
+    return m_contentSize;
 }
 
 Popover* Popover::chainRoot()
@@ -755,7 +790,12 @@ void Popover::place(const QRect& anchorBox, const QWidget* reference)
     const int width = qMin(content.width(), qMin(kMaxWidth, bounds.width() - 2 * kEdge));
     const int below = bounds.bottom() - kEdge - (anchorBox.bottom() + kEdge);
     const int above = anchorBox.top() - kEdge - (bounds.top() + kEdge);
-    const int wanted = qMin(content.height(), m_maxHeight);
+    int wanted = qMin(content.height(), m_maxHeight);
+    // a row limit: the first m_maxRows rows fit, the rest scroll
+    if (m_maxRows > 0 && m_items.size() > m_maxRows) {
+        ensureLayout();
+        wanted = qMin(wanted, 2 * kPadding + m_offsets.at(m_maxRows));
+    }
     bool down = true;
     int height = wanted;
     if (wanted > below) {
@@ -1004,6 +1044,11 @@ void Popover::hideEvent(QHideEvent* event)
 
 bool Popover::event(QEvent* event)
 {
+    // a new font or theme measures the rows again
+    if (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange
+        || event->type() == QEvent::PaletteChange) {
+        invalidateLayout();
+    }
     if (event->type() == QEvent::WindowDeactivate) {
         // The last signal that still arrives when the platform grab does not
         // reach the click: a native child surface such as a web view taking

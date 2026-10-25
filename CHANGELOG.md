@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Foundation work for NUI-002 — making NovuUI the single source of truth for
 desktop UI. Everything here is additive; existing consumers link unchanged.
 
+### Changed
+
+- **One standard dropdown.** A closed `ComboBox` opens the approved `Popover` (the one
+  `SelectButton` opens) instead of a `QListView`: one look, one row height, the same
+  hover, checked mark and up/down placement for every standard dropdown. A searchable
+  box keeps Qt's list for its completer. `ComboBox::menu()` exposes it.
+- **Seven rows.** `Popover::setMaximumVisibleItems()`; `SelectButton` and `ComboBox` show
+  seven rows at most, the rest scroll.
+- **Long lists.** `Popover` measures its rows once per change (row offsets and size are
+  cached): painting and hit-testing were O(n^2) - a list of 1 500 milestones crawled.
+  `SelectButton` measures its widest label when the size is asked for, not per option.
+
 ### Added
 
 - **Stacked cells and row cards in `TableView`.** `CellContent::stacked`

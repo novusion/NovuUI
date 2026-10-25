@@ -272,3 +272,25 @@ Novusion owns no hidden user-data locations.
 
 The user chooses where Novusion Data and Cache live. Hub owns those
 locations. Applications and modules consume them. Nothing writes elsewhere.
+
+## Standard dropdowns
+
+**All standard dropdowns must use the approved NovuUI dropdown component and visual behavior. Custom dropdown implementations are prohibited unless technically justified.**
+
+- The approved dropdown is `novu::ui::SelectButton` (a pill with the current
+  value, opening a `Popover`) - the look of the NovuAI chat's model selector and
+  its Single / Multi / Mode selector. A closed `novu::ui::ComboBox` opens the
+  same `Popover`, so a form that needs `QComboBox` semantics (items with data,
+  `currentIndexChanged`) gets the same list, rows, hover, checked mark and
+  placement.
+- At most seven rows are shown; the rest scroll (`Popover::setMaximumVisibleItems`).
+- The list opens below its control, above it when only that side has room, and
+  scrolls on the roomier side when neither does; it opens on the checked item.
+- No local stylesheet on a dropdown, no `QMenu` used as a select, no
+  hand-made popup list. A searchable box (`ComboBox::setSearchable`) keeps
+  Qt's list for its completer - that is the one documented exception.
+- Specialised pickers with their own function (hierarchical trees, complex
+  multi-select) are not "standard dropdowns" and stay what they are.
+- AI agents creating UI follow this rule as well (it belongs in the global
+  Qt Development skill).
+
