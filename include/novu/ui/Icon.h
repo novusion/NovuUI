@@ -128,6 +128,10 @@ enum class Glyph {
     // the same chevron as ChevronDown (Back is an arrow, not its mirror).
     // Appended for the reason above.
     ChevronLeft, ChevronRight,
+
+    // an open book, two pages (NovuAI's `book` - Calendar in the Flow view
+    // menu); Book is the closed one. Appended for the reason above.
+    BookOpen,
 };
 
 // The name the design uses for a glyph ("chevron-down"), and the reverse.

@@ -812,7 +812,7 @@ void Popover::place(const QRect& anchorBox, const QWidget* reference)
     setFixedSize(width, height);
     m_scroll = 0;
 
-    const int x = qBound(bounds.left() + kEdge, anchorBox.left(),
+    const int x = qBound(bounds.left() + kEdge, m_rightAligned ? anchorBox.right() + 1 - width : anchorBox.left(),
                          qMax(bounds.left() + kEdge, bounds.right() - width - kEdge));
     const int y = down ? anchorBox.bottom() + kEdge : anchorBox.top() - kEdge - height;
     move(x, qMax(bounds.top() + kEdge, y));

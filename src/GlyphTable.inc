@@ -283,6 +283,8 @@
      "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v6M12 16h.01\"/>"},
     {Glyph::Pin, "pin",
      "<path d=\"M12 17v5M9 3h6l-1 6 3.5 3.5H6.5L10 9z\"/>"},
+    {Glyph::BookOpen, "book-open",
+     "<path d=\"M4.5 5.1h6a3 3 0 0 1 3 3V19.5a2.4 2.4 0 0 0-2.4-2.1H4.5z\"/><path d=\"M19.5 5.1H14.4a3 3 0 0 0-3 3V19.5a2.4 2.4 0 0 1 2.4-2.1H19.5z\"/>"},
     {Glyph::ChevronLeft, "chevron-left",
      "<path d=\"M14.5 6l-6 6 6 6\"/>"},
     {Glyph::ChevronRight, "chevron-right",

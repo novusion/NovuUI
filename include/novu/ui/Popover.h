@@ -176,6 +176,9 @@ public:
     // which kind of menu it is on.
     bool closesOnTrigger() const { return m_closesOnTrigger; }
     void setClosesOnTrigger(bool closes) { m_closesOnTrigger = closes; }
+    // `NV.menu(anchor, items, {align:'right'})`: the menu's right edge on the
+    // anchor's, for an anchor at the right of a header. Off by default.
+    void setRightAligned(bool right) { m_rightAligned = right; }
     // The tallest the menu opens before it scrolls (420 unless set). The
     // window or the screen it opens in still bounds it; what does not fit
     // scrolls, the last row included.
@@ -274,6 +277,7 @@ private:
 
     QPointer<Popover> m_parentMenu;
     bool m_closesOnTrigger = true;
+    bool m_rightAligned = false;
     int m_maxHeight = 420;
     int m_maxRows = 0;
     // Row offsets, measured once per change of the entries: a list of
