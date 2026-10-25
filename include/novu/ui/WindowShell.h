@@ -278,6 +278,9 @@ public:
 
 protected:
     void keyPressEvent(QKeyEvent* event) override;
+    // Never taller than the window it belongs to, nor than the screen: a long
+    // body scrolls inside the dialog, the dialog does not run off the window.
+    void showEvent(QShowEvent* event) override;
 
 public:
 

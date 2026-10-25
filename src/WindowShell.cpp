@@ -1,5 +1,8 @@
 #include "novu/ui/WindowShell.h"
 
+#include <QScreen>
+#include <QShowEvent>
+
 #include "novu/ui/Button.h"
 #include "novu/ui/Feedback.h"
 #include <QKeyEvent>
@@ -871,6 +874,20 @@ QWidget* Dialog::content() const
 QVBoxLayout* Dialog::contentLayout() const
 {
     return m_shell->contentLayout();
+}
+
+void Dialog::showEvent(QShowEvent* event)
+{
+    int most = QWIDGETSIZE_MAX;
+    if (QWidget* owner = parentWidget() ? parentWidget()->window() : nullptr) {
+        if (owner != this && owner->isVisible()) most = owner->height() - 24;
+    }
+    if (const QScreen* s = screen()) most = qMin(most, s->availableGeometry().height() - 24);
+    if (most >= 160 && most < QWIDGETSIZE_MAX) {
+        setMaximumHeight(most);
+        if (height() > most) resize(width(), most);
+    }
+    QDialog::showEvent(event);
 }
 
 void Dialog::setContentWidget(QWidget* widget)
