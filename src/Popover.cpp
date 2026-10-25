@@ -276,7 +276,9 @@ QFont SelectButton::labelFont() const
             : (m_size == ControlSize::Small ? TypeRole::Caption : TypeRole::Body);
     QFont font = role == TypeRole::Mono ? roleMonoFont(this, role)
                                         : roleFont(this, role);
-    if (role != TypeRole::Mono) {
+    // the select's own weight; a role the caller chose keeps its own (the
+    // board picker's `.bp .select .val{f-head 600}`)
+    if (role != TypeRole::Mono && m_labelRole == TypeRole::Body) {
         font.setWeight(QFont::Medium);
     }
     return font;
