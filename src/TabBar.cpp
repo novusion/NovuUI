@@ -17,6 +17,7 @@
 #include <QLinearGradient>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QRegion>
 #include <QPainterPath>
 #include <QPen>
 #include <QResizeEvent>
@@ -1340,8 +1341,11 @@ ResolvedStyle TabBar::resolvedStyle() const
     return resolve(styleSpec(), this, height());
 }
 
-void TabBar::paintEvent(QPaintEvent*)
+void TabBar::paintEvent(QPaintEvent* event)
 {
+    // What animates (loading rings), collected while painting, so the shared
+    // clock repaints only those - see Pulse.
+    QRegion motionRegion;
     const ThemeProfile& profile = themeFor(this);
 
     QPainter painter(this);
@@ -1368,6 +1372,14 @@ void TabBar::paintEvent(QPaintEvent*)
         const Tab& tab = m_tabs.at(index);
         const QRect box = tabRect(index);
         if (!box.intersects(viewport)) {
+            continue;
+        }
+        if (tab.state == State::Loading) {
+            motionRegion += box;
+        }
+        // Only what this paint was asked for: a ring's repaint does not
+        // re-resolve and redraw every other tab.
+        if (!box.intersects(event->rect())) {
             continue;
         }
         const ResolvedStyle style = resolve(tabStyleSpec(index), this, box.height());
@@ -1603,6 +1615,10 @@ void TabBar::paintEvent(QPaintEvent*)
         painter.setBrush(Qt::NoBrush);
         painter.drawRoundedRect(QRectF(tabRect(m_current)).adjusted(1, 1, -1, -2),
                                 kRadius, kRadius);
+    }
+
+    if (property("novuMotionRegion").value<QRegion>() != motionRegion) {
+        setProperty("novuMotionRegion", QVariant::fromValue(motionRegion));
     }
 }
 

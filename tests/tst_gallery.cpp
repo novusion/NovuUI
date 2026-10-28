@@ -21,6 +21,7 @@
 
 #include "novu/ui/Theme.h"
 #include "novu/ui/Icon.h"
+#include <QGuiApplication>
 #include <QPainterPath>
 
 #include "novu/ui/AddressBar.h"
@@ -1479,7 +1480,16 @@ void GalleryTest::theSharedClockRunsOnlyWhileSomethingIsAnimating()
         auto* primary = new Button(QStringLiteral("Save"),
                                    Button::Variant::Primary, surface);
         QCOMPARE(pulse.subscriberCount(), before + 1);
-        QVERIFY(pulse.isRunning());
+        // A subscriber alone does not run the clock: it runs while one is on
+        // screen in the active application.
+        QCOMPARE(pulse.isRunning(),
+                 primary->isVisible()
+                     && QGuiApplication::applicationState() == Qt::ApplicationActive);
+        // Hidden, it stops - unless an earlier test left a visible one behind.
+        primary->hide();
+        if (before == 0)
+            QVERIFY(!pulse.isRunning());
+        primary->show();
 
         // Disabling stops the motion: nothing about a control the user cannot
         // press should be moving.
