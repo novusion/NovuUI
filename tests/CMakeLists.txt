@@ -186,3 +186,9 @@ add_executable(tst_treeview_marker_filter tst_treeview_marker_filter.cpp)
 target_link_libraries(tst_treeview_marker_filter PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
 add_test(NAME treeview_marker_filter COMMAND tst_treeview_marker_filter)
 set_tests_properties(treeview_marker_filter PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
+
+# The same toast is not shown twice.
+add_executable(tst_toast_dedupe tst_toast_dedupe.cpp)
+target_link_libraries(tst_toast_dedupe PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME toast_dedupe COMMAND tst_toast_dedupe)
+set_tests_properties(toast_dedupe PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)

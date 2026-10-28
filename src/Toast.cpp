@@ -227,6 +227,14 @@ Toast* Toast::postWithAction(QWidget* host, const QString& message,
     if (!layer) {
         return nullptr;
     }
+    // The same words already said are not said again: a button pressed twice
+    // gives one toast that stays a while longer, not two of the same.
+    for (Toast* shown : layer->toasts()) {
+        if (shown && shown->m_message == message && shown->m_tone == tone && shown->m_actionText == actionText) {
+            shown->startTimer();
+            return shown;
+        }
+    }
     auto* toast = new Toast(layer);
     toast->m_message = message;
     toast->m_actionText = actionText;
