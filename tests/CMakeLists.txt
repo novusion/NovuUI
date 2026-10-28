@@ -58,6 +58,12 @@ target_link_libraries(tst_treeview_selection_drop PRIVATE Novu::UI Qt6::Test Qt6
 add_test(NAME treeview_selection_drop COMMAND tst_treeview_selection_drop)
 set_tests_properties(treeview_selection_drop PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
 
+# The running status turns, and its one timer stops once nothing spins.
+add_executable(tst_treeview_status_spinner tst_treeview_status_spinner.cpp)
+target_link_libraries(tst_treeview_status_spinner PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME treeview_status_spinner COMMAND tst_treeview_status_spinner)
+set_tests_properties(treeview_status_spinner PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
+
 # A transient surface the user cannot dismiss is a broken surface. This pins
 # the popup window type and every documented way out of a menu.
 add_executable(tst_popover_dismissal tst_popover_dismissal.cpp)

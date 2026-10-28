@@ -138,6 +138,13 @@ public:
     // does. Painted, like everything else in a row.
     void setStatus(const QString& id, StatusDot::Tone tone);
     void clearStatus(const QString& id);
+    // The status as a turning `refresh-cw` arrow in the status tone instead
+    // of a dot - for "this is running now", where a dot alone does not tell
+    // running from waiting at a glance. Only the rows that spin are repainted,
+    // on one timer that runs while a row spins and stops when none does.
+    // setStatus() keeps the spin; clearStatus() ends it.
+    void setStatusSpinning(const QString& id, bool spinning);
+    bool isStatusSpinning(const QString& id) const;
     // `.trow .tag` — a short word after the name: a branch, a state, a format.
     void setTag(const QString& id, const QString& text,
                 Badge::Tone tone = Badge::Tone::Neutral);
@@ -368,6 +375,7 @@ private:
     void endDropHover();
     void onAutoExpandTimeout();
     void onAutoScrollTimeout();
+    void onSpinTick();
     void updateAcceptDrops();
 
     struct Node
@@ -388,6 +396,7 @@ private:
         int count = -1;
         bool hasStatus = false;
         StatusDot::Tone status = StatusDot::Tone::Neutral;
+        bool statusSpins = false;
         int depth = 0;
         bool expanded = false;
         bool enabled = true;
@@ -465,6 +474,7 @@ private:
     int m_autoScrollStep = 0;
     QTimer* m_autoExpandTimer = nullptr;
     QTimer* m_autoScrollTimer = nullptr;
+    QTimer* m_spinTimer = nullptr;
 };
 
 } // namespace novu::ui

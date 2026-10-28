@@ -1,5 +1,6 @@
 #include "novu/ui/TreeView.h"
 
+#include "novu/ui/Motion.h"
 #include "novu/ui/Text.h"
 #include "novu/ui/Theme.h"
 #include "novu/ui/ThemeManager.h"
@@ -36,6 +37,11 @@ namespace {
 // `.wsdot{width:6px}` and the halo around it, matching StatusDot's own.
 constexpr int kStatusDot = 6;
 constexpr int kStatusHalo = 2;
+// The running arrow: a glyph needs more than the dot's 6px to read as an
+// arrow, and one turn in 1.5 s reads as busy without reading as alarm.
+constexpr int kStatusSpinner = 11;
+constexpr int kStatusSpinMs = 1500;
+constexpr int kStatusSpinTickMs = 33;
 constexpr int kRowGap = 6;
 constexpr int kRowPaddingLeft = 4;
 constexpr int kRowPaddingRight = 6;
@@ -397,7 +403,65 @@ void TreeView::clearStatus(const QString& id)
         return;
     }
     entry->hasStatus = false;
+    entry->statusSpins = false;
     viewport()->update();
+}
+
+void TreeView::setStatusSpinning(const QString& id, bool spinning)
+{
+    Node* entry = node(id);
+    if (!entry || entry->statusSpins == spinning) {
+        return;
+    }
+    entry->statusSpins = spinning;
+    viewport()->update();
+    if (spinning) {
+        if (!m_spinTimer) {
+            m_spinTimer = new QTimer(this);
+            m_spinTimer->setInterval(kStatusSpinTickMs);
+            m_spinTimer->setTimerType(Qt::CoarseTimer);
+            connect(m_spinTimer, &QTimer::timeout, this, &TreeView::onSpinTick);
+        }
+        if (!m_spinTimer->isActive()) {
+            m_spinTimer->start();
+        }
+    }
+}
+
+bool TreeView::isStatusSpinning(const QString& id) const
+{
+    const auto it = m_nodes.constFind(id);
+    return it != m_nodes.cend() && it->hasStatus && it->statusSpins;
+}
+
+// Repaints the rows on screen that spin, and nothing else. The timer stops
+// once no node spins any more - removed, cleared or set still - so an idle
+// sidebar costs nothing.
+void TreeView::onSpinTick()
+{
+    bool any = false;
+    for (auto it = m_nodes.cbegin(); it != m_nodes.cend() && !any; ++it) {
+        any = it->hasStatus && it->statusSpins;
+    }
+    if (!any) {
+        m_spinTimer->stop();
+        return;
+    }
+    if (!isVisible() || !motion::enabled(this)) {
+        return;
+    }
+    const int first = firstVisibleRow();
+    const int rows = qMin(m_rows.size() - first, viewport()->height() / qMax(1, rowHeight()) + 2);
+    for (int i = 0; i < rows; ++i) {
+        const int row = first + i;
+        if (row < 0 || row >= m_rows.size()) {
+            break;
+        }
+        const Node* entry = node(m_rows.at(row));
+        if (entry && entry->hasStatus && entry->statusSpins) {
+            viewport()->update(rowRect(row));
+        }
+    }
 }
 
 void TreeView::setCount(const QString& id, int count)
@@ -1954,7 +2018,14 @@ void TreeView::paintEvent(QPaintEvent*)
             rightEdge = static_cast<int>(pill.left()) - kRowGap;
         }
 
-        if (entry->hasStatus) {
+        if (entry->hasStatus && entry->statusSpins) {
+            const QColor ink = statusDotToken(entry->status).resolve(profile);
+            const double angle = motion::enabled(this) ? motion::phase(kStatusSpinMs) * 360.0 : 0.0;
+            const QRectF spinner(rightEdge - kStatusSpinner, box.center().y() - kStatusSpinner / 2.0,
+                                 kStatusSpinner, kStatusSpinner);
+            paintGlyph(&painter, Glyph::Refresh, spinner, ink, angle, 2.0, this);
+            rightEdge -= kStatusSpinner + kRowGap;
+        } else if (entry->hasStatus) {
             // `.wsdot{width:6px}` with the same halo StatusDot draws, so a dot
             // in a tree row and a dot in a nav row are the same dot.
             // statusDotToken() is StatusDot's own table, not a copy of it, so
