@@ -7,6 +7,7 @@
 #include <QEvent>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QConicalGradient>
 #include <QPainterPath>
 
 namespace novu::ui {
@@ -18,6 +19,9 @@ constexpr int kGap = 6;
 // The tick and the diagonal both sit inside the swatch, so neither needs room
 // of its own.
 constexpr double kMarkScale = 0.55;
+// NovusionUI's SwatchRow, which NovuExplorer's menus draw: the chosen ring
+// sits outside the swatch, so the row keeps 2px round it for the ring.
+constexpr int kRingRoom = 4;
 
 } // namespace
 
@@ -121,7 +125,7 @@ void Swatch::setSwatchSize(int px)
 
 int Swatch::columns(int width) const
 {
-    return qMax(1, (width + kGap) / (m_size + kGap));
+    return qMax(1, (width - kRingRoom + kGap) / (m_size + kGap));
 }
 
 QRect Swatch::swatchRect(int index) const
@@ -132,7 +136,7 @@ QRect Swatch::swatchRect(int index) const
     const int perRow = columns(width());
     const int row = index / perRow;
     const int column = index % perRow;
-    return QRect(column * (m_size + kGap), row * (m_size + kGap), m_size, m_size);
+    return QRect(kRingRoom / 2 + column * (m_size + kGap), kRingRoom / 2 + row * (m_size + kGap), m_size, m_size);
 }
 
 int Swatch::indexAt(const QPoint& position) const
@@ -151,7 +155,7 @@ QSize Swatch::sizeHint() const
     if (n == 0) {
         return {0, 0};
     }
-    return QSize(n * m_size + (n - 1) * kGap, m_size);
+    return QSize(n * m_size + (n - 1) * kGap + kRingRoom, m_size + kRingRoom);
 }
 
 int Swatch::heightForWidth(int width) const
@@ -162,7 +166,7 @@ int Swatch::heightForWidth(int width) const
     }
     const int perRow = columns(width);
     const int rows = (n + perRow - 1) / perRow;
-    return rows * m_size + (rows - 1) * kGap;
+    return rows * m_size + (rows - 1) * kGap + kRingRoom;
 }
 
 StyleSpec Swatch::styleSpec() const
@@ -271,25 +275,26 @@ void Swatch::paintEvent(QPaintEvent*)
     painter.setRenderHint(QPainter::Antialiasing, true);
 
     for (int i = 0; i < count(); ++i) {
-        const QRect box = swatchRect(i);
+        QRectF box = QRectF(swatchRect(i));
+        if (i == m_hovered && isEnabled()) {
+            box = box.adjusted(-1, -1, 1, 1);   // the hover grows it, without reflowing the row
+        }
         const QColor color = colorAt(i);
         const bool none = isNoneAt(i);
         const bool custom = isCustomAt(i);
 
-        const bool on = m_multi ? (none ? m_chosen.isEmpty() : m_chosen.contains(color))
-                                : (none ? !m_current.isValid() : m_current == color);
+        const bool on = !custom && (m_multi ? (none ? m_chosen.isEmpty() : m_chosen.contains(color))
+                                : (none ? !m_current.isValid() : m_current == color));
 
         QPainterPath shape;
-        shape.addRoundedRect(QRectF(box), style.radius, style.radius);
+        shape.addRoundedRect(box, style.radius, style.radius);
 
         if (custom) {
-            // The multi-hued one, so it cannot be mistaken for a colour that is
-            // in the palette already.
-            QLinearGradient hues(box.topLeft(), box.bottomRight());
-            const QList<QColor> series = tagPalette(this);
-            for (int s = 0; s < series.size(); ++s) {
-                hues.setColorAt(static_cast<double>(s) / qMax(1, series.size() - 1),
-                                series.at(s));
+            // Every hue at once: the swatch that asks for a colour rather than
+            // standing for one of its own.
+            QConicalGradient hues(box.center(), 90);
+            for (int k = 0; k <= 6; ++k) {
+                hues.setColorAt(k / 6.0, QColor::fromHsv((k * 60) % 360, 190, 225));
             }
             painter.fillPath(shape, hues);
         } else if (none) {
@@ -298,32 +303,24 @@ void Swatch::paintEvent(QPaintEvent*)
             painter.fillPath(shape, color);
         }
 
-        // The outline: the chosen one gets the strong ink, the hovered one the
-        // control outline, everything else the surface rule.
-        QColor outline = style.border;
-        double weight = style.borderWidth;
-        if (on) {
-            outline = style.checkedBorder;
-            weight = style.borderWidth + 1;
-        } else if (i == m_hovered && isEnabled()) {
-            outline = style.checkedBorder;
-        }
-        painter.setPen(QPen(outline, weight));
+        // a hairline round every swatch, as SwatchRow draws it
+        painter.setPen(QPen(style.border, 1.0));
         painter.setBrush(Qt::NoBrush);
         painter.drawPath(shape);
 
-        const double mark = box.width() * kMarkScale;
-        const QRectF markBox(box.center().x() - mark / 2.0 + 0.5,
-                             box.center().y() - mark / 2.0 + 0.5, mark, mark);
         if (none) {
             // A diagonal, the way every palette says "no colour".
-            painter.setPen(QPen(style.foreground, style.borderWidth + 0.5));
-            painter.drawLine(box.topRight() + QPoint(-4, 4),
-                             box.bottomLeft() + QPoint(4, -4));
-        } else if (on && !custom) {
-            // The tick goes *on* the colour, so it has to be the ink that reads
-            // on a filled plate rather than the page's own.
-            paintGlyph(&painter, Glyph::Check, markBox, style.checkedForeground);
+            painter.setPen(QPen(style.foreground, 1.2, Qt::SolidLine, Qt::RoundCap));
+            painter.drawLine(box.topRight() + QPointF(-3, 3), box.bottomLeft() + QPointF(3, -3));
+        }
+        if (on) {
+            // Chosen: two rings outside the swatch, on the panel it sits on -
+            // the colour itself is never covered by a mark.
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen(style.background, 2.0));
+            painter.drawRoundedRect(box.adjusted(-1.5, -1.5, 1.5, 1.5), style.radius + 1.5, style.radius + 1.5);
+            painter.setPen(QPen(style.checkedBorder, 1.5));
+            painter.drawRoundedRect(box.adjusted(-2.75, -2.75, 2.75, 2.75), style.radius + 2.75, style.radius + 2.75);
         }
     }
 }

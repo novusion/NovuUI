@@ -704,7 +704,13 @@ QSize Popover::sizeHint() const
     for (const Entry& entry : m_items) {
         switch (entry.kind) {
         case Kind::Separator:
-        case Kind::Control:   // a control takes the width the menu has
+            break;
+        case Kind::Control:
+            // a control row as wide as it asks to be in one line (a colour row
+            // stays one row, as NovuExplorer's menus have it)
+            if (entry.control) {
+                width = qMax(width, entry.control->sizeHint().width() + 2 * kItemPaddingH);
+            }
             break;
         case Kind::Group:
             width = qMax(width, groups.horizontalAdvance(entry.label.toUpper())
