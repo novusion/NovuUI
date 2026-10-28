@@ -1,3 +1,4 @@
+#include "novu/ui/NativeFrame.h"
 #include "novu/ui/Tooltip.h"
 
 #include <QApplication>
@@ -179,7 +180,8 @@ Tooltip& Tooltip::instance()
 Tooltip::Tooltip()
     : QWidget(nullptr, Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint)
 {
-    setAttribute(Qt::WA_TranslucentBackground);
+    if (!useCompositorFrame(this))
+        setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_ShowWithoutActivating);
     setAttribute(Qt::WA_TransparentForMouseEvents);
     setFocusPolicy(Qt::NoFocus);
@@ -532,13 +534,17 @@ void Tooltip::paintEvent(QPaintEvent*)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
-    const int borderWidth = qMax(1, profile.border(BorderRole::Card));
-    const QRectF card = QRectF(rect()).adjusted(borderWidth / 2.0, borderWidth / 2.0,
-                                                -borderWidth / 2.0, -borderWidth / 2.0);
-    painter.setPen(QPen(profile.colors.border, borderWidth));
-    painter.setBrush(profile.colors.panelBg);
-    painter.drawRoundedRect(card, profile.radius(SurfaceRole::Overlay),
-                            profile.radius(SurfaceRole::Overlay));
+    if (compositorDrawsWindowFrame()) {
+        painter.fillRect(rect(), profile.colors.panelBg);
+    } else {
+        const int borderWidth = windowBorderWidth(context);
+        const double radius = windowCornerRadius(context);
+        const QRectF card = QRectF(rect()).adjusted(borderWidth / 2.0, borderWidth / 2.0,
+                                                    -borderWidth / 2.0, -borderWidth / 2.0);
+        painter.setPen(QPen(windowBorderColor(context), borderWidth));
+        painter.setBrush(profile.colors.panelBg);
+        painter.drawRoundedRect(card, radius, radius);
+    }
 
     const int left = kPaddingH;
     const int textWidth = width() - 2 * kPaddingH;

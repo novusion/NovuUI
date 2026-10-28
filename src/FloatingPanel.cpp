@@ -1,3 +1,4 @@
+#include "novu/ui/NativeFrame.h"
 #include "novu/ui/FloatingPanel.h"
 
 #include "novu/ui/Text.h"
@@ -817,18 +818,20 @@ void FloatingPanel::paintEvent(QPaintEvent*)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
-    const QRectF frame = QRectF(rect()).adjusted(style.borderWidth / 2.0,
-                                                 style.borderWidth / 2.0,
-                                                 -style.borderWidth / 2.0,
-                                                 -style.borderWidth / 2.0);
-    painter.setPen(QPen(style.border, style.borderWidth));
+    // A window drawn inside the window: the main window's corner and its
+    // outline, so a panel's edge reads like every other Novu window's.
+    const int borderWidth = windowBorderWidth(this);
+    const double radius = windowCornerRadius(this);
+    const QRectF frame = QRectF(rect()).adjusted(borderWidth / 2.0, borderWidth / 2.0,
+                                                 -borderWidth / 2.0, -borderWidth / 2.0);
+    painter.setPen(QPen(windowBorderColor(this), borderWidth));
     painter.setBrush(style.background);
-    painter.drawRoundedRect(frame, style.radius, style.radius);
+    painter.drawRoundedRect(frame, radius, radius);
 
     // Clip the chrome to the rounded frame, or the bar's square bottom edge
     // and the wash both bleed past the corners.
     QPainterPath clip;
-    clip.addRoundedRect(frame, style.radius, style.radius);
+    clip.addRoundedRect(frame, radius, radius);
     painter.save();
     painter.setClipPath(clip);
 

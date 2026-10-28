@@ -1,4 +1,5 @@
 #include "novu/ui/WindowShell.h"
+#include "novu/ui/NativeFrame.h"
 
 #include "novu/ui/Button.h"
 #include "novu/ui/Feedback.h"
@@ -18,6 +19,7 @@
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWindow>
+#include <QOperatingSystemVersion>
 
 #ifdef Q_OS_WIN
 #include <QAbstractNativeEventFilter>
@@ -1288,6 +1290,102 @@ void Dialog::reportError(QWidget* parent, const QString& title, const QString& m
     dialog->shell()->setContentSize(QSize(380, 140));
     dialog->exec();
     dialog->deleteLater();
+}
+
+// == one frame for every Novu window ===========================================
+
+namespace {
+
+// The compositor's rounded corner exists from Windows 11 on.
+bool roundingCompositor()
+{
+#ifdef Q_OS_WIN
+    static const bool available =
+        QOperatingSystemVersion::current() >= QOperatingSystemVersion::Windows11;
+    return available;
+#else
+    return false;
+#endif
+}
+
+#ifdef Q_OS_WIN
+// The same three settings applyNativeFrame() gives the main window.
+void applyCompositorFrameTo(QWidget* popup)
+{
+    const QWidget* context = popup->parentWidget() ? popup->parentWidget() : popup;
+    const ThemeProfile& profile = themeFor(context);
+    const HWND hwnd = reinterpret_cast<HWND>(popup->winId());
+    if (!hwnd)
+        return;
+    BOOL dark = qGray(profile.colors.windowBg.rgb()) < 128 ? TRUE : FALSE;
+    DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
+    const int radius = profile.radius(SurfaceRole::Window);
+    int corner = radius <= 0 ? 1 : radius <= 5 ? 3 : 2;
+    DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
+    COLORREF borderColor = 0xFFFFFFFE;   // DWMWA_COLOR_NONE
+    const QColor border = profile.window.border;
+    if (profile.window.borderWidth > 0 && border.isValid())
+        borderColor = RGB(border.red(), border.green(), border.blue());
+    DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &borderColor, sizeof(borderColor));
+}
+
+// Applies it whenever the popup's native window is (re)created and shown.
+class CompositorFrameWatch final : public QObject
+{
+public:
+    using QObject::QObject;
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (event->type() == QEvent::Show || event->type() == QEvent::WinIdChange) {
+            if (auto* widget = qobject_cast<QWidget*>(watched))
+                applyCompositorFrameTo(widget);
+        }
+        return QObject::eventFilter(watched, event);
+    }
+};
+#endif
+
+} // namespace
+
+bool compositorDrawsWindowFrame()
+{
+    return roundingCompositor();
+}
+
+int windowCornerRadius(const QWidget* context)
+{
+    const int token = themeFor(context).radius(SurfaceRole::Window);
+    if (!roundingCompositor())
+        return token;
+    // What DWMWCP_ROUND / ROUNDSMALL draw, so a panel inside the window has
+    // the window's own corner.
+    return token <= 0 ? 0 : token <= 5 ? 4 : 8;
+}
+
+QColor windowBorderColor(const QWidget* context)
+{
+    const QColor border = themeFor(context).window.border;
+    return border.isValid() ? border : themeFor(context).colors.border;
+}
+
+int windowBorderWidth(const QWidget* context)
+{
+    return qMax(1, themeFor(context).window.borderWidth);
+}
+
+bool useCompositorFrame(QWidget* popup)
+{
+#ifdef Q_OS_WIN
+    if (!popup || !roundingCompositor())
+        return false;
+    popup->installEventFilter(new CompositorFrameWatch(popup));
+    return true;
+#else
+    Q_UNUSED(popup);
+    return false;
+#endif
 }
 
 } // namespace novu::ui
