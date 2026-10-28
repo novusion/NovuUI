@@ -85,6 +85,16 @@ protected:
             return;
         }
 
+#ifdef Q_OS_WIN
+        // On Windows the compositor owns the outline: DWM clips the corners
+        // and draws the hairline in the border token (see applyNativeFrame),
+        // exactly as NovuHub does. Painting a second, Qt-side curve here is
+        // what used to fight it - three radii (mask, DWM preset, this path)
+        // that never agreed, so the border vanished at every corner.
+        painter.fillRect(rect(), profile.colors.windowBg);
+        return;
+#endif
+
         // The background is clipped to the same rounded path the border draws
         // - not a plain fillRect() - because DWM (Windows) clips the real
         // window to its own curve at a radius it picks from three fixed
@@ -607,33 +617,12 @@ void WindowShell::applyTheme()
 void WindowShell::applyWindowMask()
 {
 #ifdef Q_OS_WIN
-    if (!m_window || m_window->isMaximized()) {
-        if (m_window)
-            m_window->clearMask();
-        return;
-    }
-
-    const int radius = cornerRadius();
-    const QRect bounds = m_window->rect();
-    if (radius <= 0 || bounds.isEmpty()) {
+    // No mask on Windows. A QRegion mask is aliased, it cuts away the DWM
+    // shadow, and its curve never matched the compositor's own; DWM already
+    // rounds the window (applyNativeFrame). Any mask left from an earlier
+    // build of the window is cleared.
+    if (m_window)
         m_window->clearMask();
-        return;
-    }
-
-    const int r = qMin(radius, qMin(bounds.width(), bounds.height()) / 2);
-    const int diameter = r * 2;
-    QRegion rounded(bounds.adjusted(r, 0, -r, 0));
-    rounded += QRegion(bounds.adjusted(0, r, 0, -r));
-    rounded += QRegion(QRect(bounds.left(), bounds.top(), diameter, diameter),
-                       QRegion::Ellipse);
-    rounded += QRegion(QRect(bounds.right() - diameter + 1, bounds.top(),
-                             diameter, diameter), QRegion::Ellipse);
-    rounded += QRegion(QRect(bounds.left(), bounds.bottom() - diameter + 1,
-                             diameter, diameter), QRegion::Ellipse);
-    rounded += QRegion(QRect(bounds.right() - diameter + 1,
-                             bounds.bottom() - diameter + 1,
-                             diameter, diameter), QRegion::Ellipse);
-    m_window->setMask(rounded);
 #endif
 }
 
@@ -690,17 +679,23 @@ void WindowShell::applyNativeFrame()
     // and antialiased by the compositor, with the shadow following the curve.
     // Doing it ourselves would need a translucent backing store, and that costs
     // sub-pixel antialiasing on every label in the window.
+    // A maximised window is square against the screen edge, as in NovuHub.
+    const bool maximised = m_window->isMaximized();
     const int radius = cornerRadius();
-    int corner = radius <= 0 ? 1     // DWMWCP_DONOTROUND
-                : radius <= 5 ? 3    // DWMWCP_ROUNDSMALL, ~4px
-                              : 2;   // DWMWCP_ROUND, ~8px
+    int corner = (maximised || radius <= 0) ? 1   // DWMWCP_DONOTROUND
+                : radius <= 5 ? 3                 // DWMWCP_ROUNDSMALL, ~4px
+                              : 2;                // DWMWCP_ROUND, ~8px
     DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
 
-    // NovuUI paints the one visible antialiased border itself. Asking DWM for
-    // another border produces a square hairline behind the transparent corner
-    // and the diagonal notch seen where the two outlines meet.
-    constexpr COLORREF kNoDwmBorder = 0xFFFFFFFE;
+    // The one visible outline is DWM's, in the theme's window border token -
+    // the same mechanism NovuHub uses. It follows the compositor's own curve,
+    // stays antialiased at any DPI and keeps the shadow. Maximised, and with a
+    // zero border width, there is no outline at all.
+    constexpr COLORREF kNoDwmBorder = 0xFFFFFFFE;   // DWMWA_COLOR_NONE
     COLORREF borderColor = kNoDwmBorder;
+    const QColor border = profile.window.border;
+    if (!maximised && profile.window.borderWidth > 0 && border.isValid())
+        borderColor = RGB(border.red(), border.green(), border.blue());
     DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &borderColor, sizeof(borderColor));
 #endif
 }
