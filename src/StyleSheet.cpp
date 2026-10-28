@@ -112,6 +112,11 @@ QString styleSheetFor(const ThemeProfile& p)
     // label through a role, never here.
     qss += QStringLiteral("QLabel { background: transparent; border: none; color: %1; }")
                .arg(css(c.textPrimary));
+    // The OS tooltip is a QLabel too: without its own rule the line above
+    // leaves it floating text. Tooltip::adoptPlainToolTips() draws nearly all
+    // of them as the card; this is for the ones it leaves (inside a menu).
+    qss += QStringLiteral("QToolTip { background: %1; color: %2; border: 1px solid %3; padding: 4px 8px; }")
+               .arg(css(c.panelBg), css(c.textPrimary), css(c.border));
 
     // -- buttons -------------------------------------------------------------
     // 14px, the same horizontal padding Button::sizeHint() reserves. The base

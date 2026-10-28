@@ -1,7 +1,10 @@
 #include "novu/ui/Tooltip.h"
 
+#include <QAbstractItemView>
 #include <QApplication>
+#include <QHelpEvent>
 #include <QKeyEvent>
+#include <QTextDocument>
 #include <QMouseEvent>
 
 #include "novu/ui/Text.h"
@@ -278,6 +281,103 @@ void Tooltip::showAt(QWidget* owner, const QRect& area, const TipContent& conten
     if (tip.m_help && !tip.m_content.detail.isEmpty()) {
         tip.m_detailTimer->start();
     }
+}
+
+TipContent Tooltip::fromText(const QString& text)
+{
+    QString plain = text;
+    if (Qt::mightBeRichText(plain)) {
+        QTextDocument doc;
+        doc.setHtml(plain);
+        plain = doc.toPlainText();
+    }
+    plain = plain.trimmed();
+    TipContent content;
+    if (plain.isEmpty()) {
+        return content;
+    }
+    constexpr int kNameMax = 48;
+    const int newline = plain.indexOf(QLatin1Char('\n'));
+    if (newline > 0) {
+        content.title = plain.left(newline).trimmed();
+        content.brief = plain.mid(newline + 1).trimmed();
+        return content;
+    }
+    // a name is a few words ("Open Run"); a sentence is what it does
+    if (plain.size() <= kNameMax && plain.count(QLatin1Char(' ')) < 4) {
+        content.title = plain;
+        return content;
+    }
+    for (const QString& sep : {QStringLiteral(": "), QStringLiteral(" - "), QStringLiteral(" — ")}) {
+        const int at = plain.indexOf(sep);
+        if (at > 0 && at <= kNameMax) {
+            content.title = plain.left(at).trimmed();
+            content.brief = plain.mid(at + sep.size()).trimmed();
+            return content;
+        }
+    }
+    content.brief = plain;
+    return content;
+}
+
+namespace {
+
+// The application-wide filter adoptPlainToolTips() installs: a ToolTip event
+// for a plain tooltip becomes the card, and the OS tip never opens. A widget
+// with a card installed, or one that answers its ToolTip itself (empty
+// toolTip(), not an item view), is left alone.
+class PlainTipRouter final : public QObject
+{
+public:
+    using QObject::QObject;
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (event->type() != QEvent::ToolTip || !watched->isWidgetType()) {
+            return false;
+        }
+        auto* widget = static_cast<QWidget*>(watched);
+        // inside an open menu the card does not show (showAt), so the OS tip,
+        // styled by the stylesheet's QToolTip rule, stays
+        if (QApplication::activePopupWidget() || !Tooltip::contentFor(widget).isEmpty()) {
+            return false;
+        }
+        auto* help = static_cast<QHelpEvent*>(event);
+        QString text = widget->toolTip();
+        QRect area = widget->rect();
+        if (text.isEmpty()) {
+            auto* view = qobject_cast<QAbstractItemView*>(widget->parentWidget());
+            if (!view || view->viewport() != widget) {
+                return false;
+            }
+            const QModelIndex index = view->indexAt(help->pos());
+            text = index.isValid() ? index.data(Qt::ToolTipRole).toString() : QString();
+            area = index.isValid() ? view->visualRect(index) : QRect();
+            if (text.isEmpty()) {
+                Tooltip::hideTip();
+                return false;
+            }
+        }
+        const TipContent content = Tooltip::fromText(text);
+        if (content.isEmpty() || area.isEmpty()) {
+            return false;
+        }
+        Tooltip::showAt(widget, area, content);
+        return true;
+    }
+};
+
+} // namespace
+
+void Tooltip::adoptPlainToolTips()
+{
+    static QPointer<QObject> router;
+    if (router || !qApp) {
+        return;
+    }
+    router = new PlainTipRouter(qApp);
+    qApp->installEventFilter(router);
 }
 
 void Tooltip::setHelpMode(bool on)

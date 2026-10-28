@@ -192,3 +192,9 @@ add_executable(tst_toast_dedupe tst_toast_dedupe.cpp)
 target_link_libraries(tst_toast_dedupe PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
 add_test(NAME toast_dedupe COMMAND tst_toast_dedupe)
 set_tests_properties(toast_dedupe PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
+
+# A plain setToolTip() and an item's ToolTipRole are drawn as the card.
+add_executable(tst_tooltip_plain tst_tooltip_plain.cpp)
+target_link_libraries(tst_tooltip_plain PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME tooltip_plain COMMAND tst_tooltip_plain)
+set_tests_properties(tooltip_plain PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)

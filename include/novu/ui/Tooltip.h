@@ -167,6 +167,19 @@ public:
     // pointer each time.
     static void showAt(QWidget* owner, const QRect& area, const TipContent& content);
 
+    // A plain QWidget::setToolTip() string as this card's content: a single
+    // line of a few words is the name; "Name: what it does" or "Name - what it does"
+    // splits into name and brief; a first line followed by more lines is the
+    // name and the brief; a long sentence is the brief alone. Rich text is
+    // read as its plain text.
+    static TipContent fromText(const QString& text);
+    // Every plain tooltip in the application drawn as this card, from now on:
+    // a widget's toolTip() and an item view's Qt::ToolTipRole, wherever they
+    // were set. Without it they are the OS tooltip - which a stylesheet's
+    // `QLabel { background: transparent }` turns into floating text, since the
+    // OS tip is a QLabel too. Idempotent; call once after the QApplication.
+    static void adoptPlainToolTips();
+
     static void setHelpMode(bool on);
     static bool helpMode();
 
