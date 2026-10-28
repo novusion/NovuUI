@@ -506,8 +506,40 @@ int Popover::addSeparator()
     return m_items.size() - 1;
 }
 
+int Popover::addControl(QWidget* control)
+{
+    if (!control) {
+        return -1;
+    }
+    control->setParent(this);
+    Entry entry;
+    entry.kind = Kind::Control;
+    entry.control = control;
+    m_items.append(entry);
+    invalidateLayout();
+    updateGeometry();
+    update();
+    return m_items.size() - 1;
+}
+
+// Each control row where its row is now: the row's box less the item padding,
+// hidden while it is scrolled out of the menu's band.
+void Popover::placeControls()
+{
+    for (int i = 0; i < m_items.size(); ++i) {
+        QWidget* control = m_items.at(i).control.data();
+        if (m_items.at(i).kind != Kind::Control || !control) {
+            continue;
+        }
+        const QRect box = itemRect(i).adjusted(kItemPaddingH, kItemPaddingV, -kItemPaddingH, -kItemPaddingV);
+        control->setGeometry(box);
+        control->setVisible(box.top() >= kPadding - 1 && box.bottom() <= height() - kPadding + 1);
+    }
+}
+
 void Popover::clear()
 {
+    for(auto& entry:m_items)if(entry.control)delete entry.control.data();
     for(auto& entry:m_items)if(entry.submenu)delete entry.submenu.data();
     m_items.clear();
     invalidateLayout();
@@ -593,6 +625,14 @@ int Popover::entryHeight(const Entry& entry) const
         return 1 + 2 * kSeparatorMargin;
     case Kind::Group:
         return QFontMetrics(groupFont(this)).height() + kGroupTop + kGroupBottom;
+    case Kind::Control: {
+        const QWidget* control = entry.control.data();
+        if (!control) {
+            return 0;
+        }
+        const int inner = qMax(1, (m_controlWidth > 0 ? m_controlWidth : kMinWidth - 2 * kPadding) - 2 * kItemPaddingH);
+        return (control->hasHeightForWidth() ? control->heightForWidth(inner) : control->sizeHint().height()) + 2 * kItemPaddingV;
+    }
     case Kind::Item:
         break;
     }
@@ -662,9 +702,9 @@ QSize Popover::sizeHint() const
     int height = 2 * kPadding;
     int width = 0;
     for (const Entry& entry : m_items) {
-        height += entryHeight(entry);
         switch (entry.kind) {
         case Kind::Separator:
+        case Kind::Control:   // a control takes the width the menu has
             break;
         case Kind::Group:
             width = qMax(width, groups.horizontalAdvance(entry.label.toUpper())
@@ -689,6 +729,13 @@ QSize Popover::sizeHint() const
             break;
         }
         }
+    }
+    // the rows' heights once the width is known: a control row asks for its
+    // height at the width it will have
+    m_controlWidth = qMax(kMinWidth, width + 2 * kPadding) - 2 * kPadding;
+    m_offsets.clear();
+    for (const Entry& entry : m_items) {
+        height += entryHeight(entry);
     }
     m_contentSize = QSize(qMax(kMinWidth, width + 2 * kPadding), height);
     return m_contentSize;
@@ -780,6 +827,7 @@ void Popover::ensureItemVisible(int index)
         m_scroll += box.bottom() - (height() - kPadding) + 1;
     }
     m_scroll = qBound(0, m_scroll, maxScroll());
+    placeControls();
     update();
 }
 
@@ -824,6 +872,7 @@ void Popover::place(const QRect& anchorBox, const QWidget* reference)
             break;
         }
     }
+    placeControls();
 }
 
 void Popover::wheelEvent(QWheelEvent* event)
@@ -835,6 +884,7 @@ void Popover::wheelEvent(QWheelEvent* event)
     const int step = qMax(1, entryHeight(Entry{}));
     m_scroll = qBound(0, m_scroll - event->angleDelta().y() * step * 3 / 120, maxScroll());
     m_hovered = indexAt(event->position().toPoint());
+    placeControls();
     update();
     event->accept();
 }
@@ -1163,6 +1213,9 @@ void Popover::paintEvent(QPaintEvent*)
             continue;
         }
 
+        if (entry.kind == Kind::Control) {
+            continue;   // the control paints itself
+        }
         if (entry.kind == Kind::Separator) {
             painter.setPen(QPen(profile.colors.borderSubtle, 1));
             painter.drawLine(box.left() + kSeparatorInset, box.center().y(),

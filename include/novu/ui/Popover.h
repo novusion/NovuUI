@@ -151,6 +151,12 @@ public:
     Popover* addSubmenu(const QString& key,const QString& label,Glyph glyph=Glyph::None);
     // `.psep` — a hairline between runs.
     int addSeparator();
+    // A control of its own as a row of the menu - a colour row under a
+    // "Marker" group, say: the same rows NovuExplorer's menu carries. The menu
+    // owns it, gives it the row's width and the height it asks for at that
+    // width, and moves it with the menu's scroll; it is not an item, so the
+    // keyboard steps over it and a click goes to the control itself.
+    int addControl(QWidget* control);
     void clear();
 
     int count() const { return m_items.size(); }
@@ -234,7 +240,7 @@ protected:
     bool event(QEvent* event) override;
 
 private:
-    enum class Kind { Item, Group, Separator };
+    enum class Kind { Item, Group, Separator, Control };
 
     // Sizes and places the menu against `anchorBox` (global): below it when
     // the whole menu fits there, above it when it fits there instead, else on
@@ -254,6 +260,7 @@ private:
         Glyph glyph = Glyph::None;
         bool checked = false;
         QPointer<Popover> submenu;
+        QPointer<QWidget> control;   // Kind::Control
         bool dangerous = false;
         bool enabled = true;
     };
@@ -285,6 +292,9 @@ private:
     mutable QVector<int> m_offsets;
     mutable QSize m_contentSize;
     void invalidateLayout() { m_offsets.clear(); m_contentSize = QSize(); }
+    // the inner width a control row is measured at (set by sizeHint)
+    mutable int m_controlWidth = 0;
+    void placeControls();
     void ensureLayout() const;
     Entry* find(const QString& key);
     const Entry* find(const QString& key) const;

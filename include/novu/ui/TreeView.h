@@ -9,6 +9,7 @@
 #include "novu/ui/StyleSpec.h"
 
 #include <QAbstractScrollArea>
+#include <QColor>
 #include <QPoint>
 #include <QRect>
 #include <QHash>
@@ -145,6 +146,18 @@ public:
     // setStatus() keeps the spin; clearStatus() ends it.
     void setStatusSpinning(const QString& id, bool spinning);
     bool isStatusSpinning(const QString& id) const;
+    // A colour marker: a thin vertical bar (3px, 16px tall) just before the
+    // row's icon, at the row's own indent - NovuExplorer's marker, in a tree.
+    // It colours nothing else: not the icon, the name or the row. An invalid
+    // colour takes it away.
+    void setMarker(const QString& id, const QColor& color);
+    QColor marker(const QString& id) const;
+    // Rows the tree shows: a node the filter refuses is hidden with its
+    // subtree - nothing is removed or moved, and a null filter shows all.
+    // The host decides what passes (a colour filter passes the matches and
+    // the parents they need).
+    void setRowFilter(std::function<bool(const QString& id)> filter);
+    bool hasRowFilter() const { return static_cast<bool>(m_rowFilter); }
     // `.trow .tag` — a short word after the name: a branch, a state, a format.
     void setTag(const QString& id, const QString& text,
                 Badge::Tone tone = Badge::Tone::Neutral);
@@ -397,6 +410,7 @@ private:
         bool hasStatus = false;
         StatusDot::Tone status = StatusDot::Tone::Neutral;
         bool statusSpins = false;
+        QColor marker;
         int depth = 0;
         bool expanded = false;
         bool enabled = true;
@@ -475,6 +489,7 @@ private:
     QTimer* m_autoExpandTimer = nullptr;
     QTimer* m_autoScrollTimer = nullptr;
     QTimer* m_spinTimer = nullptr;
+    std::function<bool(const QString& id)> m_rowFilter;
 };
 
 } // namespace novu::ui

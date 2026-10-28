@@ -314,6 +314,10 @@ void TreeView::flatten(const QString& id, int depth)
     if (!entry) {
         return;
     }
+    // hidden by the host's filter, with everything under it
+    if (m_rowFilter && !m_rowFilter(id)) {
+        return;
+    }
     entry->depth = depth;
     m_rows.append(id);
     if (!entry->expanded) {
@@ -426,6 +430,28 @@ void TreeView::setStatusSpinning(const QString& id, bool spinning)
             m_spinTimer->start();
         }
     }
+}
+
+void TreeView::setMarker(const QString& id, const QColor& color)
+{
+    Node* entry = node(id);
+    if (!entry || entry->marker == color || (!entry->marker.isValid() && !color.isValid())) {
+        return;
+    }
+    entry->marker = color;
+    viewport()->update();
+}
+
+QColor TreeView::marker(const QString& id) const
+{
+    const auto it = m_nodes.constFind(id);
+    return it != m_nodes.cend() ? it->marker : QColor();
+}
+
+void TreeView::setRowFilter(std::function<bool(const QString& id)> filter)
+{
+    m_rowFilter = std::move(filter);
+    rebuildRows();
 }
 
 bool TreeView::isStatusSpinning(const QString& id) const
@@ -1911,6 +1937,15 @@ void TreeView::paintEvent(QPaintEvent*)
                        withAlpha(ink, 0.85), entry->expanded ? 0.0 : -90.0);
         }
         if(m_branchesVisible)x += kChevron + kRowGap;
+
+        // the colour marker: in the gap before the icon, at this row's indent
+        if (entry->marker.isValid()) {
+            const qreal barH = 16.0;
+            const QRectF bar(x - kRowGap / 2.0 - 1.5, box.center().y() - barH / 2.0, 3.0, barH);
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(entry->enabled ? entry->marker : withAlpha(entry->marker, kDisabledOpacity));
+            painter.drawRoundedRect(bar, 1.5, 1.5);
+        }
 
         const QString fileType = fileTypeText(entry->label, entry->glyph);
         if (!fileType.isEmpty()) {

@@ -173,3 +173,16 @@ add_executable(tst_menu_dialog_fit tst_menu_dialog_fit.cpp)
 target_link_libraries(tst_menu_dialog_fit PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
 add_test(NAME menu_dialog_fit COMMAND tst_menu_dialog_fit)
 set_tests_properties(menu_dialog_fit PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+
+# A control as a menu row (the colour row under "Marker"): placed, sized at
+# its width, clickable, cleared with the rows.
+add_executable(tst_popover_control tst_popover_control.cpp)
+target_link_libraries(tst_popover_control PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME popover_control COMMAND tst_popover_control)
+set_tests_properties(popover_control PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
+
+# Colour markers before the icon, and a row filter that hides and never removes.
+add_executable(tst_treeview_marker_filter tst_treeview_marker_filter.cpp)
+target_link_libraries(tst_treeview_marker_filter PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME treeview_marker_filter COMMAND tst_treeview_marker_filter)
+set_tests_properties(treeview_marker_filter PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
