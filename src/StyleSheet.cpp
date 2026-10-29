@@ -118,6 +118,20 @@ QString styleSheetFor(const ThemeProfile& p)
     qss += QStringLiteral("QToolTip { background: %1; color: %2; border: 1px solid %3; padding: 4px 8px; }")
                .arg(css(c.panelBg), css(c.textPrimary), css(c.border));
 
+    // -- menus ------------------------------------------------------------------
+    // A context menu an application builds as a QMenu (an older module, a
+    // standard edit menu) looks like the Popover every NovuUI menu is: the
+    // panel, its hairline, a row highlighted as the Popover's - never Qt's
+    // own white menu next to a Popover.
+    qss += QStringLiteral("QMenu { background: %1; color: %2; border: 1px solid %3; padding: 4px; }"
+                          "QMenu::item { background: transparent; padding: 5px 24px 5px 12px; border-radius: 4px; }"
+                          "QMenu::item:selected { background: %4; color: %2; }"
+                          "QMenu::item:disabled { color: %5; }"
+                          "QMenu::separator { height: 1px; background: %6; margin: 4px 6px; }"
+                          "QMenu::right-arrow { margin-right: 6px; }")
+               .arg(css(c.panelBg), css(c.textPrimary), css(c.border), css(c.surfaceActive), css(c.textDisabled),
+                    css(c.borderSubtle));
+
     // -- buttons -------------------------------------------------------------
     // 14px, the same horizontal padding Button::sizeHint() reserves. The base
     // rule governs the plain QPushButtons a TabStrip builds, and a tab that
