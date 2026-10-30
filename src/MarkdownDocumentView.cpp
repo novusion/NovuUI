@@ -7,7 +7,10 @@
 #include <QPalette>
 #include <QResizeEvent>
 #include <QTextBrowser>
+#include <QTextBlock>
+#include <QTextCursor>
 #include <QTextDocument>
+#include <QTextFragment>
 
 namespace novu::ui {
 
@@ -16,6 +19,45 @@ namespace {
 QString css(const QColor& color)
 {
     return color.name(QColor::HexRgb);
+}
+
+// The default style sheet reaches HTML, not Markdown: QTextDocument::
+// setMarkdown() writes its own formats - code in the generic "monospace"
+// family (a font the platform resolves to whatever it has, on Windows not
+// a monospace one) and links in the application palette's Link colour -
+// so the document's code and links ignored the theme. The theme's family
+// and inks are put on those fragments after the import.
+void applyThemeToMarkdown(QTextDocument* document, const ThemeProfile& profile)
+{
+    struct Range { int from; int length; QTextCharFormat format; };
+    QVector<Range> ranges;
+    for (QTextBlock block = document->begin(); block.isValid(); block = block.next()) {
+        const bool fence = block.blockFormat().hasProperty(QTextFormat::BlockCodeFence);
+        for (auto it = block.begin(); !it.atEnd(); ++it) {
+            const QTextFragment fragment = it.fragment();
+            if (!fragment.isValid()) continue;
+            QTextCharFormat format = fragment.charFormat();
+            bool changed = false;
+            if (format.isAnchor()) {
+                format.setForeground(profile.colors.accentLight);
+                format.setFontUnderline(false);
+                changed = true;
+            }
+            if (fence || format.fontFixedPitch()) {
+                format.setFontFamilies({profile.type.monoFamily});
+                format.setFontFixedPitch(true);
+                if (!format.isAnchor()) format.setForeground(profile.colors.textSecondary);
+                changed = true;
+            }
+            if (changed) ranges.append({fragment.position(), fragment.length(), format});
+        }
+    }
+    for (const Range& r : std::as_const(ranges)) {
+        QTextCursor cursor(document);
+        cursor.setPosition(r.from);
+        cursor.setPosition(r.from + r.length, QTextCursor::KeepAnchor);
+        cursor.setCharFormat(r.format);
+    }
 }
 
 QString documentStyle(const ThemeProfile& profile)
@@ -133,6 +175,7 @@ void MarkdownDocumentView::applyPresentation()
     m_browser->document()->setDocumentMargin(0);
     m_browser->document()->setDefaultStyleSheet(documentStyle(profile));
     m_browser->setMarkdown(m_markdown);
+    applyThemeToMarkdown(m_browser->document(), profile);
 }
 
 } // namespace novu::ui
