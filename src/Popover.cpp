@@ -630,7 +630,7 @@ int Popover::entryHeight(const Entry& entry) const
         if (!control) {
             return 0;
         }
-        const int inner = qMax(1, (m_controlWidth > 0 ? m_controlWidth : kMinWidth - 2 * kPadding) - 2 * kItemPaddingH);
+        const int inner = qMax(1, (m_controlWidth > 0 ? m_controlWidth : (m_minWidth > 0 ? m_minWidth : kMinWidth) - 2 * kPadding) - 2 * kItemPaddingH);
         return (control->hasHeightForWidth() ? control->heightForWidth(inner) : control->sizeHint().height()) + 2 * kItemPaddingV;
     }
     case Kind::Item:
@@ -738,12 +738,13 @@ QSize Popover::sizeHint() const
     }
     // the rows' heights once the width is known: a control row asks for its
     // height at the width it will have
-    m_controlWidth = qMax(kMinWidth, width + 2 * kPadding) - 2 * kPadding;
+    const int minWidth = m_minWidth > 0 ? m_minWidth : kMinWidth;
+    m_controlWidth = qMax(minWidth, width + 2 * kPadding) - 2 * kPadding;
     m_offsets.clear();
     for (const Entry& entry : m_items) {
         height += entryHeight(entry);
     }
-    m_contentSize = QSize(qMax(kMinWidth, width + 2 * kPadding), height);
+    m_contentSize = QSize(qMax(minWidth, width + 2 * kPadding), height);
     return m_contentSize;
 }
 

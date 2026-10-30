@@ -182,6 +182,10 @@ public:
     // which kind of menu it is on.
     bool closesOnTrigger() const { return m_closesOnTrigger; }
     void setClosesOnTrigger(bool closes) { m_closesOnTrigger = closes; }
+    // The narrowest this menu is drawn (230 px by default, wide enough for a
+    // menu of commands). A short list of choices may ask for less; the menu
+    // is never narrower than its widest row.
+    void setMinimumMenuWidth(int px) { m_minWidth = px; invalidateLayout(); }
     // `NV.menu(anchor, items, {align:'right'})`: the menu's right edge on the
     // anchor's, for an anchor at the right of a header. Off by default.
     void setRightAligned(bool right) { m_rightAligned = right; }
@@ -291,6 +295,7 @@ private:
     // thousands is laid out in O(n), not again for every row it paints.
     mutable QVector<int> m_offsets;
     mutable QSize m_contentSize;
+    int m_minWidth = 0;   // 0: the default minimum (kMinWidth)
     void invalidateLayout() { m_offsets.clear(); m_contentSize = QSize(); }
     // the inner width a control row is measured at (set by sizeHint)
     mutable int m_controlWidth = 0;
