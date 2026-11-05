@@ -94,6 +94,10 @@ constexpr int kActiveBarInset = 7;
 // now states as SpacingRole::SectionGap and the small spacing step.
 constexpr int kSectionActionSide = 16;
 
+// setProminentSections(): what a caption gains over the quiet one.
+constexpr int kProminentCaptionGrow = 2;
+constexpr int kProminentCaptionGap = 4;
+
 // `[disabled] { opacity:.42 }`.
 constexpr double kDisabledOpacity = 0.42;
 
@@ -118,7 +122,15 @@ QFont rowFont(const QWidget* context, bool child)
     return font;
 }
 
-QFont sectionFont(const QWidget* context) { return navSectionFont(context); }
+QFont sectionFont(const QWidget* context, bool prominent)
+{
+    QFont font = navSectionFont(context);
+    if (prominent) {
+        font.setPixelSize(font.pixelSize() + kProminentCaptionGrow);
+        font.setWeight(QFont::DemiBold);
+    }
+    return font;
+}
 
 QFont countFont(const QWidget* context)
 {
@@ -478,6 +490,16 @@ void NavList::setTreeGuides(bool enabled)
     update();
 }
 
+void NavList::setProminentSections(bool prominent)
+{
+    if (m_prominentSections == prominent) {
+        return;
+    }
+    m_prominentSections = prominent;
+    updateGeometry();
+    update();
+}
+
 bool NavList::isRowEnabled(const QString& key) const
 {
     const Row* target = row(key);
@@ -794,7 +816,9 @@ int NavList::sectionTop(int index) const
     if (index > 0 && m_rows.at(index - 1).section) {
         return profile.spacing.xs;
     }
-    return profile.space(SpacingRole::SectionGap);
+    // The first caption has nothing above it to stand apart from.
+    return profile.space(SpacingRole::SectionGap)
+        + (m_prominentSections && index > 0 ? kProminentCaptionGap : 0);
 }
 
 int NavList::sectionBottom() const
@@ -804,7 +828,7 @@ int NavList::sectionBottom() const
 
 int NavList::sectionHeight(int index) const
 {
-    return QFontMetrics(sectionFont(this)).height() + sectionTop(index)
+    return QFontMetrics(sectionFont(this, m_prominentSections)).height() + sectionTop(index)
         + sectionBottom();
 }
 
@@ -929,7 +953,7 @@ QSize NavList::sizeHint() const
         }
         if (row.section) {
             width = qMax(width, 2 * kRowPaddingH
-                                    + QFontMetrics(sectionFont(this))
+                                    + QFontMetrics(sectionFont(this, m_prominentSections))
                                           .horizontalAdvance(row.label.toUpper()));
             continue;
         }
@@ -1186,7 +1210,7 @@ void NavList::paintEvent(QPaintEvent*)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
-    const QFont sections = sectionFont(this);
+    const QFont sections = sectionFont(this, m_prominentSections);
     const QFont counts = countFont(this);
     const QFontMetrics countMetrics(counts);
 
@@ -1220,6 +1244,14 @@ void NavList::paintEvent(QPaintEvent*)
             // `.sb-bhead{border-radius:7px}` with `:hover{background:
             // rgba(127,140,160,.09); color:var(--text2); opacity:1}`.
             const bool captionHot = index == m_hovered && !m_hoveredAction;
+            if (m_prominentSections && index > 0 && !m_rows.at(index - 1).section) {
+                // Halfway through the gap, which keeps it clear of the hover
+                // plate below and of the last row above.
+                const double rule = box.top() + sectionTop(index) / 2 + 0.5;
+                painter.setPen(QPen(profile.colors.borderSubtle, 1));
+                painter.drawLine(QPointF(kRowPaddingH, rule),
+                                 QPointF(box.width() - kRowPaddingH, rule));
+            }
             if (captionHot && row.expandable) {
                 // A section heading is an interactive sidebar item too. Its
                 // outer block also carries the gap between groups, but the
@@ -1236,16 +1268,20 @@ void NavList::paintEvent(QPaintEvent*)
                                         profile.radii.small);
             }
             painter.setFont(sections);
-            painter.setPen(captionHot && row.expandable ? profile.colors.textSecondary
-                                                        : profile.colors.textDisabled);
+            const QColor captionInk = m_prominentSections
+                ? profile.colors.textPrimary
+                : (captionHot && row.expandable ? profile.colors.textSecondary
+                                                : profile.colors.textDisabled);
+            painter.setPen(captionInk);
             int captionLeft = kRowPaddingH;
             if (row.expandable) {
                 const QRect twisty = twistyRect(index);
                 // `.sb-bhead .cv svg{width:11px;height:11px;stroke-width:2.2}`.
                 paintGlyph(&painter, Glyph::ChevronDown,
                            centredSquare(twisty, kCaptionGlyph),
-                           profile.colors.textDisabled, row.expanded ? 0.0 : -90.0,
-                           kCaptionStroke);
+                           m_prominentSections ? profile.colors.textSecondary
+                                               : profile.colors.textDisabled,
+                           row.expanded ? 0.0 : -90.0, kCaptionStroke);
                 captionLeft = twisty.right() + 6;
             }
             if (row.action != Glyph::None) {

@@ -49,6 +49,12 @@ target_link_libraries(tst_navlist_drop PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
 add_test(NAME navlist_drop COMMAND tst_navlist_drop)
 set_tests_properties(navlist_drop PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
 
+# Prominent rail captions, and the fold and indent they have to live with.
+add_executable(tst_navlist_sections tst_navlist_sections.cpp)
+target_link_libraries(tst_navlist_sections PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME navlist_sections COMMAND tst_navlist_sections)
+set_tests_properties(navlist_sections PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
+
 # Tree multi-selection and drag & drop: Ctrl+A through a filter, Escape, clear()
 # and the context-menu selection rule; a drag carries the selection in display
 # order, a drop is refused onto the dragged rows and their subtrees, reported

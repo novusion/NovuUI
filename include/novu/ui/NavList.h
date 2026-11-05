@@ -145,6 +145,11 @@ public:
     // axis instead of every sidebar item being shifted globally.
     void setIndentOffset(const QString& key, int pixels);
     void setTreeGuides(bool enabled);
+    // Captions that head what is under them rather than label it: larger,
+    // semibold, in the primary ink, with more room and a hairline above. For a
+    // rail long enough that a quiet caption gets lost among its rows. Off by
+    // default: the other rails keep the design's quiet `.rail-sec`.
+    void setProminentSections(bool prominent);
 
     // ── renaming a row in place ───────────────────────────────────────────
     //
@@ -428,6 +433,7 @@ private:
     bool m_pressedAction = false;
     bool m_hoveredAction = false;
     bool m_treeGuides = false;
+    bool m_prominentSections = false;
     StatusPlacement m_statusPlacement = StatusPlacement::Leading;
 };
 
