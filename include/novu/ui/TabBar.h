@@ -11,6 +11,9 @@
 #include <QVector>
 #include <QWidget>
 
+class QContextMenuEvent;
+class QWheelEvent;
+
 namespace novu::ui {
 
 // The tabs across the top of a window: open documents, open folders, open
@@ -125,6 +128,44 @@ public:
     // A tab that cannot be closed — the one an application always keeps open.
     void setClosable(const QString& key, bool closable);
 
+    // Whether a tab is making sound, and whether it has been silenced. Drawn
+    // as a speaker after the label; pressing it asks for the opposite through
+    // audioToggleRequested(). Held per key, so a reorder carries it like the
+    // colour. The bar only shows it: muting is the owner's.
+    enum class Audio { None, Playing, Muted };
+    void setAudio(const QString& key, Audio audio);
+    Audio audio(const QString& key) const;
+
+    // ── scrolling ─────────────────────────────────────────────────────────
+    //
+    // Tabs shrink together down to their floor, and past it the strip scrolls
+    // rather than clipping the tail away: the wheel moves it, the current tab
+    // is kept in view, and a drag held near either edge carries the strip
+    // with it so a tab can be moved to a place that is not on screen.
+    int scrollOffset() const;
+    int maximumScrollOffset() const;
+    void setScrollOffset(int pixels);
+    void ensureVisible(const QString& key);
+    // The band the tabs are drawn in, between the leading inset and whatever
+    // is pinned at the trailing end. Tabs outside it are not drawn or hit.
+    QRect tabsViewport() const;
+
+    // ── renaming a tab in place ───────────────────────────────────────────
+    //
+    // NavList's convention, on a tab: an editor over the tab's label, focused
+    // with its text selected. Enter or focus leaving submits, Escape abandons.
+    // The bar decides nothing about the text - inlineEditCommitted() hands it
+    // over, and the handler may call rejectInlineEdit() to keep the editor
+    // open with a reason (Enter) or abandon it (focus-out). The bar does not
+    // change the label itself; the owner does, with setLabel(). The editor
+    // follows its tab through scrolling and reordering and goes away with it.
+    bool beginInlineEdit(const QString& key, const QString& text = QString());
+    void rejectInlineEdit(const QString& message);
+    void cancelInlineEdit();
+    bool isInlineEditing() const;
+    QString inlineEditKey() const;
+    QRect audioRect(int index) const;
+
     // Whether tabs can be dragged into a different order.
     bool isReorderable() const { return m_reorderable; }
     void setReorderable(bool reorderable);
@@ -164,6 +205,14 @@ signals:
     void closeRequested(const QString& key);
     void newTabRequested();
     void tabMoved(const QString& key, int from, int to);
+    // A tab was asked for its own menu - right-clicked, or the context-menu
+    // key pressed while it is current. The bar opens nothing itself, as
+    // NavList does not: what a tab can do is the owner's.
+    void contextMenuRequested(const QString& key, const QPoint& globalPosition);
+    void inlineEditCommitted(const QString& key, const QString& text);
+    void inlineEditCancelled(const QString& key);
+    // The speaker on a tab was pressed.
+    void audioToggleRequested(const QString& key);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -202,6 +251,23 @@ private:
     // The first tab's width, for the callers that only need a scale.
     int laidOutWidth() const;
     void updateMotion();
+    // The scroll offset actually in force: what was asked for, clamped to the
+    // current content. Stored unclamped so a narrowing that is undone puts the
+    // strip back where it was.
+    int effectiveScroll() const;
+    int contentWidth() const;
+    void dragTo(const QPoint& position);
+    void updateAutoScroll(const QPoint& position);
+    void autoScrollStep();
+    void placeInlineEditor();
+    void finishInlineEdit(bool submit, bool fromFocusOut);
+    bool handleWheel(QWheelEvent* event);
+    bool handleContextMenu(QContextMenuEvent* event);
+    // Scrolling, the inline editor and the audio marks keep their state in
+    // TabBarExtras (TabBar.cpp), not in members here. Modules that were built
+    // against the earlier header allocate a TabBar of the earlier size, so the
+    // object layout below is frozen; new state hangs off the widget instead.
+    friend struct TabBarExtras;
     const Tab* find(const QString& key) const;
     Tab* find(const QString& key);
 

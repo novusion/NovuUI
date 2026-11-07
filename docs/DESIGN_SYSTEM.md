@@ -249,6 +249,47 @@ resize the Close button.
 Full specification, platform behaviour, the PySide6 port contract and the
 migration list: `WINDOW_CHROME.md`.
 
+## 3.6 Content-first layout
+
+**Never stretch informational content to fill unused space.** Empty space is
+not a layout defect.
+
+Detail panels, property inspectors, metadata sections, info cards and forms:
+
+- **Fill width, hug height.** A widget may fill the width of its container;
+  its height is the height of its content. Its background and border end
+  with that content, and the empty space stays *outside* the widget, never
+  inside it.
+- **Top-aligned, grouped.** Content starts at the top; related information
+  stays together with the profile's fixed spacing. Resizing a window never
+  redistributes vertical space between sections. A panel that ends in the top
+  third of the window is correct.
+- **Exceptions are functional:** tables and lists, code and text editors, a
+  message body taller than its column, timelines and charts, canvases and node
+  graphs, image/video/3D previews, and a deliberately anchored footer or
+  action bar. The test is the component's function: *a container may be tall;
+  its informational content is not.*
+
+In Qt:
+
+- Place an informational card next to a taller sibling with
+  `addWidget(card, 0, Qt::AlignTop)` (or a trailing stretch), so the card
+  itself — surface and border — is as tall as its content.
+- A stretch goes after the last section only, never between related ones.
+- No vertical `QSizePolicy::Expanding` on labels, fields or info blocks;
+  `Preferred` or `Maximum`.
+- A scroll area keeps its content top-aligned and scrolls when it runs out of
+  room.
+
+In HTML/CSS mockups: `flex-direction: column` with a fixed `gap`,
+`align-items: flex-start` where needed, `height: auto`; no
+`justify-content: space-between/around/evenly`, `margin-top: auto`,
+`height: 100%` or `flex: 1` on informational sections to fill a parent.
+
+`Card` enforces its part: its head never takes spare height, and height the
+body cannot use stays below the body — but only the caller's alignment makes
+the card's own surface end with its content.
+
 ---
 
 ## 4. Rules for contributors
@@ -269,6 +310,8 @@ migration list: `WINDOW_CHROME.md`.
 9. NovuUI never depends on a consuming application, and is organised by shared
    UI responsibility rather than by the application that first wrote a
    component. See `MODULE_RULES.md` §11 and §12.
+10. Content-first layout: informational widgets fill width and hug height;
+    nothing is stretched to fill unused space. See §3.6.
 
 ### Mechanical checks
 

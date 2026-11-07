@@ -42,6 +42,14 @@ target_link_libraries(tst_navlist_inline_edit PRIVATE Novu::UI Qt6::Test Qt6::Wi
 add_test(NAME navlist_inline_edit COMMAND tst_navlist_inline_edit)
 set_tests_properties(navlist_inline_edit PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
 
+# A browser's tab strip: renaming in place by NavList's rules, a per-tab menu
+# request, scrolling past the width floor with hit-testing and reordering that
+# follow the scroll, and the per-tab speaker mark.
+add_executable(tst_tabbar_browser_workflow tst_tabbar_browser_workflow.cpp)
+target_link_libraries(tst_tabbar_browser_workflow PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME tabbar_browser_workflow COMMAND tst_tabbar_browser_workflow)
+set_tests_properties(tabbar_browser_workflow PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen TIMEOUT 60)
+
 # Rail rows as drop targets: only declared rows accept, only the declared
 # payload type, a drop reports row and payload, and a rebuild keeps them.
 add_executable(tst_navlist_drop tst_navlist_drop.cpp)
@@ -89,6 +97,14 @@ add_executable(tst_tooltip_help tst_tooltip_help.cpp)
 target_link_libraries(tst_tooltip_help PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
 add_test(NAME tooltip_help COMMAND tst_tooltip_help)
 set_tests_properties(tooltip_help PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+
+# The global switch: off silences every hover path - the branded card, plain
+# QWidget::setToolTip, Qt::ToolTipRole and a component's own handler - and on
+# brings each back.
+add_executable(tst_tooltip_gate tst_tooltip_gate.cpp)
+target_link_libraries(tst_tooltip_gate PRIVATE Novu::UI Qt6::Test Qt6::Widgets)
+add_test(NAME tooltip_gate COMMAND tst_tooltip_gate)
+set_tests_properties(tooltip_gate PROPERTIES TIMEOUT 60)
 
 add_executable(tst_card_interaction tst_card_interaction.cpp)
 target_link_libraries(tst_card_interaction PRIVATE Novu::UI Qt6::Test Qt6::Widgets)

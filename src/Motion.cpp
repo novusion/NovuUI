@@ -9,6 +9,11 @@
 #include "novu/ui/ThemeManager.h"
 
 #include <QElapsedTimer>
+#include <functional>
+#include <QEvent>
+#include <QRegion>
+#include <QVariant>
+#include <QGuiApplication>
 #include <QSet>
 #include <QTimer>
 #include <QWidget>
@@ -35,18 +40,73 @@ QElapsedTimer& clock()
     return timer;
 }
 
+// Tells the clock when a subscriber appears or disappears - itself or with a
+// parent (a page of a stack, a hidden module, a closed window), which Qt
+// reports to the child as its own Show/Hide.
+class VisibilityWatch final : public QObject
+{
+public:
+    explicit VisibilityWatch(std::function<void()> changed) : m_changed(std::move(changed)) {}
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (event->type() == QEvent::Show || event->type() == QEvent::Hide) {
+            m_changed();
+        }
+        return QObject::eventFilter(watched, event);
+    }
+
+private:
+    std::function<void()> m_changed;
+};
+
 } // namespace
 
 struct Pulse::Private
 {
     QTimer timer;
     QSet<QWidget*> subscribers;
+    VisibilityWatch* watch = nullptr;
+    bool appActive = true;
+
+    // Runs only while someone can see it: at least one subscriber on screen,
+    // in the application the person is using. A subscriber in a hidden page or
+    // module, or the whole application in the background or minimised, used to
+    // keep a 30 Hz timer waking the process for nothing.
+    void retime()
+    {
+        bool anyVisible = false;
+        if (appActive) {
+            for (QWidget* widget : std::as_const(subscribers)) {
+                if (widget->isVisible()) {
+                    anyVisible = true;
+                    break;
+                }
+            }
+        }
+        if (anyVisible && !timer.isActive()) {
+            timer.start();
+        } else if (!anyVisible && timer.isActive()) {
+            timer.stop();
+        }
+    }
 };
 
 Pulse::Pulse()
     : d(new Private)
 {
     clock();
+    d->watch = new VisibilityWatch([this] { d->retime(); });
+    d->watch->setParent(this);
+    if (auto* app = qobject_cast<QGuiApplication*>(QCoreApplication::instance())) {
+        d->appActive = app->applicationState() == Qt::ApplicationActive;
+        connect(app, &QGuiApplication::applicationStateChanged, this,
+                [this](Qt::ApplicationState state) {
+                    d->appActive = state == Qt::ApplicationActive;
+                    d->retime();
+                });
+    }
     d->timer.setInterval(kIntervalMs);
     d->timer.setTimerType(Qt::CoarseTimer);
     connect(&d->timer, &QTimer::timeout, this, [this] {
@@ -56,7 +116,15 @@ Pulse::Pulse()
             // hidden window is not repainted. The timer keeps running for the
             // others; the work does not.
             if (widget->isVisible()) {
-                widget->update();
+                // A widget that animates only a part of itself (a tab bar's
+                // loading ring) says which part; repainting all of it 30
+                // times a second for one small ring cost a core.
+                const QVariant region = widget->property("novuMotionRegion");
+                if (region.canConvert<QRegion>() && !region.value<QRegion>().isEmpty()) {
+                    widget->update(region.value<QRegion>());
+                } else {
+                    widget->update();
+                }
             }
         }
     });
@@ -74,18 +142,15 @@ void Pulse::subscribe(QWidget* widget)
         return;
     }
     d->subscribers.insert(widget);
+    widget->installEventFilter(d->watch);
     // Released by the widget itself rather than by whoever subscribed it: a
     // component that has to remember to unsubscribe in its destructor is a
     // component that will one day forget and leave a dangling pointer in here.
     connect(widget, &QObject::destroyed, this, [this](QObject* object) {
         d->subscribers.remove(static_cast<QWidget*>(object));
-        if (d->subscribers.isEmpty()) {
-            d->timer.stop();
-        }
+        d->retime();
     });
-    if (!d->timer.isActive()) {
-        d->timer.start();
-    }
+    d->retime();
 }
 
 void Pulse::release(QWidget* widget)
@@ -94,9 +159,8 @@ void Pulse::release(QWidget* widget)
         return;
     }
     disconnect(widget, &QObject::destroyed, this, nullptr);
-    if (d->subscribers.isEmpty()) {
-        d->timer.stop();
-    }
+    widget->removeEventFilter(d->watch);
+    d->retime();
 }
 
 bool Pulse::isRunning() const

@@ -37,9 +37,17 @@ QSize controlSize(const QWidget* control)
     if (!control) {
         return {0, 0};
     }
-    return control->sizeHint()
+    QSize size = control->sizeHint()
         .expandedTo(control->minimumSizeHint())
         .expandedTo(control->minimumSize());
+    // A control with a fixed height is that tall, whatever its hint says.
+    // textArea() sizes itself in lines, but a QPlainTextEdit still hints the
+    // scroll area's 192px - the field reserved that and left a gap between
+    // its caption and a three-line box (content-first: the field hugs the
+    // control).
+    if (control->minimumHeight() > 0 && control->minimumHeight() == control->maximumHeight())
+        size.setHeight(control->minimumHeight());
+    return size;
 }
 
 } // namespace

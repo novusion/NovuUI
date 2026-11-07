@@ -120,6 +120,7 @@ add_library(NovuUI ${_novuui_link_kind}
     include/novu/ui/VirtualListView.h
     include/novu/ui/TitleBar.h
     include/novu/ui/WindowShell.h
+    include/novu/ui/NativeFrame.h
     src/Theme.cpp
     src/ThemeProfile.cpp
     src/AppProfiles.cpp

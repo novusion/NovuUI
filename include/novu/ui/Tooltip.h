@@ -226,4 +226,34 @@ private:
     bool m_help = true;
 };
 
+// ── the global switch ─────────────────────────────────────────────────────
+//
+// Whether a hover explanation appears at all, anywhere in the application.
+// Help mode above decides how much a tip says; this decides whether there is
+// a tip. An application with a "Tooltips" preference sets it once and keeps
+// it in step with the preference; nothing else needs to know.
+//
+// Off means off for every hover path, not only this class:
+//
+//   - Tooltip (this card) never schedules, never presents, and hides the one
+//     on screen;
+//   - QToolTip is closed, and an application-wide event filter swallows every
+//     QEvent::ToolTip before it reaches its receiver. That one filter is what
+//     covers QWidget::setToolTip, item views' Qt::ToolTipRole, QTabBar tab
+//     tips, QAction tips in menus and tool bars, a component's own
+//     QEvent::ToolTip handler (Popover's elided entries) and QWebEngineView's
+//     page `title=` tips, including those of code built against an older
+//     NovuUI that never heard of this switch.
+//
+// Not covered, on purpose: QToolTip::showText() called directly rather than
+// from a hover - a rename editor's "that name is taken" is feedback on what
+// was typed, not an explanation of a control. Context menus, click popovers
+// and What's This are not tooltips and are untouched.
+//
+// The default is on, so an application that never calls this behaves as it
+// always did. The filter is installed on the first call, on the running
+// QCoreApplication.
+NOVUUI_API bool tooltipsEnabled();
+NOVUUI_API void setTooltipsEnabled(bool on);
+
 } // namespace novu::ui

@@ -1,3 +1,4 @@
+#include "novu/ui/NativeFrame.h"
 #include "novu/ui/Popover.h"
 #include <algorithm>
 
@@ -446,7 +447,10 @@ Popover::Popover(QWidget* parent)
     // Qt::Popup is what closes the menu when the user clicks elsewhere and what
     // gives it the mouse grab. Without it a "menu" is a window that stays open
     // behind whatever the user does next.
-    setAttribute(Qt::WA_TranslucentBackground);
+    // The window's own corner and hairline where the compositor draws them;
+    // painted (translucent, rounded) elsewhere.
+    if (!useCompositorFrame(this))
+        setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_DeleteOnClose, false);
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
@@ -1196,13 +1200,19 @@ void Popover::paintEvent(QPaintEvent*)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
-    const QRectF card = QRectF(rect()).adjusted(surface.borderWidth / 2.0,
-                                                surface.borderWidth / 2.0,
-                                                -surface.borderWidth / 2.0,
-                                                -surface.borderWidth / 2.0);
-    painter.setPen(QPen(surface.border, surface.borderWidth));
-    painter.setBrush(surface.background);
-    painter.drawRoundedRect(card, surface.radius, surface.radius);
+    // The main window's frame: the compositor's, or the same radius and
+    // outline painted.
+    if (compositorDrawsWindowFrame()) {
+        painter.fillRect(rect(), surface.background);
+    } else {
+        const int borderWidth = windowBorderWidth(context);
+        const double radius = windowCornerRadius(context);
+        const QRectF card = QRectF(rect()).adjusted(borderWidth / 2.0, borderWidth / 2.0,
+                                                    -borderWidth / 2.0, -borderWidth / 2.0);
+        painter.setPen(QPen(windowBorderColor(context), borderWidth));
+        painter.setBrush(surface.background);
+        painter.drawRoundedRect(card, radius, radius);
+    }
 
     const QFont items = itemFont(context);
     const QFont groups = groupFont(context);

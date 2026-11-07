@@ -1,3 +1,4 @@
+#include "novu/ui/NativeFrame.h"
 #include "novu/ui/PopupSurface.h"
 
 #include "novu/ui/Popover.h"
@@ -17,7 +18,8 @@ namespace novu::ui {
 PopupSurface::PopupSurface(QWidget* parent)
     : QWidget(parent, Qt::Popup | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint)
 {
-    setAttribute(Qt::WA_TranslucentBackground);
+    if (!useCompositorFrame(this))
+        setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_DeleteOnClose, false);
     setFocusPolicy(Qt::StrongFocus);
 
@@ -145,9 +147,14 @@ void PopupSurface::paintEvent(QPaintEvent*)
     const ThemeProfile& profile = ThemeManager::instance().defaultProfile();
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
+    if (compositorDrawsWindowFrame()) {
+        painter.fillRect(rect(), profile.colors.panelBg);
+        return;
+    }
+    const double radius = windowCornerRadius(this);
     painter.setBrush(profile.colors.panelBg);
-    painter.setPen(profile.colors.border);
-    painter.drawRoundedRect(rect().adjusted(0, 0, -1, -1), 10, 10);
+    painter.setPen(QPen(windowBorderColor(this), windowBorderWidth(this)));
+    painter.drawRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), radius, radius);
 }
 
 } // namespace novu::ui
