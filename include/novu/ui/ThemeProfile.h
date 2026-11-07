@@ -338,8 +338,11 @@ struct ControlMetrics
     // grown a step of their own - 17, 20 and 13 - before `--tree-step` was
     // introduced to collapse them. TreeView had a fourth, a hard-coded 16.
     //
-    // 17 is the only value any authority states.
-    int treeStep = 17;
+    // 14 is the Novu sidebar's step (2026-11-07): the same step in NovuAI,
+    // NovuSpace and NovuExplorer, under a section heading as under a
+    // workspace, so every sidebar reads as one tree. It replaced 17, which
+    // left a category's name far enough in to look like a separate column.
+    int treeStep = 14;
     // How present a tree row's icon is against its label.
     //
     // A row's icon took the row's text ink exactly, so in a dense sidebar
@@ -348,13 +351,13 @@ struct ControlMetrics
     // Muting the icon leaves the names as the thing being read and the one
     // ACTIVE icon, which is drawn in the accent, as the thing being found.
     //
-    // 1.0 is "no opinion": the icon is the text ink, which is what every
-    // profile did before this existed, so a product that has not set it is
-    // unchanged. A profile opts into a quieter column by lowering it.
+    // 0.55 for every product (2026-11-07): NovuAI had it alone, and the same
+    // sidebar drew a quiet hexagon there and a white one in NovuSpace. One
+    // Novu sidebar has one icon weight. 1.0 would make the icon the text ink.
     //
     // Does not apply to a marked row: an active workspace is an accent and a
     // detached one already has its own fade.
-    double treeIconOpacity = 1.0;
+    double treeIconOpacity = 0.55;
     // Compact buttons may keep the product pill or use a smaller corner.
     RadiusStep smallButtonRadius = RadiusStep::Small;
     int segmentedPadding=3;

@@ -52,6 +52,16 @@ constexpr int kRowPaddingRight = 6;
 // `.trow .cv { 14px }`, `.trow .ico { 14px }`, `.trow .tmarks svg { 12px }`.
 constexpr int kChevron = 14;
 constexpr int kIcon = 14;
+
+// The lead with a marker column - the Novu sidebar: chevron, bar, icon, name,
+// with the same air between what is actually drawn. The chevron's glyph leaves
+// about 5px of its 14px box empty on the right and the 14px icons ~2px on each
+// side, so each gap below adds only what those leave missing.
+constexpr int kAfterChevron = 1;
+constexpr int kMarkerWidth = 3;
+constexpr double kMarkerHeight = 16.0;
+constexpr int kAfterMarker = 4;
+constexpr int kAfterIcon = 3;
 constexpr int kMarkGlyph = 12;
 // The hover action sits in the trailing zone at a mark's size: it is
 // one more small glyph at the end of a row, not a button bolted on.
@@ -99,13 +109,13 @@ QFont nameFont(const QWidget* context, TreeView::Kind kind)
         font.setLetterSpacing(QFont::PercentageSpacing, 105.5);
         return font;
     }
-    // `.trow .tname` inherits the body face; the kinds differ only in weight
-    // and colour. `.trow.k-ws .tname{font-weight:500}` - Medium, not DemiBold:
-    // a workspace is the heavier of the two rows, one step up from a category,
-    // not as heavy as the group heading above it.
+    // `.trow .tname` inherits the body face; the kinds differ only in weight.
+    // A workspace is DemiBold in the same muted ink as its categories
+    // (2026-11-07, the Novu sidebar): Medium did not tell it from them, and a
+    // brighter ink shouted over the one thing that should - the current row.
     QFont font = roleFont(context, TypeRole::Body);
     font.setPixelSize(profile.type.sm);
-    font.setWeight(kind == TreeView::Kind::Emphasis ? QFont::Medium : QFont::Normal);
+    font.setWeight(kind == TreeView::Kind::Emphasis ? QFont::DemiBold : QFont::Normal);
     return font;
 }
 
@@ -446,6 +456,18 @@ QColor TreeView::marker(const QString& id) const
 {
     const auto it = m_nodes.constFind(id);
     return it != m_nodes.cend() ? it->marker : QColor();
+}
+
+void TreeView::setMarkerColumn(bool reserved)
+{
+    if (m_markerColumn == reserved) {
+        return;
+    }
+    m_markerColumn = reserved;
+    if (m_editor) {
+        layOutEditor();
+    }
+    viewport()->update();
 }
 
 void TreeView::setRowFilter(std::function<bool(const QString& id)> filter)
@@ -1394,23 +1416,46 @@ int TreeView::contentLeft(int row) const
     if (!entry) {
         return kRowPaddingLeft;
     }
-    int x = kRowPaddingLeft + entry->depth * indentStep();
-    if (m_branchesVisible) {
-        x += kChevron + kRowGap;
+    return leadOf(*entry).name;
+}
+
+TreeView::Lead TreeView::leadOf(const Node& entry) const
+{
+    Lead lead;
+    int x = kRowPaddingLeft + entry.depth * indentStep();
+    // A caption has no colour of its own and keeps no place for one: its
+    // name follows the chevron, as a section heading's does.
+    const bool column = m_markerColumn && entry.kind != Kind::Group;
+    if (column) {
+        if (m_branchesVisible) {
+            x += kChevron + kAfterChevron;
+        }
+        lead.marker = x;
+        x += kMarkerWidth + kAfterMarker;
+    } else {
+        if (m_branchesVisible) {
+            x += m_markerColumn ? kChevron + kAfterChevron : kChevron + kRowGap;
+        }
+        // Without a column a marker sits in the gap before the icon.
+        if (entry.marker.isValid() && !m_markerColumn) {
+            lead.marker = x - kRowGap / 2.0 - kMarkerWidth / 2.0;
+        }
     }
+    lead.icon = x;
     // The same two shapes paintEvent puts here, measured the same way: a file
     // type chip when the name has an extension worth naming, an icon
     // otherwise.
-    const QString fileType = fileTypeText(entry->label, entry->glyph);
+    const QString fileType = fileTypeText(entry.label, entry.glyph);
     if (!fileType.isEmpty()) {
         QFont typeFont = roleMonoFont(this, TypeRole::Mono);
         typeFont.setPixelSize(qMax(8, themeFor(this).type.xxs));
         const QFontMetrics typeMetrics(typeFont, viewport());
         x += qMax(20, typeMetrics.horizontalAdvance(fileType) + 6) + kRowGap;
-    } else if (entry->glyph != Glyph::None) {
-        x += kIcon + kRowGap;
+    } else if (entry.glyph != Glyph::None) {
+        x += kIcon + (m_markerColumn ? kAfterIcon : kRowGap);
     }
-    return x;
+    lead.name = x;
+    return lead;
 }
 
 void TreeView::beginRename(const QString& id)
@@ -1918,7 +1963,7 @@ void TreeView::paintEvent(QPaintEvent*)
             ink = withAlpha(ink, kDisabledOpacity);
         }
 
-        int x = kRowPaddingLeft + entry->depth * indentStep();
+        const Lead lead = leadOf(*entry);
 
         // The chevron, or the space it would take. A node with nothing
         // expandable about it still reserves it, or names at the same depth
@@ -1932,20 +1977,22 @@ void TreeView::paintEvent(QPaintEvent*)
                 painter.drawRoundedRect(QRectF(chevron), profile.radii.xs + 1,
                                         profile.radii.xs + 1);
             }
+            // NavList's twisty: an 11px glyph at stroke 2, so a chevron in a
+            // tree and one in a rail are the same mark.
             paintGlyph(&painter, Glyph::ChevronDown,
-                       QRectF(chevron).adjusted(3, 3, -3, -3),
-                       withAlpha(ink, 0.85), entry->expanded ? 0.0 : -90.0);
+                       QRectF(chevron).adjusted(1.5, 1.5, -1.5, -1.5),
+                       withAlpha(ink, 0.85), entry->expanded ? 0.0 : -90.0, 2.0, this);
         }
-        if(m_branchesVisible)x += kChevron + kRowGap;
-
-        // the colour marker: in the gap before the icon, at this row's indent
-        if (entry->marker.isValid()) {
-            const qreal barH = 16.0;
-            const QRectF bar(x - kRowGap / 2.0 - 1.5, box.center().y() - barH / 2.0, 3.0, barH);
+        // The colour marker, at this row's indent: its own column, or the gap
+        // before the icon.
+        if (entry->marker.isValid() && lead.marker >= 0) {
+            const QRectF bar(lead.marker, box.center().y() - kMarkerHeight / 2.0,
+                             kMarkerWidth, kMarkerHeight);
             painter.setPen(Qt::NoPen);
             painter.setBrush(entry->enabled ? entry->marker : withAlpha(entry->marker, kDisabledOpacity));
-            painter.drawRoundedRect(bar, 1.5, 1.5);
+            painter.drawRoundedRect(bar, kMarkerWidth / 2.0, kMarkerWidth / 2.0);
         }
+        int x = lead.icon;
 
         const QString fileType = fileTypeText(entry->label, entry->glyph);
         if (!fileType.isEmpty()) {
@@ -1993,8 +2040,8 @@ void TreeView::paintEvent(QPaintEvent*)
             paintGlyphFilled(&painter, entry->glyph,
                              QRectF(x, box.center().y() - kIcon / 2.0, kIcon, kIcon),
                              iconInk, this);
-            x += kIcon + kRowGap;
         }
+        x = lead.name;
 
         // The trailing zone, measured from the right so the name gets what is
         // left rather than the other way round.
@@ -2002,8 +2049,11 @@ void TreeView::paintEvent(QPaintEvent*)
 
         // The hover action takes the outermost slot. It is subtracted whether
         // or not it is drawn, so arriving with the pointer reveals a glyph
-        // and moves nothing.
-        if (entry->action != Glyph::None) {
+        // and moves nothing. With a marker column every row keeps the slot,
+        // action or not, so the counts of a sidebar stand in one column.
+        if (entry->action == Glyph::None && m_markerColumn) {
+            rightEdge = rowActionRect(row).left() - kRowGap;
+        } else if (entry->action != Glyph::None) {
             const QRect slot = rowActionRect(row);
             if (row == m_hovered) {
                 if (m_pressedAction == row) {

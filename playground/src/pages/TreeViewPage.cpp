@@ -84,6 +84,78 @@ void fillWorkspace(TreeView* tree)
     tree->setNodeEnabled(QStringLiteral("sys.b"), false);
 }
 
+// The Novu sidebar, as NovuAI, NovuSpace and NovuExplorer draw it: a section
+// heading, workspaces one step under it, categories one step under those.
+// Every row keeps a place for its colour, so the names of a level line up.
+// The colours are sample data - what a person picked for their workspaces.
+void fillSidebar(TreeView* tree)
+{
+    const QColor green(0x58, 0xB0, 0x9E);
+    const QColor orange(0xE0, 0xA0, 0x50);
+    const QColor lime(0xB9, 0xCC, 0x5A);
+
+    tree->setGuidesVisible(false);
+    tree->setMarkerColumn(true);
+
+    tree->addNode(QString(), QStringLiteral("sec"), QStringLiteral("Workspaces"),
+                  Glyph::None, TreeView::Kind::Group);
+    tree->setExpanded(QStringLiteral("sec"), true);
+    tree->setRowAction(QStringLiteral("sec"), Glyph::Plus, QStringLiteral("New workspace"));
+
+    const auto workspace = [tree](const QString& id, const QString& name, const QColor& colour,
+                                  bool open) {
+        tree->addNode(QStringLiteral("sec"), id, name, Glyph::Workspace,
+                      TreeView::Kind::Emphasis);
+        tree->setMarker(id, colour);
+        tree->setExpanded(id, open);
+        tree->setRowAction(id, Glyph::Plus, QStringLiteral("New category"));
+    };
+    const auto category = [tree](const QString& parent, const QString& id, const QString& name,
+                                 const QColor& colour, int count) {
+        tree->addNode(parent, id, name, Glyph::Layers);
+        tree->setMarker(id, colour);
+        tree->setCount(id, count);
+    };
+
+    workspace(QStringLiteral("gen"), QStringLiteral("General"), QColor(), true);
+    category(QStringLiteral("gen"), QStringLiteral("gen.home"), QStringLiteral("Home"), QColor(), 0);
+
+    workspace(QStringLiteral("novu"), QStringLiteral("Novu"), green, true);
+    for (const char* name : {"General", "NovuAI", "NovuSpace"}) {
+        const QString label = QString::fromLatin1(name);
+        category(QStringLiteral("novu"), QStringLiteral("novu.") + label, label, green, 0);
+    }
+    // A category with a colour of its own wears it; the rest wear the
+    // workspace's.
+    category(QStringLiteral("novu"), QStringLiteral("novu.hub"), QStringLiteral("NovuHub"), lime, 4);
+    category(QStringLiteral("novu"), QStringLiteral("novu.exp"), QStringLiteral("NovuExplorer"),
+             green, 3);
+    tree->setExpanded(QStringLiteral("novu.exp"), true);
+    // A subcategory is a folder: one level down, a different shape.
+    tree->addNode(QStringLiteral("novu.exp"), QStringLiteral("novu.exp.rel"),
+                  QStringLiteral("Releases"), Glyph::Folder);
+    tree->setMarker(QStringLiteral("novu.exp.rel"), green);
+    tree->addNode(QStringLiteral("novu.exp"), QStringLiteral("novu.exp.design"),
+                  QStringLiteral("Design"), Glyph::Folder);
+    tree->setMarker(QStringLiteral("novu.exp.design"), green);
+    // NovuAI's chats keep the chat bubble.
+    tree->addNode(QStringLiteral("novu.exp"), QStringLiteral("novu.exp.chat"),
+                  QStringLiteral("Sidebar review"), Glyph::Chat);
+    tree->setMarker(QStringLiteral("novu.exp.chat"), green);
+    for (const char* name : {"NovuVoice", "Houdini", "Design"}) {
+        const QString label = QString::fromLatin1(name);
+        category(QStringLiteral("novu"), QStringLiteral("novu.") + label, label, green, 0);
+    }
+    tree->setCount(QStringLiteral("novu"), 9);
+
+    workspace(QStringLiteral("cl"), QStringLiteral("Clients"), orange, false);
+    category(QStringLiteral("cl"), QStringLiteral("cl.es"), QStringLiteral("Esantirion"), orange, 2);
+    tree->setCount(QStringLiteral("cl"), 1);
+    tree->setCount(QStringLiteral("gen"), 1);
+
+    tree->setCurrentId(QStringLiteral("novu.exp"));
+}
+
 // ── SelectionBar ─────────────────────────────────────────────────────────
 
 QWidget* buildSelectionBar(const PreviewContext& ctx)
@@ -170,6 +242,31 @@ QWidget* build(const PreviewContext& ctx)
         column->addWidget(scenarioEmptyState(page, QStringLiteral("a structure")));
         column->addStretch(1);
         return page;
+    }
+
+    // ── the Novu sidebar ─────────────────────────────────────────────────
+    {
+        Card* card = exampleCard(page, QStringLiteral("The Novu sidebar"),
+                                 QStringLiteral("Workspaces under a heading, categories "
+                                                "under them - one tree."));
+        QVBoxLayout* body = card->body();
+
+        auto* tree = new TreeView(card);
+        tree->setObjectName(QStringLiteral("novuSidebarExample"));
+        fillSidebar(tree);
+        tree->setFixedSize(238, 420);
+
+        QHBoxLayout* row = exampleRow(body, card, QStringLiteral("Sidebar"));
+        row->addWidget(tree, 0, Qt::AlignTop);
+        row->addStretch(1);
+
+        note(body, card,
+             QStringLiteral("setMarkerColumn(true): every row keeps the colour bar's place, "
+                            "so names of one level line up whether or not they have a colour. "
+                            "A workspace is a hexagon, a category the layers, a subcategory a "
+                            "folder and a chat a bubble. Each level is one treeStep (14px) "
+                            "further in, the workspaces too: a sidebar is always a tree."));
+        column->addWidget(card);
     }
 
     // ── the tree ─────────────────────────────────────────────────────────

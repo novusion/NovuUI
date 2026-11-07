@@ -12,6 +12,13 @@ desktop UI. Everything here is additive; existing consumers link unchanged.
 
 ### Changed
 
+- **One Novu sidebar.** `TreeView::setMarkerColumn(true)` keeps every row's colour bar
+  in its own column (chevron, bar, hexagon or layers, name, with even air between what
+  is drawn) and every row's action slot, so names and counts line up. The tree step is
+  14 px (`controls.treeStep`, was 17) and tree icons are at 0.55 in every profile
+  (`controls.treeIconOpacity`, was NovuAI only). A workspace (`Kind::Emphasis`) name is
+  DemiBold in the muted ink. The chevron is NavList's: 11 px at stroke 2. The gallery's
+  TreeView page shows the sidebar NovuAI, NovuSpace and NovuExplorer share.
 - **One standard dropdown.** A closed `ComboBox` opens the approved `Popover` (the one
   `SelectButton` opens) instead of a `QListView`: one look, one row height, the same
   hover, checked mark and up/down placement for every standard dropdown. A searchable

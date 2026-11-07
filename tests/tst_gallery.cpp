@@ -2541,7 +2541,7 @@ void GalleryTest::metricTokensAreReadByTheComponentsThatDrawThem()
     // each carried a constant of their own instead.
     QWidget* surface = makeSurface(QStringLiteral("novuai"));
     const ThemeProfile& p = themeFor(surface);
-    QCOMPARE(p.controls.treeStep, 17);
+    QCOMPARE(p.controls.treeStep, 14);
     QCOMPARE(p.window.statusBarHeight, 26);
     QCOMPARE(p.controls.rowHeight, 26);
 

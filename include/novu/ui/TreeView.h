@@ -152,6 +152,14 @@ public:
     // colour takes it away.
     void setMarker(const QString& id, const QColor& color);
     QColor marker(const QString& id) const;
+    // A column for the markers: every row keeps the bar's place between its
+    // chevron and its icon, coloured or not, so the icons and names of one
+    // level stay in one column; and every row keeps the row action's slot,
+    // so the counts stand in one column too. The Novu sidebar look -
+    // workspaces and categories with colours. Off, a marker sits in the gap
+    // before the icon.
+    void setMarkerColumn(bool reserved);
+    bool hasMarkerColumn() const { return m_markerColumn; }
     // Rows the tree shows: a node the filter refuses is hidden with its
     // subtree - nothing is removed or moved, and a null filter shows all.
     // The host decides what passes (a colour filter passes the matches and
@@ -423,6 +431,17 @@ private:
     // caller stating there will be some once it has asked for them.
     static bool canExpand(const Node& entry);
 
+    // Where the parts of a row's lead sit: the colour bar, the icon (or file
+    // type chip) and the name. One answer for paint, hit tests and the inline
+    // editor, so they never disagree by a pixel.
+    struct Lead
+    {
+        double marker = -1;  // left edge of the bar; < 0 when there is none
+        int icon = 0;
+        int name = 0;
+    };
+    Lead leadOf(const Node& entry) const;
+
     void rebuildRows();
     void flatten(const QString& id, int depth);
     void updateScrollRange();
@@ -464,6 +483,7 @@ private:
     bool m_endingRename = false;
     bool m_compact = false;
     bool m_branchesVisible=true,m_guidesVisible=true;
+    bool m_markerColumn = false;
     int m_rowHeight=0;
 
     std::function<bool(const QString&)> m_selectAllFilter;
