@@ -559,12 +559,20 @@ void Disclosure::paintEvent(QPaintEvent*)
     if (!m_hint.isEmpty()) {
         const QFont font = hintFont(this);
         const QFontMetrics fm(font);
-        const int hintWidth = fm.horizontalAdvance(m_hint);
-        painter.setFont(font);
-        painter.setPen(profile.colors.textDisabled);
-        painter.drawText(QRect(rightEdge - hintWidth, 0, hintWidth, header.height()),
-                         Qt::AlignVCenter | Qt::AlignRight, m_hint);
-        rightEdge -= hintWidth + kInlineGap;
+        // The title comes first: the hint takes what is left beside it and
+        // ends in an ellipsis. A long summary used to keep its whole width and
+        // cut the title instead - "Adva…" beside "768 × 320 · 20 steps".
+        const int titleWidth = QFontMetrics(headerFont(this, m_variant)).horizontalAdvance(displayTitle(m_title, m_variant));
+        // a space's width of slack: elidedText cuts a title measured to the pixel
+        const int room = rightEdge - x - titleWidth - fm.horizontalAdvance(QLatin1Char(' ')) - kInlineGap;
+        const int hintWidth = qMin(fm.horizontalAdvance(m_hint), qMax(0, room));
+        if (hintWidth > fm.horizontalAdvance(QStringLiteral("…")) * 3) {
+            painter.setFont(font);
+            painter.setPen(profile.colors.textDisabled);
+            painter.drawText(QRect(rightEdge - hintWidth, 0, hintWidth, header.height()),
+                             Qt::AlignVCenter | Qt::AlignRight, fm.elidedText(m_hint, Qt::ElideRight, hintWidth));
+            rightEdge -= hintWidth + kInlineGap;
+        }
     }
 
     // ── the title ────────────────────────────────────────────────────────

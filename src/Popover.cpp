@@ -535,7 +535,13 @@ void Popover::placeControls()
         if (m_items.at(i).kind != Kind::Control || !control) {
             continue;
         }
-        const QRect box = itemRect(i).adjusted(kItemPaddingH, kItemPaddingV, -kItemPaddingH, -kItemPaddingV);
+        QRect box = itemRect(i).adjusted(kItemPaddingH, kItemPaddingV, -kItemPaddingH, -kItemPaddingV);
+        // A control taller than the whole band (a picker grid in a short
+        // window) is fitted to it - it scrolls itself - rather than hidden,
+        // which left an empty popup (2026-11-07).
+        const int bandBottom = height() - kPadding - kItemPaddingV;
+        if (box.top() >= kPadding - 1 && box.bottom() > bandBottom && box.height() > bandBottom - (kPadding + kItemPaddingV))
+            box.setBottom(qMax(box.top() + 1, bandBottom));
         control->setGeometry(box);
         control->setVisible(box.top() >= kPadding - 1 && box.bottom() <= height() - kPadding + 1);
     }
