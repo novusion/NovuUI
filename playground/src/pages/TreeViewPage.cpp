@@ -156,6 +156,50 @@ void fillSidebar(TreeView* tree)
     tree->setCurrentId(QStringLiteral("novu.exp"));
 }
 
+// The same sidebar as a NavList rail, NovuSpace's: setMarkerColumn(true)
+// makes it TreeView's tree to the pixel.
+void fillSidebarRail(NavList* nav)
+{
+    const QColor green(0x58, 0xB0, 0x9E);
+    const QColor orange(0xE0, 0xA0, 0x50);
+    const QColor lime(0xB9, 0xCC, 0x5A);
+
+    nav->setMarkerColumn(true);
+    nav->setFilledGlyphs(true);
+    nav->addSection(QStringLiteral("Workspaces"), QStringLiteral("sec"));
+    nav->setSectionCollapsible(QStringLiteral("sec"), true);
+    nav->setSectionAction(QStringLiteral("sec"), Glyph::Plus, QStringLiteral("New workspace"));
+
+    nav->addItem(QStringLiteral("gen"), QStringLiteral("General"), Glyph::Workspace);
+    nav->setCount(QStringLiteral("gen"), 1);
+    nav->setExpandable(QStringLiteral("gen"), true);
+    nav->addChild(QStringLiteral("gen.home"), QStringLiteral("Home"), Glyph::Layers);
+    nav->setCount(QStringLiteral("gen.home"), 0);
+    nav->setExpanded(QStringLiteral("gen"), true);
+
+    nav->addItem(QStringLiteral("novu"), QStringLiteral("Novu"), Glyph::Workspace);
+    nav->setMarker(QStringLiteral("novu"), green);
+    nav->setCount(QStringLiteral("novu"), 5);
+    nav->setExpandable(QStringLiteral("novu"), true);
+    for (const char* name : {"General", "NovuAI", "NovuHub", "NovuExplorer", "Houdini"}) {
+        const QString label = QString::fromLatin1(name);
+        const QString key = QStringLiteral("novu.") + label;
+        nav->addChild(key, label, Glyph::Layers);
+        nav->setMarker(key, label == QLatin1String("NovuHub") ? lime : green);
+        nav->setCount(key, 0);
+    }
+    nav->setExpanded(QStringLiteral("novu"), true);
+
+    nav->addItem(QStringLiteral("cl"), QStringLiteral("Clients"), Glyph::Workspace);
+    nav->setMarker(QStringLiteral("cl"), orange);
+    nav->setCount(QStringLiteral("cl"), 1);
+    nav->setExpandable(QStringLiteral("cl"), true);
+    nav->addChild(QStringLiteral("cl.es"), QStringLiteral("Esantirion"), Glyph::Layers);
+    nav->setMarker(QStringLiteral("cl.es"), orange);
+
+    nav->setCurrentKey(QStringLiteral("novu.NovuExplorer"));
+}
+
 // ── SelectionBar ─────────────────────────────────────────────────────────
 
 QWidget* buildSelectionBar(const PreviewContext& ctx)
@@ -256,8 +300,15 @@ QWidget* build(const PreviewContext& ctx)
         fillSidebar(tree);
         tree->setFixedSize(238, 420);
 
+        auto* rail = new NavList(card);
+        rail->setObjectName(QStringLiteral("novuSidebarRailExample"));
+        fillSidebarRail(rail);
+        rail->setFixedWidth(238);
+
         QHBoxLayout* row = exampleRow(body, card, QStringLiteral("Sidebar"));
         row->addWidget(tree, 0, Qt::AlignTop);
+        row->addSpacing(24);
+        row->addWidget(rail, 0, Qt::AlignTop);
         row->addStretch(1);
 
         note(body, card,
@@ -265,7 +316,9 @@ QWidget* build(const PreviewContext& ctx)
                             "so names of one level line up whether or not they have a colour. "
                             "A workspace is a hexagon, a category the layers, a subcategory a "
                             "folder and a chat a bubble. Each level is one treeStep (14px) "
-                            "further in, the workspaces too: a sidebar is always a tree."));
+                            "further in, the workspaces too: a sidebar is always a tree. "
+                            "Right: the same sidebar as a NavList rail (NovuSpace's) with "
+                            "NavList::setMarkerColumn(true) - the same tree to the pixel."));
         column->addWidget(card);
     }
 

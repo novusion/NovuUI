@@ -19,6 +19,9 @@ desktop UI. Everything here is additive; existing consumers link unchanged.
   (`controls.treeIconOpacity`, was NovuAI only). A workspace (`Kind::Emphasis`) name is
   DemiBold in the muted ink. The chevron is NavList's: 11 px at stroke 2. The gallery's
   TreeView page shows the sidebar NovuAI, NovuSpace and NovuExplorer share.
+  `NavList::setMarkerColumn(true)` draws the same tree in a rail (NovuSpace): caption as
+  the root, `treeStep` per level, TreeView's chevron, bar, glyph, name, inks, count chip
+  and 28 px row; `NavList::setMarker()` gives a row its colour. Off, a rail is unchanged.
 - **One standard dropdown.** A closed `ComboBox` opens the approved `Popover` (the one
   `SelectButton` opens) instead of a `QListView`: one look, one row height, the same
   hover, checked mark and up/down placement for every standard dropdown. A searchable

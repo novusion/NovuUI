@@ -145,6 +145,18 @@ public:
     // axis instead of every sidebar item being shifted globally.
     void setIndentOffset(const QString& key, int pixels);
     void setTreeGuides(bool enabled);
+    // A colour marker on a row: a 3px bar, 16px tall, before its glyph -
+    // TreeView's marker. An invalid colour takes it away.
+    void setMarker(const QString& key, const QColor& color);
+    QColor marker(const QString& key) const;
+    // The Novu sidebar, as TreeView::setMarkerColumn() draws it: a caption is
+    // the root and each level hangs one treeStep under it; a row is chevron,
+    // colour bar (its place kept, coloured or not), glyph, name; a workspace's
+    // name is DemiBold; glyphs at the profile's treeIconOpacity; counts are
+    // TreeView's chips and stand in one column. NovuAI, NovuSpace and
+    // NovuExplorer draw this one sidebar. Off, the rail is what it was.
+    void setMarkerColumn(bool reserved);
+    bool hasMarkerColumn() const { return m_markerColumn; }
     // Captions that head what is under them rather than label it: larger,
     // semibold, in the primary ink, with more room and a hairline above. For a
     // rail long enough that a quiet caption gets lost among its rows. Off by
@@ -341,7 +353,21 @@ private:
         // Sections only.
         Glyph action = Glyph::None;
         QString actionTip;
+        QColor marker;
     };
+
+    // Where the parts of a row's lead sit with a marker column - one answer
+    // for paint, hit tests, size hints and the inline editor.
+    struct Lead
+    {
+        int twisty = 0;
+        int bar = 0;
+        int glyph = 0;
+        int status = -1;   // a leading status dot, when the list reserves one
+        int name = 0;
+    };
+    Lead leadOf(const Row& row) const;
+    QFont fontFor(const Row& row) const;
 
     // Inline editing. One editor for the whole list - only one row is ever
     // being renamed - positioned over the row's label band.
@@ -433,6 +459,7 @@ private:
     bool m_pressedAction = false;
     bool m_hoveredAction = false;
     bool m_treeGuides = false;
+    bool m_markerColumn = false;
     bool m_prominentSections = false;
     StatusPlacement m_statusPlacement = StatusPlacement::Leading;
 };

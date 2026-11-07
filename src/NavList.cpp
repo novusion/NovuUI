@@ -82,6 +82,21 @@ constexpr int kChildMarker = 6;
 // `.navbtn .wsdot { 7px }`.
 constexpr int kStatusDot = 7;
 
+// With a marker column the list is TreeView's tree, to the pixel - these are
+// TreeView's numbers (see TreeView.cpp), so the two cannot drift apart.
+constexpr int kTreeLeft = 4;
+constexpr int kTreeChevron = 14;
+constexpr int kTreeAfterChevron = 1;
+constexpr int kTreeMarkerWidth = 3;
+constexpr double kTreeMarkerHeight = 16.0;
+constexpr int kTreeAfterMarker = 4;
+constexpr int kTreeIconSide = 14;
+constexpr int kTreeAfterIcon = 3;
+constexpr int kTreeRowHeight = 28;
+constexpr int kTreePaddingRight = 6;
+constexpr int kTreeTrailGap = 6;
+constexpr int kTreeCountPaddingH = 6;
+
 // `.navbtn .cnt { padding:1px 7px }`.
 constexpr int kCountPaddingH = 7;
 constexpr int kCountPaddingV = 1;
@@ -129,6 +144,17 @@ QFont sectionFont(const QWidget* context, bool prominent)
         font.setPixelSize(font.pixelSize() + kProminentCaptionGrow);
         font.setWeight(QFont::DemiBold);
     }
+    return font;
+}
+
+// A caption with a marker column: TreeView's group caption - the head face,
+// DemiBold at `sm`, a little tracked - so the heading of the one sidebar is
+// one heading in every product.
+QFont treeCaptionFont(const QWidget* context)
+{
+    QFont font = roleFont(context, TypeRole::CardTitle, false, QFont::DemiBold);
+    font.setPixelSize(qMax(8, themeFor(context).type.sm));
+    font.setLetterSpacing(QFont::PercentageSpacing, 105.5);
     return font;
 }
 
@@ -490,6 +516,64 @@ void NavList::setTreeGuides(bool enabled)
     update();
 }
 
+void NavList::setMarker(const QString& key, const QColor& color)
+{
+    Row* r = row(key);
+    if (!r || r->marker == color || (!r->marker.isValid() && !color.isValid())) {
+        return;
+    }
+    r->marker = color;
+    update();
+}
+
+QColor NavList::marker(const QString& key) const
+{
+    const Row* r = row(key);
+    return r ? r->marker : QColor();
+}
+
+void NavList::setMarkerColumn(bool reserved)
+{
+    if (m_markerColumn == reserved) {
+        return;
+    }
+    m_markerColumn = reserved;
+    updateGeometry();
+    if (isInlineEditing()) {
+        placeInlineEditor();
+    }
+    update();
+}
+
+NavList::Lead NavList::leadOf(const Row& row) const
+{
+    Lead lead;
+    lead.twisty = rowIndent(row);
+    lead.bar = lead.twisty + kTreeChevron + kTreeAfterChevron;
+    lead.glyph = lead.bar + kTreeMarkerWidth + kTreeAfterMarker;
+    int x = lead.glyph + kTreeIconSide + kTreeAfterIcon;
+    if (m_statusPlacement == StatusPlacement::Leading && leadReserve().status) {
+        lead.status = x;
+        x += kStatusDot + kTreeAfterIcon;
+    }
+    lead.name = x;
+    return lead;
+}
+
+QFont NavList::fontFor(const Row& row) const
+{
+    if (!m_markerColumn) {
+        return rowFont(this, row.child);
+    }
+    // TreeView's names: the body face at `sm`; a workspace DemiBold, the
+    // rest Normal, both in the row's own muted ink.
+    const ThemeProfile& profile = themeFor(this);
+    QFont font = roleFont(this, TypeRole::Body);
+    font.setPixelSize(profile.type.sm);
+    font.setWeight(row.glyph == Glyph::Workspace ? QFont::DemiBold : QFont::Normal);
+    return font;
+}
+
 void NavList::setProminentSections(bool prominent)
 {
     if (m_prominentSections == prominent) {
@@ -568,7 +652,9 @@ QRect NavList::sectionActionRect(int index) const
     const QRect box = rowRect(index);
     const int top = box.top() + sectionTop(index)
         + (box.height() - sectionTop(index) - sectionBottom() - kSectionActionSide) / 2;
-    return QRect(width() - kRowPaddingH - kSectionActionSide, top,
+    // With a marker column, in the slot every row keeps for it.
+    const int right = m_markerColumn ? kTreePaddingRight : kRowPaddingH;
+    return QRect(width() - right - kSectionActionSide, top,
                  kSectionActionSide, kSectionActionSide);
 }
 
@@ -722,6 +808,10 @@ void NavList::setRowVisible(const QString& key, bool visible)
 
 int NavList::rowIndent(const Row& row) const
 {
+    // A caption is level 0, so a tree's rows start one step under it.
+    if (m_markerColumn) {
+        return kTreeLeft + row.depth * themeFor(this).controls.treeStep;
+    }
     return kRowPaddingH + row.depth * kIndentStep + row.indentOffset;
 }
 
@@ -742,6 +832,9 @@ NavList::LeadReserve NavList::leadReserve() const
 
 int NavList::leadingZoneWidth(const Row& row) const
 {
+    if (m_markerColumn && !m_collapsed) {
+        return leadOf(row).name;
+    }
     const LeadReserve reserve = leadReserve();
     int left = rowIndent(row);
     if (reserve.twisty) {
@@ -758,6 +851,20 @@ int NavList::leadingZoneWidth(const Row& row) const
 
 int NavList::trailingZoneWidth(const Row& row) const
 {
+    if (m_markerColumn) {
+        // The caption's action slot is kept on every row, so the counts
+        // stand in one column under it.
+        int right = kTreePaddingRight + kSectionActionSide + kTreeTrailGap;
+        if (row.count >= 0 || !row.badge.isEmpty()) {
+            const QString text = row.badge.isEmpty() ? QString::number(row.count) : row.badge;
+            right += QFontMetrics(countFont(this)).horizontalAdvance(text)
+                + 2 * kTreeCountPaddingH + kTreeTrailGap;
+        }
+        if (row.hasStatus && m_statusPlacement == StatusPlacement::Trailing) {
+            right += kStatusDot + kTreeTrailGap;
+        }
+        return right;
+    }
     int right = kRowPaddingH;
     if (row.count >= 0 || !row.badge.isEmpty()) {
         const QString text = row.badge.isEmpty() ? QString::number(row.count) : row.badge;
@@ -801,9 +908,10 @@ int NavList::rowHeight(const Row& row) const
     // floor, so a product with a larger type scale cannot be clipped by a
     // smaller token.
     const ThemeProfile& profile = themeFor(this);
-    const QFontMetrics fm(rowFont(this, row.child));
-    return qMax(profile.controls.navRowHeight,
-                qMax(fm.height(), kGlyphSide) + 2 * kRowPaddingV);
+    const QFontMetrics fm(fontFor(row));
+    // TreeView's row with a marker column, so the two trees are one height.
+    const int floor = m_markerColumn ? kTreeRowHeight : profile.controls.navRowHeight;
+    return qMax(floor, qMax(fm.height(), kGlyphSide) + 2 * kRowPaddingV);
 }
 
 int NavList::sectionTop(int index) const
@@ -855,15 +963,16 @@ QRect NavList::twistyRect(int index) const
     }
     const QRect box = rowRect(index);
     const int left = rowIndent(row);
+    // TreeView's chevron box with a marker column.
+    const int side = m_markerColumn ? kTreeChevron : kTwistySide;
     if (row.section) {
         // Centred on the caption rather than on the whole block: a section is
         // mostly the margin above it.
         const int top = box.top() + sectionTop(index)
-            + (box.height() - sectionTop(index) - sectionBottom() - kTwistySide) / 2;
-        return QRect(left, top, kTwistySide, kTwistySide);
+            + (box.height() - sectionTop(index) - sectionBottom() - side) / 2;
+        return QRect(left, top, side, side);
     }
-    return QRect(left, box.top() + (box.height() - kTwistySide) / 2,
-                 kTwistySide, kTwistySide);
+    return QRect(left, box.top() + (box.height() - side) / 2, side, side);
 }
 
 int NavList::rowMinimumWidth(int index) const
@@ -934,6 +1043,13 @@ StyleSpec NavList::rowStyleSpec(int index) const
     spec.checkedForeground =
         token(inkRole(themeFor(this).controls.navCurrentInk));
     spec.disabledForeground = token(ColorRole::TextDisabled, kDisabledOpacity);
+    if (m_markerColumn) {
+        // TreeView's inks: the muted name, primary under the pointer and on
+        // the current row - one sidebar, one set of inks.
+        spec.foreground = token(ColorRole::TextSecondary);
+        spec.hoverForeground = token(ColorRole::TextPrimary);
+        spec.checkedForeground = token(ColorRole::TextPrimary);
+    }
     return spec;
 }
 
@@ -961,7 +1077,7 @@ QSize NavList::sizeHint() const
         // its label is drawn cannot disagree - they did, and the row that
         // reserved the least was the one that clipped.
         int own = leadingZoneWidth(row) + kRowPaddingH + kLeadGap
-            + QFontMetrics(rowFont(this, row.child)).horizontalAdvance(row.label);
+            + QFontMetrics(fontFor(row)).horizontalAdvance(row.label);
         if (row.hasStatus && m_statusPlacement == StatusPlacement::Trailing) {
             own += kStatusDot + kRowGap;
         }
@@ -1267,22 +1383,32 @@ void NavList::paintEvent(QPaintEvent*)
                 painter.drawRoundedRect(QRectF(plate), profile.radii.small,
                                         profile.radii.small);
             }
-            painter.setFont(sections);
+            painter.setFont(m_markerColumn ? treeCaptionFont(this) : sections);
             const QColor captionInk = m_prominentSections
                 ? profile.colors.textPrimary
                 : (captionHot && row.expandable ? profile.colors.textSecondary
                                                 : profile.colors.textDisabled);
             painter.setPen(captionInk);
-            int captionLeft = kRowPaddingH;
+            int captionLeft = m_markerColumn ? rowIndent(row) : kRowPaddingH;
             if (row.expandable) {
                 const QRect twisty = twistyRect(index);
-                // `.sb-bhead .cv svg{width:11px;height:11px;stroke-width:2.2}`.
-                paintGlyph(&painter, Glyph::ChevronDown,
-                           centredSquare(twisty, kCaptionGlyph),
-                           m_prominentSections ? profile.colors.textSecondary
-                                               : profile.colors.textDisabled,
-                           row.expanded ? 0.0 : -90.0, kCaptionStroke);
-                captionLeft = twisty.right() + 6;
+                if (m_markerColumn) {
+                    // The rows' chevron, as TreeView draws its caption's: the
+                    // heading is the root of the same tree.
+                    paintGlyph(&painter, Glyph::ChevronDown,
+                               centredSquare(twisty, kTwistyGlyph),
+                               withAlpha(profile.colors.textDisabled, 0.85),
+                               row.expanded ? 0.0 : -90.0, kTwistyStroke);
+                    captionLeft = twisty.left() + kTreeChevron + kTreeAfterChevron;
+                } else {
+                    // `.sb-bhead .cv svg{width:11px;height:11px;stroke-width:2.2}`.
+                    paintGlyph(&painter, Glyph::ChevronDown,
+                               centredSquare(twisty, kCaptionGlyph),
+                               m_prominentSections ? profile.colors.textSecondary
+                                                   : profile.colors.textDisabled,
+                               row.expanded ? 0.0 : -90.0, kCaptionStroke);
+                    captionLeft = twisty.right() + 6;
+                }
             }
             if (row.action != Glyph::None) {
                 const QRect act = sectionActionRect(index);
@@ -1366,11 +1492,75 @@ void NavList::paintEvent(QPaintEvent*)
             ink = withAlpha(ink, kDisabledOpacity);
         }
 
+        // One drawing, either side of the row. `.wsdot.archived` is an
+        // outline rather than a fill: an archived workspace is present
+        // without being live, and a filled grey dot says "idle", which is a
+        // different thing.
+        const auto paintStatus = [&](double x) {
+            const QColor hue = row.status == StatusDot::Tone::Accent
+                ? profile.colors.accentLight
+                : profile.semantic.role(roleFor(row.status)).text;
+            const QRectF dot(x, box.center().y() - kStatusDot / 2.0,
+                             kStatusDot, kStatusDot);
+            if (row.status == StatusDot::Tone::Neutral) {
+                painter.setPen(QPen(profile.colors.border, 1));
+                painter.setBrush(Qt::NoBrush);
+            } else {
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(hue);
+            }
+            painter.drawEllipse(dot);
+        };
+
         // ── the leading zone ─────────────────────────────────────────────
         int left = rowIndent(row);
         if (m_collapsed) {
             left = (width() - kGlyphSide) / 2;
         }
+
+        if (m_markerColumn && !m_collapsed) {
+            // TreeView's lead: chevron, the bar's column, glyph, name.
+            const Lead lead = leadOf(row);
+            if (row.expandable) {
+                const QRect twisty = twistyRect(index);
+                if (m_hoveredTwisty && index == m_hovered) {
+                    painter.setPen(Qt::NoPen);
+                    painter.setBrush(withAlpha(profile.colors.textSecondary, 0.16));
+                    painter.drawRoundedRect(QRectF(twisty), profile.radii.xs + 1,
+                                            profile.radii.xs + 1);
+                }
+                paintGlyph(&painter, Glyph::ChevronDown, centredSquare(twisty, kTwistyGlyph),
+                           withAlpha(ink, 0.85), row.expanded ? 0.0 : -90.0, kTwistyStroke);
+            }
+            if (row.marker.isValid()) {
+                const QRectF bar(lead.bar, box.center().y() - kTreeMarkerHeight / 2.0,
+                                 kTreeMarkerWidth, kTreeMarkerHeight);
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(row.enabled ? row.marker
+                                             : withAlpha(row.marker, kDisabledOpacity));
+                painter.drawRoundedRect(bar, kTreeMarkerWidth / 2.0, kTreeMarkerWidth / 2.0);
+            }
+            if (row.glyph != Glyph::None) {
+                QColor glyphInk = ink;
+                if (current && m_accentCurrentGlyph) {
+                    glyphInk = profile.colors.accent;
+                } else if (row.enabled && profile.controls.treeIconOpacity < 1.0) {
+                    glyphInk = withAlpha(ink, profile.controls.treeIconOpacity);
+                }
+                const QRectF iconBox(lead.glyph, box.center().y() - kTreeIconSide / 2.0,
+                                     kTreeIconSide, kTreeIconSide);
+                if (m_filledGlyphs
+                    && (glyphFillsCleanly(row.glyph) || glyphFillsAsSilhouette(row.glyph))) {
+                    paintGlyphFilled(&painter, row.glyph, iconBox, glyphInk, this);
+                } else {
+                    paintGlyph(&painter, row.glyph, iconBox, glyphInk);
+                }
+            }
+            if (row.hasStatus && lead.status >= 0) {
+                paintStatus(lead.status);
+            }
+            left = lead.name;
+        } else {
 
         if (row.expandable && !m_collapsed) {
             const QRect twisty = twistyRect(index);
@@ -1490,26 +1680,6 @@ void NavList::paintEvent(QPaintEvent*)
             left += kGlyphSide + kLeadGap;
         }
 
-        // One drawing, either side of the row. `.wsdot.archived` is an
-        // outline rather than a fill: an archived workspace is present
-        // without being live, and a filled grey dot says "idle", which is a
-        // different thing.
-        const auto paintStatus = [&](double x) {
-            const QColor hue = row.status == StatusDot::Tone::Accent
-                ? profile.colors.accentLight
-                : profile.semantic.role(roleFor(row.status)).text;
-            const QRectF dot(x, box.center().y() - kStatusDot / 2.0,
-                             kStatusDot, kStatusDot);
-            if (row.status == StatusDot::Tone::Neutral) {
-                painter.setPen(QPen(profile.colors.border, 1));
-                painter.setBrush(Qt::NoBrush);
-            } else {
-                painter.setPen(Qt::NoPen);
-                painter.setBrush(hue);
-            }
-            painter.drawEllipse(dot);
-        };
-
         if (row.hasStatus && (m_statusPlacement == StatusPlacement::Leading
                               || m_collapsed)) {
             paintStatus(left);
@@ -1520,26 +1690,32 @@ void NavList::paintEvent(QPaintEvent*)
         if (reserve.status && !m_collapsed) {
             left += kStatusDot + kLeadGap;
         }
+        }   // the rail's own lead, without a marker column
 
         if (m_collapsed) {
             continue;   // no label, no count - the design hides both
         }
 
         // ── the trailing zone ────────────────────────────────────────────
-        int rightEdge = width() - kRowPaddingH;
+        // With a marker column every row keeps the caption action's slot, so
+        // the counts stand in one column under it.
+        int rightEdge = m_markerColumn
+            ? width() - kTreePaddingRight - kSectionActionSide - kTreeTrailGap
+            : width() - kRowPaddingH;
         // A container that honours minimumSizeHint() never reaches this, but
         // one forced narrower anyway - a fixed width set below the row's own
         // floor, a splitter mid-drag - must not draw a badge over the glyph
         // it would otherwise land on. Losing the badge for one frame is
         // correct; painting it on top of something else never is.
         const bool badgeFits = (row.count >= 0 || !row.badge.isEmpty())
-            && rightEdge - trailingZoneWidth(row) + kRowPaddingH >= left;
+            && width() - trailingZoneWidth(row) >= left;
         if (badgeFits) {
             // A word says what a number cannot, so it wins where both are set.
             const QString text = row.badge.isEmpty() ? QString::number(row.count)
                                                      : row.badge;
             const int pillWidth = countMetrics.horizontalAdvance(text)
-                + (m_plainCounts ? 0 : 2 * kCountPaddingH);
+                + (m_markerColumn ? 2 * kTreeCountPaddingH
+                                  : (m_plainCounts ? 0 : 2 * kCountPaddingH));
             const int pillHeight = countMetrics.height() + 2 * kCountPaddingV;
             const QRectF pill(rightEdge - pillWidth, box.center().y() - pillHeight / 2.0,
                               pillWidth, pillHeight);
@@ -1556,6 +1732,12 @@ void NavList::paintEvent(QPaintEvent*)
                                        : profile.colors.border;
             QColor pillFill = filled ? profile.colors.surfaceHover
                                      : profile.colors.windowBg;
+            if (m_markerColumn) {
+                // TreeView's count: a filled chip, no outline, the quiet ink.
+                pillInk = profile.colors.textDisabled;
+                pillBorder = Qt::transparent;
+                pillFill = profile.colors.panelBgAlt;
+            }
             switch (row.countTone) {
             case CountTone::Alert:
                 pillInk = profile.semantic.warning.text;
@@ -1582,8 +1764,8 @@ void NavList::paintEvent(QPaintEvent*)
                 pillBorder = withAlpha(pillBorder, kDisabledOpacity);
             }
 
-            if (!m_plainCounts) {
-                painter.setPen(QPen(pillBorder, 1));
+            if (!m_plainCounts || m_markerColumn) {
+                painter.setPen(pillBorder.alpha() > 0 ? QPen(pillBorder, 1) : QPen(Qt::NoPen));
                 painter.setBrush(pillFill);
                 painter.drawRoundedRect(pill, pillHeight / 2.0, pillHeight / 2.0);
             }
@@ -1599,7 +1781,7 @@ void NavList::paintEvent(QPaintEvent*)
             rightEdge -= kStatusDot + kRowGap;
         }
 
-        const QFont font = rowFont(this, row.child);
+        const QFont font = fontFor(row);
         const QFontMetrics fm(font);
         painter.setFont(font);
         painter.setPen(ink);
