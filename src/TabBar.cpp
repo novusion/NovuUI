@@ -875,7 +875,9 @@ bool TabBar::handleContextMenu(QContextMenuEvent* event)
         return false;
     }
     event->accept();
-    emit contextMenuRequested(m_tabs.at(index).key, global);
+    // A copy: the menu can close the tab while the slot still holds the key.
+    const QString key = m_tabs.at(index).key;
+    emit contextMenuRequested(key, global);
     return true;
 }
 
@@ -1036,7 +1038,8 @@ void TabBar::mousePressEvent(QMouseEvent* event)
     if (event->button() == Qt::MiddleButton) {
         const int index = indexAt(position);
         if (index >= 0 && m_tabs.at(index).closable) {
-            emit closeRequested(m_tabs.at(index).key);
+            const QString key = m_tabs.at(index).key;
+            emit closeRequested(key);
         }
         return;
     }
@@ -1217,7 +1220,8 @@ void TabBar::mouseReleaseEvent(QMouseEvent* event)
         const int pressedAudio = std::exchange(extras->pressedAudio, -1);
         if (pressedAudio >= 0) {
             if (indexAt(position) == pressedAudio && audioRect(pressedAudio).contains(position)) {
-                emit audioToggleRequested(m_tabs.at(pressedAudio).key);
+                const QString key = m_tabs.at(pressedAudio).key;
+                emit audioToggleRequested(key);
             }
             update();
             return;
@@ -1247,7 +1251,10 @@ void TabBar::mouseReleaseEvent(QMouseEvent* event)
         // The bar does not remove the tab: a document with unsaved changes has
         // to be able to ask first, and a bar that had already closed it would
         // be asking about something gone.
-        emit closeRequested(m_tabs.at(pressed).key);
+        // The key goes out as a copy: a slot that removes the tab destroys
+        // the string a reference into m_tabs would still point at.
+        const QString key = m_tabs.at(pressed).key;
+        emit closeRequested(key);
     } else {
         setCurrentIndex(pressed);
     }
@@ -1283,7 +1290,8 @@ void TabBar::keyPressEvent(QKeyEvent* event)
     case Qt::Key_W:
         if (event->modifiers().testFlag(Qt::ControlModifier) && m_current >= 0
             && m_tabs.at(m_current).closable) {
-            emit closeRequested(m_tabs.at(m_current).key);
+            const QString key = m_tabs.at(m_current).key;
+            emit closeRequested(key);
             return;
         }
         break;

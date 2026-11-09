@@ -10,6 +10,8 @@
 //   scroll - so a drag still reorders, and reports the move.
 //   A speaker mark is per tab, travels with a reorder, takes room only while
 //   it is shown, and pressing it asks for a toggle.
+//   A close request's key outlives the tab: the owner removes the tab first
+//   and goes on using the key it was given.
 
 #include "novu/ui/TabBar.h"
 
@@ -19,6 +21,8 @@
 #include <QSignalSpy>
 #include <QTest>
 #include <QWheelEvent>
+
+#include <functional>
 
 using namespace novu::ui;
 
@@ -280,6 +284,43 @@ private slots:
         QVERIFY(bar.indexOfKey(QStringLiteral("t0")) > 0);
         QCOMPARE(bar.color(QStringLiteral("t0")), QColor(QStringLiteral("#43b374")));
         QCOMPARE(bar.audio(QStringLiteral("t0")), TabBar::Audio::Playing);
+    }
+
+    void aClosedTabsKeyOutlivesTheTab()
+    {
+        // The browser strip removes the tab, then closes its page by the key.
+        // A key that referred into the bar named the neighbour after the
+        // removal, or freed memory for the first and the last tab.
+        const auto closeEach = [](const std::function<void(TabBar&, int)>& gesture) {
+            QStringList closed;
+            for (int index = 0; index < 3; ++index) {
+                TabBar bar;
+                bar.resize(900, 39);
+                populate(bar, 3);
+                bar.show();
+                bar.setCurrentKey(bar.keyAt(index));
+                connect(&bar, &TabBar::closeRequested, &bar, [&bar, &closed](const QString& key) {
+                    bar.removeTab(key);
+                    closed << key;
+                });
+                gesture(bar, index);
+            }
+            return closed;
+        };
+        const QStringList all{QStringLiteral("t0"), QStringLiteral("t1"), QStringLiteral("t2")};
+
+        QCOMPARE(closeEach([](TabBar& bar, int index) {
+                     QTest::mouseClick(&bar, Qt::MiddleButton, Qt::NoModifier,
+                                       bar.tabRect(index).center());
+                 }), all);
+        QCOMPARE(closeEach([](TabBar& bar, int index) {
+                     QTest::mouseClick(&bar, Qt::LeftButton, Qt::NoModifier,
+                                       bar.closeRect(index).center());
+                 }), all);
+        QCOMPARE(closeEach([](TabBar& bar, int) {
+                     bar.setFocus();
+                     QTest::keyClick(&bar, Qt::Key_W, Qt::ControlModifier);
+                 }), all);
     }
 };
 
