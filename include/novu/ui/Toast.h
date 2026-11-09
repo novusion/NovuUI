@@ -92,6 +92,8 @@ public:
     ResolvedStyle resolvedStyle() const;
 
     QSize sizeHint() const override;
+    //! The width a long message wraps at (the window's, when narrower).
+    int messageWidthLimit() const;
     QSize minimumSizeHint() const override { return sizeHint(); }
 
 signals:

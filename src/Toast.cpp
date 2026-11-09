@@ -43,6 +43,9 @@ constexpr int kEntryMs = 220;
 // thing and not one a toast should turn into by accident.
 constexpr int kMaxVisible = 3;
 constexpr int kStackGap = 6;
+constexpr int kMaxMessageWidth = 560;   // a long message wraps here
+constexpr int kHostMargin = 16;         // from the window's edges
+constexpr int kWrappedRadius = 16;
 
 Glyph glyphFor(Toast::Tone tone)
 {
@@ -337,10 +340,26 @@ QRect Toast::actionRect() const
                  actionWidth, height());
 }
 
+// What the message may take across: a long or multi-line message wraps at
+// this width (or at the window's, when that is narrower) and the toast grows
+// downwards - it used to stay one line high and cut the message off.
+int Toast::messageWidthLimit() const
+{
+    int chrome = 2 * kPaddingH;
+    if (glyphFor(m_tone) != Glyph::None) chrome += kGlyph + kGap;
+    if (!m_actionText.isEmpty())
+        chrome += kGap + QFontMetrics(actionFont(this)).horizontalAdvance(m_actionText) + 2 * kActionPaddingH;
+    int limit = kMaxMessageWidth;
+    if (parentWidget() && parentWidget()->width() > 0)
+        limit = qMin(limit, parentWidget()->width() - 2 * kHostMargin - chrome);
+    return qMax(120, limit);
+}
+
 QSize Toast::sizeHint() const
 {
     const QFontMetrics fm(messageFont(this));
-    int width = 2 * kPaddingH + fm.horizontalAdvance(m_message);
+    const QRect text = fm.boundingRect(QRect(0, 0, messageWidthLimit(), 100000), Qt::TextWordWrap, m_message);
+    int width = 2 * kPaddingH + text.width();
     if (glyphFor(m_tone) != Glyph::None) {
         width += kGlyph + kGap;
     }
@@ -348,7 +367,7 @@ QSize Toast::sizeHint() const
         width += kGap + QFontMetrics(actionFont(this)).horizontalAdvance(m_actionText)
             + 2 * kActionPaddingH;
     }
-    return QSize(width, qMax(kGlyph, fm.height()) + 2 * kPaddingV);
+    return QSize(width, qMax(kGlyph, text.height()) + 2 * kPaddingV);
 }
 
 void Toast::enterEvent(QEnterEvent* event)
@@ -449,7 +468,8 @@ void Toast::paintEvent(QPaintEvent*)
                                                 style.borderWidth / 2.0,
                                                 -style.borderWidth / 2.0,
                                                 -style.borderWidth / 2.0);
-    const double radius = pill.height() / 2.0;
+    // a pill while it is one line; a rounded card once it wraps
+    const double radius = qMin(pill.height() / 2.0, double(kWrappedRadius));
     painter.setPen(QPen(style.border, style.borderWidth));
     painter.setBrush(style.background);
     painter.drawRoundedRect(pill, radius, radius);
@@ -460,8 +480,10 @@ void Toast::paintEvent(QPaintEvent*)
         const QColor ink = m_tone == Tone::Accent
             ? profile.colors.accentLight
             : profile.semantic.role(roleFor(m_tone)).text;
+        // beside the first line of the message
+        const int firstLine = QFontMetrics(messageFont(this)).height();
         paintGlyph(&painter, glyph,
-                   QRectF(x, (height() - kGlyph) / 2.0, kGlyph, kGlyph), ink);
+                   QRectF(x, kPaddingV + (firstLine - kGlyph) / 2.0, kGlyph, kGlyph), ink);
         x += kGlyph + kGap;
     }
 
@@ -470,8 +492,8 @@ void Toast::paintEvent(QPaintEvent*)
 
     painter.setFont(messageFont(this));
     painter.setPen(profile.colors.textSecondary);
-    const QRect text(x, 0, qMax(0, rightEdge - x), height());
-    painter.drawText(text, Qt::AlignLeft | Qt::AlignVCenter, m_message);
+    const QRect text(x, kPaddingV, qMax(0, rightEdge - x), height() - 2 * kPaddingV);
+    painter.drawText(text, Qt::AlignLeft | Qt::AlignVCenter | Qt::TextWordWrap, m_message);
 
     if (action.isNull()) {
         return;
